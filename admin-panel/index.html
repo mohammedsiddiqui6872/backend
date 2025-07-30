@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bella Vista Admin Panel</title>
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="/admin-panel/admin.css">
+  
+  <!-- React - Production builds -->
+  <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel Standalone for JSX transpilation -->
+  <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.294.0/font/lucide.css">
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Admin Panel Script - Note the type="text/babel" -->
+  <script type="text/babel" src="/admin-panel/admin.js"></script>
+</body>
+</html>

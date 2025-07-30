@@ -1,0 +1,221 @@
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const http = require('http');
+const socketIo = require('socket.io');
+const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const fs = require('fs');
+require('dotenv').config();
+
+// Import multi-tenant middleware
+const { tenantContext, ensureTenantIsolation } = require('./src/middleware/tenantContext');
+
+// Initialize Express
+const app = express();
+app.set('trust proxy', 1);
+
+const server = http.createServer(app);
+
+// Socket.io with multi-tenant support
+const io = socketIo(server, {
+  cors: {
+    origin: function(origin, callback) {
+      // Allow all subdomains of gritservices.ae
+      if (!origin) return callback(null, true);
+      
+      const allowedPatterns = [
+        /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
+        /^https?:\/\/localhost:\d+$/,
+        /^https?:\/\/127\.0\.0\.1:\d+$/
+      ];
+      
+      const allowed = allowedPatterns.some(pattern => pattern.test(origin));
+      callback(null, allowed);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    credentials: true
+  }
+});
+
+// Security middleware
+app.use(compression());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for now, configure properly later
+  crossOriginEmbedderPolicy: false
+}));
+
+// CORS configuration for multi-tenant
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const allowedPatterns = [
+      /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
+      /^https?:\/\/localhost:\d+$/,
+      /^https?:\/\/127\.0\.0\.1:\d+$/,
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+    
+    const allowed = allowedPatterns.some(pattern => {
+      if (typeof pattern === 'string') {
+        return origin === pattern;
+      }
+      return pattern.test(origin);
+    });
+    
+    callback(null, allowed);
+  },
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-CSRF-Token'],
+  exposedHeaders: ['X-Total-Count', 'X-Tenant-Id']
+}));
+
+// Rate limiting per tenant
+const createTenantRateLimiter = (windowMs, max) => {
+  const limiters = new Map();
+  
+  return (req, res, next) => {
+    const tenantId = req.tenantId || 'public';
+    
+    if (!limiters.has(tenantId)) {
+      limiters.set(tenantId, rateLimit({
+        windowMs,
+        max,
+        keyGenerator: (req) => tenantId,
+        message: 'Too many requests from this restaurant'
+      }));
+    }
+    
+    limiters.get(tenantId)(req, res, next);
+  };
+};
+
+// Apply rate limiting
+app.use(createTenantRateLimiter(15 * 60 * 1000, 100)); // 100 requests per 15 minutes per tenant
+
+// Body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Tenant: ${req.get('host')}`);
+  next();
+});
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    name: 'GRIT Services Multi-Tenant Restaurant Backend',
+    version: '2.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    mode: 'multi-tenant',
+    endpoints: {
+      health: '/api/public/health',
+      'super-admin': '/api/super-admin/*',
+      'tenant-apis': '/api/* (requires tenant context)'
+    }
+  });
+});
+
+// Public routes (no tenant required)
+app.get('/api/public/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    mode: 'multi-tenant'
+  });
+});
+
+// Super admin routes (for SaaS management - no tenant context)
+app.use('/api/super-admin', require('./src/routes/superAdmin'));
+
+// Apply tenant context middleware to remaining routes
+app.use('/api', tenantContext);
+
+// Tenant-specific routes
+app.use('/api/auth', ensureTenantIsolation, require('./src/routes/auth'));
+app.use('/api/menu', ensureTenantIsolation, require('./src/routes/menu'));
+app.use('/api/categories', ensureTenantIsolation, require('./src/routes/categories'));
+app.use('/api/orders', ensureTenantIsolation, require('./src/routes/orders'));
+app.use('/api/tables', ensureTenantIsolation, require('./src/routes/tables'));
+app.use('/api/payments', ensureTenantIsolation, require('./src/routes/payments'));
+app.use('/api/feedback', ensureTenantIsolation, require('./src/routes/feedback'));
+app.use('/api/customer-sessions', ensureTenantIsolation, require('./src/routes/customerSessions'));
+
+// Admin routes
+app.use('/api/admin/users', ensureTenantIsolation, require('./src/routes/admin/users'));
+app.use('/api/admin/menu', ensureTenantIsolation, require('./src/routes/admin/menu'));
+app.use('/api/admin/categories', ensureTenantIsolation, require('./src/routes/admin/categories'));
+app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
+app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
+app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
+
+// Serve admin panel with tenant context
+app.use('/admin-panel', tenantContext, express.static(path.join(__dirname, 'admin-panel/dist')));
+app.get('/admin-panel/*', tenantContext, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel/dist', 'index.html'));
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// MongoDB connection with multi-tenant setup
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log('Connected to MongoDB (Multi-tenant mode)');
+  
+  // Initialize tenant-aware socket handlers
+  require('./src/sockets/tenantSocket')(io);
+})
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+  process.exit(1);
+});
+
+// Socket.io tenant isolation
+io.use(async (socket, next) => {
+  try {
+    const host = socket.handshake.headers.host;
+    const subdomain = host?.split('.')[0];
+    
+    if (subdomain && !['localhost', 'api', 'admin'].includes(subdomain)) {
+      const Tenant = require('./src/models/Tenant');
+      const tenant = await Tenant.findBySubdomain(subdomain);
+      
+      if (tenant && tenant.isActive()) {
+        socket.tenantId = tenant.tenantId;
+        socket.join(`tenant:${tenant.tenantId}`);
+      }
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Multi-tenant server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Domain: gritservices.ae`);
+});
