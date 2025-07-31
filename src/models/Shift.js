@@ -108,7 +108,8 @@ const shiftSchema = new mongoose.Schema({
   indexes: [
     { tenantId: 1, date: 1 },
     { tenantId: 1, employee: 1, date: 1 },
-    { tenantId: 1, status: 1 }
+    { tenantId: 1, status: 1 },
+    { tenantId: 1, date: -1, status: 1 } // For efficient shift queries
   ]
 });
 
@@ -171,16 +172,29 @@ shiftSchema.pre('save', function(next) {
 // Add tenant filter
 shiftSchema.pre(/^find/, function() {
   const tenantId = getCurrentTenantId();
-  if (tenantId) {
+  if (tenantId && !this.getQuery().tenantId) {
+    // Only add tenant filter if not already present
     this.where({ tenantId });
   }
 });
 
 shiftSchema.pre('save', function(next) {
   if (!this.tenantId) {
-    this.tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenantId();
+    if (tenantId) {
+      this.tenantId = tenantId;
+    } else {
+      // If no tenant context is available, we should error
+      return next(new Error('Tenant context is required to create a shift'));
+    }
   }
   next();
+});
+
+// Create compound index to ensure an employee can only have one shift per day per tenant
+shiftSchema.index({ tenantId: 1, employee: 1, date: 1 }, { 
+  unique: true,
+  partialFilterExpression: { status: { $ne: 'cancelled' } } // Allow cancelled shifts to be duplicated
 });
 
 module.exports = mongoose.model('Shift', shiftSchema);

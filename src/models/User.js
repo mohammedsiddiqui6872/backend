@@ -130,6 +130,29 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
+// Import getCurrentTenantId for tenant filtering
+const { getCurrentTenantId } = require('../middleware/tenantContext');
+
+// Add tenant filter to all find operations
+userSchema.pre(/^find/, function() {
+  const tenantId = getCurrentTenantId();
+  if (tenantId && !this.getQuery().tenantId) {
+    // Only add tenant filter if not already present
+    this.where({ tenantId });
+  }
+});
+
+// Ensure tenantId is set when creating new users
+userSchema.pre('save', function(next) {
+  if (!this.tenantId) {
+    const tenantId = getCurrentTenantId();
+    if (tenantId) {
+      this.tenantId = tenantId;
+    }
+  }
+  next();
+});
+
 // Compound index for tenant-specific email uniqueness
 userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 
