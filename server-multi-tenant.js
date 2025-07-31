@@ -88,23 +88,26 @@ const createTenantRateLimiter = (windowMs, max) => {
   const limiters = new Map();
   
   return (req, res, next) => {
-    const tenantId = req.tenantId || 'public';
+    // Use tenant ID from the request object (set by tenantContext middleware)
+    const tenantId = req.tenant?.tenantId || req.tenantId || 'public';
     
     if (!limiters.has(tenantId)) {
       limiters.set(tenantId, rateLimit({
         windowMs,
         max,
-        keyGenerator: (req) => tenantId,
-        message: 'Too many requests from this restaurant'
+        keyGenerator: (req) => {
+          // Use the tenant ID as the key for rate limiting
+          return req.tenant?.tenantId || req.tenantId || 'public';
+        },
+        message: 'Too many requests from this restaurant. Please try again later.',
+        standardHeaders: true,
+        legacyHeaders: false,
       }));
     }
     
     limiters.get(tenantId)(req, res, next);
   };
 };
-
-// Apply rate limiting
-app.use(createTenantRateLimiter(15 * 60 * 1000, 100)); // 100 requests per 15 minutes per tenant
 
 // Body parsing
 app.use(express.json());
@@ -146,6 +149,9 @@ app.use('/api/super-admin', require('./src/routes/superAdmin'));
 
 // Apply tenant context middleware to remaining routes
 app.use('/api', tenantContext);
+
+// Apply rate limiting after tenant context is set (for API routes)
+app.use('/api', createTenantRateLimiter(15 * 60 * 1000, 500)); // 500 requests per 15 minutes per tenant
 
 // Tenant-specific routes
 app.use('/api/auth', ensureTenantIsolation, require('./src/routes/auth'));
