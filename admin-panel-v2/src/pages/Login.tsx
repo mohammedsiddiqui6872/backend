@@ -50,12 +50,23 @@ const Login = ({ onLogin }: LoginProps) => {
     setLoading(true);
 
     try {
+      // Clear any previous tenant data before login
+      localStorage.removeItem('tenantId');
+      localStorage.removeItem('subdomain');
+      
       const response = await authAPI.login(email, password);
       const { token, user } = response.data;
       
       // Store token and user info
       localStorage.setItem('adminToken', token);
       localStorage.setItem('adminUser', JSON.stringify(user));
+      
+      // Store subdomain from URL for consistent UI
+      const urlParams = new URLSearchParams(window.location.search);
+      const subdomain = urlParams.get('subdomain');
+      if (subdomain) {
+        localStorage.setItem('subdomain', subdomain);
+      }
       
       toast.success('Login successful!');
       onLogin();
