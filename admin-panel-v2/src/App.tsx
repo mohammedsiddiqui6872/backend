@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import Login from './pages/Login';
@@ -12,11 +12,24 @@ import Settings from './pages/Settings';
 import Layout from './components/Layout';
 import { authAPI } from './services/api';
 
+// Component to handle navigation with query params preserved
+function NavigateWithQuery({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} />;
+}
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Preserve subdomain in localStorage from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const subdomain = urlParams.get('subdomain');
+    if (subdomain) {
+      localStorage.setItem('subdomain', subdomain);
+    }
+
     // Check if user is authenticated
     const checkAuth = async () => {
       const token = localStorage.getItem('adminToken');
@@ -48,11 +61,11 @@ function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={
-          isAuthenticated ? <Navigate to="/" /> : <Login onLogin={() => setIsAuthenticated(true)} />
+          isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={() => setIsAuthenticated(true)} />
         } />
         
         <Route path="/" element={
-          isAuthenticated ? <Layout /> : <Navigate to="/login" />
+          isAuthenticated ? <Layout /> : <NavigateWithQuery to="/login" />
         }>
           <Route index element={<Dashboard />} />
           <Route path="team" element={<Team />} />

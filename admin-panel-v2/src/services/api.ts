@@ -50,7 +50,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin-panel/login';
+      // Preserve subdomain when redirecting to login
+      const subdomain = localStorage.getItem('subdomain');
+      const queryParam = subdomain ? `?subdomain=${subdomain}` : '';
+      window.location.href = `/admin-panel/login${queryParam}`;
     }
     return Promise.reject(error);
   }

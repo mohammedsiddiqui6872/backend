@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Home, 
   Users, 
@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [restaurantName, setRestaurantName] = useState('');
   
   useEffect(() => {
@@ -38,7 +39,8 @@ const Layout = () => {
       await authAPI.logout();
       localStorage.removeItem('adminToken');
       localStorage.removeItem('tenantId');
-      navigate('/login');
+      // Don't remove subdomain - we need it for the login page
+      navigate(`/login${location.search}`);
     } catch (error) {
       toast.error('Failed to logout');
     }
@@ -72,7 +74,7 @@ const Layout = () => {
               return (
                 <Link
                   key={item.path}
-                  to={item.path}
+                  to={`${item.path}${location.search}`}
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                     isActive
                       ? 'bg-primary-50 text-primary-600'
