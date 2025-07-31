@@ -252,6 +252,18 @@ router.get('/profile', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Include tenant information if available
+    let tenantInfo = null;
+    if (req.tenant) {
+      tenantInfo = {
+        tenantId: req.tenant.tenantId,
+        name: req.tenant.name,
+        subdomain: req.tenant.subdomain,
+        logo: req.tenant.settings?.logo,
+        primaryColor: req.tenant.settings?.primaryColor
+      };
+    }
+
     res.json({
       _id: user._id,
       id: user._id,
@@ -263,7 +275,8 @@ router.get('/profile', authenticate, async (req, res) => {
       permissions: user.permissions,
       isActive: user.isActive,
       createdAt: user.createdAt,
-      lastLogin: user.lastLogin
+      lastLogin: user.lastLogin,
+      tenant: tenantInfo
     });
   } catch (error) {
     console.error('Profile error:', error);

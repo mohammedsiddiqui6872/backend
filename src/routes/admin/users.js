@@ -11,18 +11,34 @@ router.use(ensureTenantIsolation);
 // Get all users
 router.get('/', async (req, res) => {
   try {
+    console.log('\n=== ADMIN USERS ENDPOINT DEBUG ===');
+    console.log('Request tenant:', req.tenant ? req.tenant.name : 'NO TENANT');
+    console.log('Request tenantId:', req.tenantId);
+    console.log('Request tenant from middleware:', req.tenant ? req.tenant.tenantId : 'NO TENANT ID');
+    
     const { role, isActive } = req.query;
     const query = { tenantId: req.tenant.tenantId };
     
+    console.log('Query filter:', JSON.stringify(query, null, 2));
+    
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
+
+    console.log('Final query:', JSON.stringify(query, null, 2));
 
     const users = await User.find(query)
       .select('-password')
       .sort('name');
 
+    console.log(`Users found: ${users.length}`);
+    users.forEach((user, index) => {
+      console.log(`  ${index + 1}. ${user.name} (${user.email}) - Tenant: ${user.tenantId}`);
+    });
+    console.log('=== END ADMIN USERS ENDPOINT DEBUG ===\n');
+
     res.json(users);
   } catch (error) {
+    console.error('Admin users endpoint error:', error);
     res.status(500).json({ error: error.message });
   }
 });

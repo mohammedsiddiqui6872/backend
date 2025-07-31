@@ -6,15 +6,27 @@ const getTenantInfo = () => {
   const urlSubdomain = urlParams.get('subdomain');
   const storedSubdomain = localStorage.getItem('subdomain');
   
+  console.log('=== ADMIN PANEL API DEBUG ===');
+  console.log('Current URL:', window.location.href);
+  console.log('URL subdomain param:', urlSubdomain);
+  console.log('Stored subdomain:', storedSubdomain);
+  
   // If URL has subdomain and it's different from stored, update storage
   if (urlSubdomain && urlSubdomain !== storedSubdomain) {
+    console.log('Updating stored subdomain from', storedSubdomain, 'to', urlSubdomain);
     localStorage.setItem('subdomain', urlSubdomain);
     // Clear tenant ID as it might be from a different tenant
     localStorage.removeItem('tenantId');
+    console.log('Cleared tenant ID due to subdomain change');
   }
   
   const subdomain = urlSubdomain || storedSubdomain;
   const tenantId = localStorage.getItem('tenantId');
+  
+  console.log('Final tenant info:');
+  console.log('- Subdomain:', subdomain);
+  console.log('- Tenant ID:', tenantId);
+  console.log('=== END ADMIN PANEL API DEBUG ===');
   
   return { subdomain, tenantId };
 };
@@ -34,24 +46,44 @@ api.interceptors.request.use((config) => {
   const { subdomain, tenantId } = getTenantInfo();
   const token = localStorage.getItem('adminToken');
   
+  console.log('=== API REQUEST INTERCEPTOR ===');
+  console.log('Request URL:', config.url);
+  console.log('Request Method:', config.method?.toUpperCase());
+  
   if (tenantId) {
     config.headers['X-Tenant-Id'] = tenantId;
+    console.log('Added X-Tenant-Id header:', tenantId);
   }
   
   // Always include subdomain for tenant identification
   if (subdomain) {
     config.headers['X-Tenant-Subdomain'] = subdomain;
+    console.log('Added X-Tenant-Subdomain header:', subdomain);
+    
     // Also add subdomain as query parameter for routes that need it
     if (config.url && !config.url.includes('?')) {
       config.url += `?subdomain=${subdomain}`;
+      console.log('Added subdomain query param (new): ?subdomain=' + subdomain);
     } else if (config.url) {
       config.url += `&subdomain=${subdomain}`;
+      console.log('Added subdomain query param (append): &subdomain=' + subdomain);
     }
+  } else {
+    console.log('⚠️  No subdomain available for request');
   }
   
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
+    console.log('Added Authorization header');
   }
+  
+  console.log('Final request URL:', config.url);
+  console.log('Final headers:', {
+    'X-Tenant-Id': config.headers['X-Tenant-Id'],
+    'X-Tenant-Subdomain': config.headers['X-Tenant-Subdomain'],
+    'Authorization': config.headers['Authorization'] ? 'Bearer [TOKEN]' : undefined
+  });
+  console.log('=== END API REQUEST INTERCEPTOR ===');
   
   return config;
 });

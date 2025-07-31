@@ -52,7 +52,14 @@ router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsol
       sortOrder = 'asc'
     } = req.query;
 
+    // Ensure we have the correct tenantId
+    if (!req.tenant || !req.tenant.tenantId) {
+      console.error('No tenant context in team members endpoint');
+      return res.status(403).json({ success: false, message: 'Tenant context required' });
+    }
+    
     const query = { tenantId: req.tenant.tenantId };
+    console.log('Team route - Building query with tenantId:', req.tenant.tenantId);
     
     // Only add search if it's not empty
     if (search && search.trim()) {

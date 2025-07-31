@@ -135,10 +135,19 @@ const { getCurrentTenantId } = require('../middleware/tenantContext');
 
 // Add tenant filter to all find operations
 userSchema.pre(/^find/, function() {
+  // Skip auto-filtering if tenantId is already in the query
+  if (this.getQuery().tenantId) {
+    console.log('User model: TenantId already in query:', this.getQuery().tenantId);
+    return;
+  }
+  
   const tenantId = getCurrentTenantId();
-  if (tenantId && !this.getQuery().tenantId) {
-    // Only add tenant filter if not already present
+  console.log('User model: Getting tenantId from asyncLocalStorage:', tenantId);
+  if (tenantId) {
+    console.log('User model: Adding tenant filter:', tenantId);
     this.where({ tenantId });
+  } else {
+    console.log('User model: WARNING - No tenantId found in context');
   }
 });
 

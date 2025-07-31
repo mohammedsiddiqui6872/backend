@@ -22,6 +22,21 @@ function NavigateWithQuery({ to }: { to: string }) {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tenantInfo, setTenantInfo] = useState<any>(null);
+
+  // Update document title when tenant info changes
+  useEffect(() => {
+    if (tenantInfo?.name) {
+      // Format restaurant name for better display
+      const restaurantName = tenantInfo.name
+        .split(' ')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      document.title = `${restaurantName} Admin Panel`;
+    } else {
+      document.title = 'Restaurant Admin Panel';
+    }
+  }, [tenantInfo]);
 
   useEffect(() => {
     // Preserve subdomain in localStorage from URL params
@@ -31,13 +46,19 @@ function App() {
       localStorage.setItem('subdomain', subdomain);
     }
 
-    // Check if user is authenticated
+    // Check if user is authenticated and get tenant info
     const checkAuth = async () => {
       const token = localStorage.getItem('adminToken');
       if (token) {
         try {
-          await authAPI.getProfile();
+          const response = await authAPI.getProfile();
           setIsAuthenticated(true);
+          
+          // Set tenant info for title
+          if (response.data?.tenant) {
+            setTenantInfo(response.data.tenant);
+            console.log('Tenant info loaded:', response.data.tenant);
+          }
         } catch (error) {
           localStorage.removeItem('adminToken');
           setIsAuthenticated(false);
@@ -62,7 +83,18 @@ function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={
-          isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={() => setIsAuthenticated(true)} />
+          isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={async () => {
+            setIsAuthenticated(true);
+            // Fetch tenant info after login
+            try {
+              const response = await authAPI.getProfile();
+              if (response.data?.tenant) {
+                setTenantInfo(response.data.tenant);
+              }
+            } catch (error) {
+              console.error('Failed to fetch tenant info after login:', error);
+            }
+          }} />
         } />
         
         <Route path="/" element={
