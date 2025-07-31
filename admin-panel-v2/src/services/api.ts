@@ -19,11 +19,22 @@ const api = axios.create({
 
 // Add tenant headers to all requests
 api.interceptors.request.use((config) => {
-  const { tenantId } = getTenantInfo();
+  const { subdomain, tenantId } = getTenantInfo();
   const token = localStorage.getItem('adminToken');
   
   if (tenantId) {
     config.headers['X-Tenant-Id'] = tenantId;
+  }
+  
+  // Always include subdomain for tenant identification
+  if (subdomain) {
+    config.headers['X-Tenant-Subdomain'] = subdomain;
+    // Also add subdomain as query parameter for routes that need it
+    if (config.url && !config.url.includes('?')) {
+      config.url += `?subdomain=${subdomain}`;
+    } else if (config.url) {
+      config.url += `&subdomain=${subdomain}`;
+    }
   }
   
   if (token) {
