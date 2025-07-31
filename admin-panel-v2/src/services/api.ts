@@ -89,17 +89,41 @@ export const authAPI = {
 
 // Team API
 export const teamAPI = {
-  getMembers: () => 
-    api.get('/admin/users'),
+  getMembers: (params?: any) => 
+    api.get('/admin/team/members', { params }),
+  
+  getMember: (id: string) =>
+    api.get(`/admin/team/members/${id}`),
   
   addMember: (data: any) => 
-    api.post('/admin/users', data),
+    api.post('/admin/team/members', data),
   
   updateMember: (id: string, data: any) => 
-    api.put(`/admin/users/${id}`, data),
+    api.put(`/admin/team/members/${id}`, data),
   
   deleteMember: (id: string) => 
-    api.delete(`/admin/users/${id}`),
+    api.delete(`/admin/team/members/${id}`),
+    
+  uploadPhoto: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return api.post(`/admin/team/members/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  uploadDocuments: (id: string, files: FileList, type: string, expiryDate?: string) => {
+    const formData = new FormData();
+    Array.from(files).forEach(file => formData.append('documents', file));
+    formData.append('type', type);
+    if (expiryDate) formData.append('expiryDate', expiryDate);
+    return api.post(`/admin/team/members/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  getStats: () =>
+    api.get('/admin/team/stats'),
 };
 
 // Menu API

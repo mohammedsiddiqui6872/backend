@@ -289,6 +289,11 @@ app.use('/api/admin/users', require('./src/routes/admin/users'));
 app.use('/api/admin/tables', require('./src/routes/admin/tables'));
 app.use('/api/admin/categories', require('./src/routes/admin/categories'));
 
+// Enhanced team management routes
+app.use('/api/admin/team', require('./src/routes/team'));
+app.use('/api/admin/shifts', require('./src/routes/shifts'));
+app.use('/api/admin/roles', require('./src/routes/roles'));
+
 // Notification registration endpoint
 app.post('/api/notifications/register', async (req, res) => {
   try {

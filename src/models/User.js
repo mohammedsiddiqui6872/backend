@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['admin', 'manager', 'chef', 'waiter', 'cashier'],
+    enum: ['admin', 'manager', 'chef', 'waiter', 'cashier', 'host', 'bartender'],
     default: 'waiter'
   },
   phone: String,
@@ -18,8 +18,91 @@ const userSchema = new mongoose.Schema({
   lastLogin: Date,
   permissions: [{
     type: String,
-    enum: ['menu.view', 'menu.edit', 'orders.view', 'orders.edit', 'analytics.view', 'users.manage']
+    enum: [
+      'menu.view', 'menu.edit', 'menu.delete',
+      'orders.view', 'orders.edit', 'orders.delete', 'orders.cancel',
+      'analytics.view', 'analytics.export',
+      'users.view', 'users.manage', 'users.delete',
+      'tables.view', 'tables.manage',
+      'inventory.view', 'inventory.manage',
+      'payments.view', 'payments.process', 'payments.refund',
+      'settings.view', 'settings.manage',
+      'shifts.view', 'shifts.manage', 'shifts.approve'
+    ]
   }],
+  
+  // Enhanced Profile Fields
+  profile: {
+    dateOfBirth: Date,
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    nationality: String,
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      country: String,
+      postalCode: String
+    },
+    emergencyContact: {
+      name: String,
+      relationship: String,
+      phone: String,
+      email: String
+    },
+    employeeId: String,
+    department: String,
+    position: String,
+    hireDate: { type: Date, default: Date.now },
+    employmentType: { 
+      type: String, 
+      enum: ['full-time', 'part-time', 'contract', 'intern'],
+      default: 'full-time'
+    },
+    salary: {
+      amount: Number,
+      currency: { type: String, default: 'AED' },
+      type: { type: String, enum: ['hourly', 'monthly'], default: 'monthly' }
+    },
+    bankDetails: {
+      accountName: String,
+      accountNumber: String,
+      bankName: String,
+      iban: String
+    },
+    documents: [{
+      type: { type: String, enum: ['id', 'passport', 'visa', 'contract', 'certificate', 'other'] },
+      name: String,
+      url: String,
+      expiryDate: Date,
+      uploadedAt: { type: Date, default: Date.now }
+    }],
+    notes: String
+  },
+  
+  // Shift preferences
+  shiftPreferences: {
+    preferredShifts: [{ type: String, enum: ['morning', 'afternoon', 'evening', 'night'] }],
+    maxHoursPerWeek: { type: Number, default: 40 },
+    availableDays: [{
+      day: { type: String, enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+      available: Boolean,
+      preferredTimes: [{
+        start: String,
+        end: String
+      }]
+    }]
+  },
+  
+  // Performance metrics
+  metrics: {
+    totalOrdersServed: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 0 },
+    totalHoursWorked: { type: Number, default: 0 },
+    punctualityScore: { type: Number, default: 100 },
+    lastReviewDate: Date
+  },
+  
+  // Notification preferences
   fcmToken: {
     type: String,
     default: null

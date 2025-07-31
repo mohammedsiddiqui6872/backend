@@ -1,53 +1,145 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, UserCheck, UserX } from 'lucide-react';
+import { 
+  Plus, Edit2, Trash2, Search, UserCheck, UserX, 
+  Phone, Mail, Calendar, Clock, Award, AlertCircle,
+  Building, Users, Filter, Download, Upload, Eye 
+} from 'lucide-react';
 import { teamAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import AddTeamMemberModal from '../components/modals/AddTeamMemberModal';
 import EditTeamMemberModal from '../components/modals/EditTeamMemberModal';
+import TeamMemberDetailsModal from '../components/modals/TeamMemberDetailsModal';
 
 interface TeamMember {
   _id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'waiter' | 'kitchen';
+  role: string;
   phone?: string;
+  avatar?: string;
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+  profile?: {
+    dateOfBirth?: string;
+    gender?: string;
+    nationality?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      postalCode?: string;
+    };
+    employeeId?: string;
+    department?: string;
+    position?: string;
+    hireDate?: string;
+    employmentType?: string;
+    salary?: {
+      amount?: number;
+      currency?: string;
+      type?: string;
+    };
+    documents?: Array<{
+      type: string;
+      name: string;
+      url: string;
+      expiryDate?: string;
+    }>;
+  };
+  metrics?: {
+    totalOrdersServed?: number;
+    averageRating?: number;
+    totalHoursWorked?: number;
+    punctualityScore?: number;
+  };
+  permissions?: string[];
+}
+
+interface TeamStats {
+  totalMembers: number;
+  activeMembers: number;
+  inactiveMembers: number;
+  roleDistribution: Array<{ _id: string; count: number }>;
+  departmentDistribution: Array<{ _id: string; count: number }>;
 }
 
 const Team = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([]);
+  const [stats, setStats] = useState<TeamStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchTeamMembers();
-  }, []);
+    fetchTeamStats();
+  }, [currentPage]);
 
   useEffect(() => {
-    // Filter members based on search query
-    const filtered = members.filter(member =>
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.role.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter members based on search and filters
+    let filtered = members;
+
+    if (searchQuery) {
+      filtered = filtered.filter(member =>
+        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        member.profile?.employeeId?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (filterRole) {
+      filtered = filtered.filter(member => member.role === filterRole);
+    }
+
+    if (filterDepartment) {
+      filtered = filtered.filter(member => member.profile?.department === filterDepartment);
+    }
+
+    if (filterStatus) {
+      filtered = filtered.filter(member => 
+        filterStatus === 'active' ? member.isActive : !member.isActive
+      );
+    }
+
     setFilteredMembers(filtered);
-  }, [searchQuery, members]);
+  }, [searchQuery, filterRole, filterDepartment, filterStatus, members]);
 
   const fetchTeamMembers = async () => {
     try {
-      const response = await teamAPI.getMembers();
-      setMembers(response.data);
-      setFilteredMembers(response.data);
+      const response = await teamAPI.getMembers({
+        page: currentPage,
+        limit: 10,
+        search: searchQuery,
+        role: filterRole,
+        department: filterDepartment,
+        isActive: filterStatus
+      });
+      setMembers(response.data.data);
+      setTotalPages(response.data.pagination.pages);
     } catch (error) {
       toast.error('Failed to load team members');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTeamStats = async () => {
+    try {
+      const response = await teamAPI.getStats();
+      setStats(response.data.data);
+    } catch (error) {
+      console.error('Failed to load team stats');
     }
   };
 
@@ -57,8 +149,9 @@ const Team = () => {
       toast.success('Team member added successfully');
       setShowAddModal(false);
       fetchTeamMembers();
+      fetchTeamStats();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to add team member');
+      toast.error(error.response?.data?.message || 'Failed to add team member');
     }
   };
 
@@ -72,37 +165,41 @@ const Team = () => {
       setSelectedMember(null);
       fetchTeamMembers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update team member');
+      toast.error(error.response?.data?.message || 'Failed to update team member');
     }
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this team member?')) {
+    if (!window.confirm('Are you sure you want to deactivate this team member?')) {
       return;
     }
 
     try {
       await teamAPI.deleteMember(id);
-      toast.success('Team member deleted successfully');
+      toast.success('Team member deactivated successfully');
       fetchTeamMembers();
+      fetchTeamStats();
     } catch (error) {
-      toast.error('Failed to delete team member');
+      toast.error('Failed to deactivate team member');
     }
   };
 
   const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-purple-100 text-purple-800';
-      case 'manager':
-        return 'bg-blue-100 text-blue-800';
-      case 'waiter':
-        return 'bg-green-100 text-green-800';
-      case 'kitchen':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    const colors: Record<string, string> = {
+      admin: 'bg-purple-100 text-purple-800',
+      manager: 'bg-blue-100 text-blue-800',
+      chef: 'bg-orange-100 text-orange-800',
+      waiter: 'bg-green-100 text-green-800',
+      cashier: 'bg-yellow-100 text-yellow-800',
+      host: 'bg-pink-100 text-pink-800',
+      bartender: 'bg-indigo-100 text-indigo-800'
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
+  };
+
+  const exportTeamData = () => {
+    // TODO: Implement CSV export
+    toast.success('Feature coming soon!');
   };
 
   if (loading) {
@@ -120,99 +217,269 @@ const Team = () => {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Team Management</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Manage your restaurant staff and their roles
+            Manage your restaurant staff, roles, and permissions
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Team Member
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            placeholder="Search by name, email, or role..."
-          />
+        <div className="flex space-x-3">
+          <button
+            onClick={exportTeamData}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Team Member
+          </button>
         </div>
       </div>
 
-      {/* Team Members Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredMembers.length > 0 ? (
-              filteredMembers.map((member) => (
-                <tr key={member._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{member.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
-                      {member.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {member.isActive ? (
-                        <>
-                          <UserCheck className="h-4 w-4 text-green-500 mr-1" />
-                          <span className="text-sm text-green-600">Active</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserX className="h-4 w-4 text-red-500 mr-1" />
-                          <span className="text-sm text-red-600">Inactive</span>
-                        </>
-                      )}
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Users className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Members
+                    </dt>
+                    <dd className="text-lg font-semibold text-gray-900">
+                      {stats.totalMembers}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UserCheck className="h-6 w-6 text-green-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Active Members
+                    </dt>
+                    <dd className="text-lg font-semibold text-gray-900">
+                      {stats.activeMembers}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UserX className="h-6 w-6 text-red-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Inactive Members
+                    </dt>
+                    <dd className="text-lg font-semibold text-gray-900">
+                      {stats.inactiveMembers}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Building className="h-6 w-6 text-blue-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Departments
+                    </dt>
+                    <dd className="text-lg font-semibold text-gray-900">
+                      {stats.departmentDistribution.length}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      <div className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Search by name, email, or employee ID..."
+              />
+            </div>
+          </div>
+
+          <div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            >
+              <option value="">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="chef">Chef</option>
+              <option value="waiter">Waiter</option>
+              <option value="cashier">Cashier</option>
+              <option value="host">Host</option>
+              <option value="bartender">Bartender</option>
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            >
+              <option value="">All Departments</option>
+              <option value="Kitchen">Kitchen</option>
+              <option value="Service">Service</option>
+              <option value="Management">Management</option>
+              <option value="Bar">Bar</option>
+            </select>
+          </div>
+
+          <div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Team Members Grid */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredMembers.length > 0 ? (
+          filteredMembers.map((member) => (
+            <div key={member._id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center">
+                    <img
+                      className="h-16 w-16 rounded-full object-cover"
+                      src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=6366f1&color=fff`}
+                      alt={member.name}
+                    />
+                    <div className="ml-4">
+                      <h3 className="text-lg font-medium text-gray-900">{member.name}</h3>
+                      <p className="text-sm text-gray-500">{member.profile?.position || member.role}</p>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getRoleBadgeColor(member.role)}`}>
+                        {member.role}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{member.phone || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {member.isActive ? (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Mail className="h-4 w-4 mr-2" />
+                    {member.email}
+                  </div>
+                  {member.phone && (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Phone className="h-4 w-4 mr-2" />
+                      {member.phone}
+                    </div>
+                  )}
+                  {member.profile?.department && (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Building className="h-4 w-4 mr-2" />
+                      {member.profile.department}
+                    </div>
+                  )}
+                  {member.profile?.employeeId && (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Award className="h-4 w-4 mr-2" />
+                      ID: {member.profile.employeeId}
+                    </div>
+                  )}
+                </div>
+
+                {member.metrics && (
+                  <div className="mt-4 grid grid-cols-2 gap-2 pt-4 border-t border-gray-200">
+                    <div className="text-center">
+                      <p className="text-2xl font-semibold text-gray-900">
+                        {member.metrics.totalOrdersServed || 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Orders Served</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-semibold text-gray-900">
+                        {member.metrics.averageRating?.toFixed(1) || '0.0'}
+                      </p>
+                      <p className="text-xs text-gray-500">Avg Rating</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 flex justify-between items-center pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setSelectedMember(member);
+                      setShowDetailsModal(true);
+                    }}
+                    className="text-primary-600 hover:text-primary-900 text-sm font-medium flex items-center"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View Details
+                  </button>
+                  <div className="flex space-x-2">
                     <button
                       onClick={() => {
                         setSelectedMember(member);
                         setShowEditModal(true);
                       }}
-                      className="text-primary-600 hover:text-primary-900 mr-3"
+                      className="text-gray-600 hover:text-gray-900"
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
@@ -222,21 +489,69 @@ const Team = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-6 py-12 text-center">
-                  <div className="text-gray-500">
-                    {searchQuery ? 'No team members found matching your search.' : 'No team members yet. Add your first team member.'}
                   </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <div className="text-gray-500">
+              {searchQuery || filterRole || filterDepartment || filterStatus 
+                ? 'No team members found matching your filters.' 
+                : 'No team members yet. Add your first team member.'}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing page <span className="font-medium">{currentPage}</span> of{' '}
+                <span className="font-medium">{totalPages}</span>
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Team Member Modal */}
       {showAddModal && (
@@ -257,6 +572,18 @@ const Team = () => {
             setSelectedMember(null);
           }}
           onEdit={handleEditMember}
+        />
+      )}
+
+      {/* Team Member Details Modal */}
+      {showDetailsModal && selectedMember && (
+        <TeamMemberDetailsModal
+          isOpen={showDetailsModal}
+          member={selectedMember}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedMember(null);
+          }}
         />
       )}
     </div>
