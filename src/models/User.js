@@ -53,11 +53,13 @@ const userSchema = new mongoose.Schema({
     department: String,
     position: String,
     hireDate: { type: Date, default: Date.now },
+    contractEndDate: Date, // For contract/temporary employees
     employmentType: { 
       type: String, 
       enum: ['full-time', 'part-time', 'contract', 'intern'],
       default: 'full-time'
     },
+    supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Who this user reports to
     salary: {
       amount: Number,
       currency: { type: String, default: 'AED' },

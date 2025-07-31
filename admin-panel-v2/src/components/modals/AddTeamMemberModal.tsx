@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { X, User, Mail, Phone, Briefcase, Building, Calendar } from 'lucide-react';
+import { X, User, Mail, Phone, Briefcase, Building, Calendar, Upload, FileText, CreditCard, UserCheck } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface AddTeamMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (data: any) => void;
+  supervisors?: Array<{ _id: string; name: string; role: string }>;
 }
 
-const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps) => {
+const AddTeamMemberModal = ({ isOpen, onClose, onAdd, supervisors = [] }: AddTeamMemberModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,7 +22,9 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
       department: '',
       position: '',
       hireDate: new Date().toISOString().split('T')[0],
+      contractEndDate: '',
       employmentType: 'full-time',
+      supervisor: '',
       dateOfBirth: '',
       gender: '',
       nationality: '',
@@ -46,6 +50,12 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
   });
 
   const [activeTab, setActiveTab] = useState('basic');
+  const [documents, setDocuments] = useState<{
+    emiratesId?: File;
+    passport?: File;
+    visa?: File;
+    other?: File[];
+  }>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +68,13 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
         salary: formData.profile.salary.amount ? {
           ...formData.profile.salary,
           amount: parseFloat(formData.profile.salary.amount)
-        } : undefined
+        } : undefined,
+        // Set default supervisor if not selected
+        supervisor: formData.profile.supervisor || supervisors.find(s => s.role === 'admin')?._id || ''
       }
     };
     
+    // For now, just pass the data. Documents will be uploaded after creation
     onAdd(cleanedData);
   };
 
@@ -129,6 +142,17 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
                 }`}
               >
                 Emergency Contact
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('documents')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'documents'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Documents
               </button>
             </nav>
           </div>
@@ -328,6 +352,44 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
                       <option value="intern">Intern</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Contract End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.profile.contractEndDate}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, contractEndDate: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="Leave empty for permanent employees"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    <UserCheck className="inline h-4 w-4 mr-1" />
+                    Reports To (Supervisor)
+                  </label>
+                  <select
+                    value={formData.profile.supervisor}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      profile: { ...formData.profile, supervisor: e.target.value }
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                  >
+                    <option value="">Select Supervisor</option>
+                    {supervisors.map(sup => (
+                      <option key={sup._id} value={sup._id}>
+                        {sup.name} - {sup.role}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="border-t pt-4">
@@ -627,6 +689,74 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd }: AddTeamMemberModalProps)
                       })}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Documents Tab */}
+            {activeTab === 'documents' && (
+              <div className="space-y-4 pt-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+                  <p className="text-sm text-yellow-800">
+                    Documents can be uploaded after creating the team member. 
+                    Save the member first, then use the edit function to upload documents.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <CreditCard className="inline h-4 w-4 mr-1" />
+                      Emirates ID
+                    </label>
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                      <div className="space-y-1 text-center">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <div className="flex text-sm text-gray-600">
+                          <label htmlFor="emirates-id-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                            <span>Upload after saving</span>
+                          </label>
+                        </div>
+                        <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FileText className="inline h-4 w-4 mr-1" />
+                      Passport
+                    </label>
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                      <div className="space-y-1 text-center">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <div className="flex text-sm text-gray-600">
+                          <label htmlFor="passport-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                            <span>Upload after saving</span>
+                          </label>
+                        </div>
+                        <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FileText className="inline h-4 w-4 mr-1" />
+                    Visa / Work Permit
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <div className="space-y-1 text-center">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600">
+                        <label htmlFor="visa-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                          <span>Upload after saving</span>
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                    </div>
                   </div>
                 </div>
               </div>

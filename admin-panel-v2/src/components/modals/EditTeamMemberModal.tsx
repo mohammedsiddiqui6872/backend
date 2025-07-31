@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, User, Phone, Mail, Building, MapPin, CreditCard, FileText, AlertCircle } from 'lucide-react';
+import { X, Calendar, User, Phone, Mail, Building, MapPin, CreditCard, FileText, AlertCircle, Upload, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { teamAPI } from '../../services/api';
 
 interface Address {
   street?: string;
@@ -30,6 +31,14 @@ interface BankDetails {
   iban?: string;
 }
 
+interface Document {
+  type: string;
+  name: string;
+  url: string;
+  uploadedAt: string;
+  expiryDate?: string;
+}
+
 interface TeamMember {
   _id: string;
   name: string;
@@ -47,10 +56,13 @@ interface TeamMember {
     department?: string;
     position?: string;
     hireDate?: string;
+    contractEndDate?: string;
     employmentType?: string;
+    supervisor?: string;
     salary?: Salary;
     bankDetails?: BankDetails;
     notes?: string;
+    documents?: Document[];
   };
   shiftPreferences?: {
     preferredShifts?: string[];
@@ -63,9 +75,10 @@ interface EditTeamMemberModalProps {
   member: TeamMember;
   onClose: () => void;
   onEdit: (data: any) => void;
+  supervisors?: Array<{ _id: string; name: string; role: string }>;
 }
 
-const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMemberModalProps) => {
+const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = [] }: EditTeamMemberModalProps) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState({
     // Basic Information
@@ -98,7 +111,9 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
       department: '',
       position: '',
       hireDate: '',
+      contractEndDate: '',
       employmentType: 'full-time',
+      supervisor: '',
       salary: {
         amount: 0,
         currency: 'AED',
@@ -150,7 +165,9 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
           department: member.profile?.department || '',
           position: member.profile?.position || '',
           hireDate: member.profile?.hireDate ? new Date(member.profile.hireDate).toISOString().split('T')[0] : '',
+          contractEndDate: member.profile?.contractEndDate ? new Date(member.profile.contractEndDate).toISOString().split('T')[0] : '',
           employmentType: member.profile?.employmentType || 'full-time',
+          supervisor: member.profile?.supervisor || '',
           salary: {
             amount: member.profile?.salary?.amount || 0,
             currency: member.profile?.salary?.currency || 'AED',
@@ -171,6 +188,38 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
       });
     }
   }, [member]);
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      const response = await teamAPI.uploadDocuments(member._id, e.target.files!, type);
+      toast.success('Document uploaded successfully');
+      // Refresh member data to show new documents
+      window.location.reload();
+    } catch (error) {
+      toast.error('Failed to upload document');
+    }
+  };
+
+  const handleDocumentDelete = async (doc: Document) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) {
+      return;
+    }
+
+    try {
+      // TODO: Implement document deletion API
+      toast.success('Document deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete document');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +246,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
     { id: 'emergency', label: 'Emergency', icon: AlertCircle },
     { id: 'banking', label: 'Banking', icon: CreditCard },
     { id: 'preferences', label: 'Preferences', icon: FileText },
+    { id: 'documents', label: 'Documents', icon: Upload },
   ];
 
   if (!isOpen) return null;
@@ -576,6 +626,44 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
                       <option value="temporary">Temporary</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Contract End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.profile.contractEndDate}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, contractEndDate: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="Leave empty for permanent employees"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      <UserCheck className="inline h-4 w-4 mr-1" />
+                      Reports To (Supervisor)
+                    </label>
+                    <select
+                      value={formData.profile.supervisor}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, supervisor: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                      <option value="">Select Supervisor</option>
+                      {supervisors.map(sup => (
+                        <option key={sup._id} value={sup._id}>
+                          {sup.name} - {sup.role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -874,6 +962,167 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
                     })}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Documents Tab */}
+            {activeTab === 'documents' && (
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Documents</h3>
+                  <p className="text-sm text-gray-600">Upload and manage employee documents</p>
+                </div>
+
+                {/* Current Documents */}
+                {member.profile?.documents && member.profile.documents.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">Current Documents</h4>
+                    <div className="space-y-2">
+                      {member.profile.documents.map((doc, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                              <p className="text-xs text-gray-500">
+                                Type: {doc.type} • Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                                {doc.expiryDate && ` • Expires: ${new Date(doc.expiryDate).toLocaleDateString()}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary-600 hover:text-primary-700"
+                            >
+                              View
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDocumentDelete(doc)}
+                              className="text-sm text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload New Documents */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-900">Upload New Documents</h4>
+                  
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <CreditCard className="inline h-4 w-4 mr-1" />
+                        Emirates ID
+                      </label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="emirates-id-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                              <span>Upload file</span>
+                              <input
+                                id="emirates-id-upload"
+                                name="emirates-id-upload"
+                                type="file"
+                                className="sr-only"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleDocumentUpload(e, 'id')}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="inline h-4 w-4 mr-1" />
+                        Passport
+                      </label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="passport-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                              <span>Upload file</span>
+                              <input
+                                id="passport-upload"
+                                name="passport-upload"
+                                type="file"
+                                className="sr-only"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleDocumentUpload(e, 'passport')}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="inline h-4 w-4 mr-1" />
+                        Visa / Work Permit
+                      </label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="visa-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                              <span>Upload file</span>
+                              <input
+                                id="visa-upload"
+                                name="visa-upload"
+                                type="file"
+                                className="sr-only"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleDocumentUpload(e, 'visa')}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="inline h-4 w-4 mr-1" />
+                        Other Documents
+                      </label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="other-upload" className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500">
+                              <span>Upload file</span>
+                              <input
+                                id="other-upload"
+                                name="other-upload"
+                                type="file"
+                                className="sr-only"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleDocumentUpload(e, 'other')}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

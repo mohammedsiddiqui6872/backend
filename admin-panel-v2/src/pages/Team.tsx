@@ -41,10 +41,13 @@ interface TeamMember {
       currency?: string;
       type?: string;
     };
+    contractEndDate?: string;
+    supervisor?: string;
     documents?: Array<{
       type: string;
       name: string;
       url: string;
+      uploadedAt: string;
       expiryDate?: string;
     }>;
   };
@@ -130,10 +133,13 @@ const Team = () => {
     }
   };
 
-  const handleAddMember = async (data: any) => {
+  const handleAddMember = async (data: any, documents?: any) => {
     try {
-      await teamAPI.addMember(data);
-      toast.success('Team member added successfully');
+      const response = await teamAPI.addMember(data);
+      const memberId = response.data.data._id;
+      
+      // Note: Documents will be uploaded in the edit modal after creation
+      toast.success('Team member added successfully. You can now upload documents by editing the member.');
       setShowAddModal(false);
       fetchTeamMembers();
       fetchTeamStats();
@@ -546,6 +552,7 @@ const Team = () => {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddMember}
+          supervisors={members.filter(m => ['admin', 'manager'].includes(m.role))}
         />
       )}
 
@@ -559,6 +566,7 @@ const Team = () => {
             setSelectedMember(null);
           }}
           onEdit={handleEditMember}
+          supervisors={members.filter(m => ['admin', 'manager'].includes(m.role))}
         />
       )}
 
