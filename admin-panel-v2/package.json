@@ -2,6 +2,7 @@
   "name": "restaurant-admin-panel",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Multi-tenant restaurant admin panel",
   "scripts": {
     "dev": "vite",

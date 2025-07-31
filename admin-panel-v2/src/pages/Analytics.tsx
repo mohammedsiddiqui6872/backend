@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 const Analytics = () => {
   const [period, setPeriod] = useState('week');

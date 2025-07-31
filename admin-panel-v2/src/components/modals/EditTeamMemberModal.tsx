@@ -43,7 +43,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Only include password if it's been changed
-    const updateData = { ...formData };
+    const updateData: any = { ...formData };
     if (!updateData.password) {
       delete updateData.password;
     }

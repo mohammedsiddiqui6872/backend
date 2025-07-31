@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, Image as ImageIcon } from 'lucide-react';
+import { Plus, Image as ImageIcon } from 'lucide-react';
 
 const Menu = () => {
   const [activeTab, setActiveTab] = useState('items');

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Plus, QrCode, Grid3X3 } from 'lucide-react';
+import { Plus, Grid3X3 } from 'lucide-react';
 
 const Tables = () => {
   return (

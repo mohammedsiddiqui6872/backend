@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, CheckCircle, XCircle, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 
 const Orders = () => {
   const [filter, setFilter] = useState('all');

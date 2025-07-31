@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Save, Store, Clock, CreditCard } from 'lucide-react';
+import { Store } from 'lucide-react';
 
 const Settings = () => {
   return (
