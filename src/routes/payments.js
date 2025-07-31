@@ -10,8 +10,12 @@ router.post('/process', authenticate, async (req, res) => {
   try {
     const { orderId, method, amount, tip = 0 } = req.body;
 
-    // Verify order exists and is not already paid
-    const order = await Order.findById(orderId);
+    // Verify order exists and is not already paid with tenant filter
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -27,7 +31,8 @@ router.post('/process', authenticate, async (req, res) => {
       method,
       tip,
       processedBy: req.user._id,
-      status: 'completed'
+      status: 'completed',
+      tenantId: req.tenantId
     });
 
     // Handle different payment methods
@@ -55,8 +60,12 @@ router.post('/process', authenticate, async (req, res) => {
 
     // Update table status
     const Table = require('../models/Table');
+    const tableFilter = { number: order.tableNumber };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
     await Table.findOneAndUpdate(
-      { number: order.tableNumber },
+      tableFilter,
       { status: 'available', currentOrder: null }
     );
 
@@ -79,7 +88,11 @@ router.post('/process', authenticate, async (req, res) => {
 // Get payment details
 router.get('/:paymentId', authenticate, async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.paymentId)
+    const paymentFilter = { _id: req.params.paymentId };
+    if (req.tenantId) {
+      paymentFilter.tenantId = req.tenantId;
+    }
+    const payment = await Payment.findOne(paymentFilter)
       .populate('order')
       .populate('processedBy', 'name');
 
@@ -98,7 +111,11 @@ router.post('/:paymentId/refund', authenticate, async (req, res) => {
   try {
     const { amount, reason } = req.body;
 
-    const payment = await Payment.findById(req.params.paymentId);
+    const paymentFilter = { _id: req.params.paymentId };
+    if (req.tenantId) {
+      paymentFilter.tenantId = req.tenantId;
+    }
+    const payment = await Payment.findOne(paymentFilter);
     if (!payment) {
       return res.status(404).json({ error: 'Payment not found' });
     }

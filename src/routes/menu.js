@@ -47,13 +47,21 @@ router.get('/', async (req, res) => {
 // Get all menu items with category details
 router.get('/with-categories', async (req, res) => {
   try {
-    // Get all active categories
-    const categories = await Category.find({ isActive: true })
+    // Get all active categories with tenant filter
+    const categoryFilter = { isActive: true };
+    if (req.tenantId) {
+      categoryFilter.tenantId = req.tenantId;
+    }
+    const categories = await Category.find(categoryFilter)
       .select('name nameAr slug icon image displayOrder')
       .sort({ displayOrder: 1, name: 1 });
     
-    // Get all available menu items
-    const menuItems = await MenuItem.find({ available: true });
+    // Get all available menu items with tenant filter
+    const menuItemFilter = { available: true };
+    if (req.tenantId) {
+      menuItemFilter.tenantId = req.tenantId;
+    }
+    const menuItems = await MenuItem.find(menuItemFilter);
     
     // Create a map of categories with their items
     const categoriesWithItems = categories.map(category => {
@@ -86,10 +94,14 @@ router.get('/with-categories', async (req, res) => {
 // Get menu items by category
 router.get('/:category', async (req, res) => {
   try {
-    const items = await MenuItem.find({ 
+    const filter = { 
       category: req.params.category,
       available: true 
-    });
+    };
+    if (req.tenantId) {
+      filter.tenantId = req.tenantId;
+    }
+    const items = await MenuItem.find(filter);
     res.json(items);
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -14,14 +14,27 @@ router.get('/', authenticate, async (req, res) => {
     const { tableNumber, status, waiterId, startDate, endDate, customerSession } = req.query;
     const filter = {};
     
+    // Add tenant isolation
+    if (req.tenantId) {
+      filter.tenantId = req.tenantId;
+    }
+    
     // If customerSession is provided, only return orders for that session
     if (customerSession) {
-      const session = await CustomerSession.findById(customerSession).populate('orders');
+      const sessionFilter = { _id: customerSession };
+      if (req.tenantId) {
+        sessionFilter.tenantId = req.tenantId;
+      }
+      const session = await CustomerSession.findOne(sessionFilter).populate('orders');
       if (!session) {
         return res.json([]);
       }
       // Return only the orders from this customer session
-      const orders = await Order.find({ _id: { $in: session.orders } })
+      const orderFilter = { _id: { $in: session.orders } };
+      if (req.tenantId) {
+        orderFilter.tenantId = req.tenantId;
+      }
+      const orders = await Order.find(orderFilter)
         .populate('waiter', 'name')
         .sort('-createdAt');
       return res.json(orders);
@@ -63,6 +76,11 @@ router.get('/waiter/history', authenticate, async (req, res) => {
     const { startDate, endDate } = req.query;
     const filter = { waiter: req.user._id };
     
+    // Add tenant isolation
+    if (req.tenantId) {
+      filter.tenantId = req.tenantId;
+    }
+    
     if (startDate || endDate) {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -99,7 +117,11 @@ router.get('/waiter/history', authenticate, async (req, res) => {
 // Get order by ID
 router.get('/:orderId', authenticate, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
+    const orderFilter = { _id: req.params.orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter)
       .populate('waiter', 'name');
       
     if (!order) {
@@ -147,7 +169,11 @@ router.post('/', authenticate, async (req, res) => {
         }
         
         // Verify the menu item exists
-        const menuItem = await MenuItem.findById(item.menuItem);
+        const menuItemFilter = { _id: item.menuItem };
+        if (req.tenantId) {
+          menuItemFilter.tenantId = req.tenantId;
+        }
+        const menuItem = await MenuItem.findOne(menuItemFilter);
         if (!menuItem) {
           return res.status(400).json({ 
             error: `Menu item not found: ${item.menuItem}` 
@@ -174,10 +200,14 @@ router.post('/', authenticate, async (req, res) => {
     }
     
     // STEP 1: Find the waiter who's logged into this table
-    const tableSession = await TableSession.findOne({
+    const tableSessionFilter = {
       tableNumber: String(orderData.tableNumber),
       isActive: true
-    }).sort('-loginTime').populate('waiter', 'name email');
+    };
+    if (req.tenantId) {
+      tableSessionFilter.tenantId = req.tenantId;
+    }
+    const tableSession = await TableSession.findOne(tableSessionFilter).sort('-loginTime').populate('waiter', 'name email');
     
     if (!tableSession || !tableSession.waiter) {
       console.error('No waiter found for table:', orderData.tableNumber);
@@ -187,14 +217,21 @@ router.post('/', authenticate, async (req, res) => {
     }
     
     // STEP 2: Check for active customer session (optional - for better tracking)
-    const customerSession = await CustomerSession.findOne({
+    const customerSessionFilter = {
       tableNumber: String(orderData.tableNumber),
       isActive: true
-    });
+    };
+    if (req.tenantId) {
+      customerSessionFilter.tenantId = req.tenantId;
+    }
+    const customerSession = await CustomerSession.findOne(customerSessionFilter);
     
     // STEP 3: Create the order WITH waiter information
     const order = new Order({
       ...orderData,
+      
+      // CRITICAL: Set tenant ID for isolation
+      tenantId: req.tenantId,
       
       // CRITICAL: Set all waiter fields from TableSession
       waiter: tableSession.waiter._id,
@@ -251,8 +288,12 @@ router.post('/', authenticate, async (req, res) => {
     }
     
     // Update table status
+    const tableFilter = { number: String(orderData.tableNumber) };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
     await Table.findOneAndUpdate(
-      { number: String(orderData.tableNumber) },
+      tableFilter,
       { 
         status: 'occupied',
         currentOrder: order._id,
@@ -299,7 +340,11 @@ router.post('/', authenticate, async (req, res) => {
 // Confirm order (waiter or admin only)
 router.post('/:orderId/confirm', authenticate, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId);
+    const orderFilter = { _id: req.params.orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -335,7 +380,11 @@ router.post('/:orderId/confirm', authenticate, async (req, res) => {
 router.post('/:orderId/cancel', authenticate, async (req, res) => {
   try {
     const { reason } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const orderFilter = { _id: req.params.orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -367,10 +416,14 @@ router.post('/:orderId/cancel', authenticate, async (req, res) => {
     }
     
     // Update customer session
-    const customerSession = await CustomerSession.findOne({
+    const customerSessionFilter = {
       orders: order._id,
       isActive: true
-    });
+    };
+    if (req.tenantId) {
+      customerSessionFilter.tenantId = req.tenantId;
+    }
+    const customerSession = await CustomerSession.findOne(customerSessionFilter);
     
     if (customerSession) {
       customerSession.totalAmount -= order.total || 0;
@@ -406,7 +459,11 @@ router.post('/:orderId/items', authenticate, async (req, res) => {
     const newItem = req.body;
     
     // Find the order
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -434,14 +491,22 @@ router.post('/:orderId/items', authenticate, async (req, res) => {
     order.total = order.subtotal + order.tax + (order.discount || 0) + (order.deliveryCharge || 0) + (order.tip || 0);
     
     // Update customer session total if exists
-    const customerSession = await CustomerSession.findOne({
+    const customerSessionFilter = {
       orders: orderId,
       isActive: true
-    });
+    };
+    if (req.tenantId) {
+      customerSessionFilter.tenantId = req.tenantId;
+    }
+    const customerSession = await CustomerSession.findOne(customerSessionFilter);
     
     if (customerSession) {
       // Recalculate session total properly
-      const allOrders = await Order.find({ _id: { $in: customerSession.orders } });
+      const orderFilter = { _id: { $in: customerSession.orders } };
+      if (req.tenantId) {
+        orderFilter.tenantId = req.tenantId;
+      }
+      const allOrders = await Order.find(orderFilter);
       customerSession.totalAmount = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       await customerSession.save();
     }
@@ -477,7 +542,11 @@ router.put('/:orderId/items/:itemId', authenticate, async (req, res) => {
     const updates = req.body;
     
     // Find the order
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -541,7 +610,11 @@ router.delete('/:orderId/items/:itemId', authenticate, async (req, res) => {
   try {
     const { orderId, itemId } = req.params;
     
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -590,7 +663,11 @@ router.patch('/:orderId/status', authenticate, async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body;
     
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -660,7 +737,11 @@ router.patch('/:orderId/items/:itemId/status', authenticate, async (req, res) =>
     const { orderId, itemId } = req.params;
     const { status } = req.body;
     
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -703,7 +784,11 @@ router.post('/:orderId/payment', authenticate, async (req, res) => {
     const { orderId } = req.params;
     const { paymentMethod, amountPaid, tip } = req.body;
     
-    const order = await Order.findById(orderId);
+    const orderFilter = { _id: orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -728,14 +813,22 @@ router.post('/:orderId/payment', authenticate, async (req, res) => {
     await order.save();
     
     // Update customer session
-    const customerSession = await CustomerSession.findOne({
+    const customerSessionFilter = {
       orders: orderId,
       isActive: true
-    });
+    };
+    if (req.tenantId) {
+      customerSessionFilter.tenantId = req.tenantId;
+    }
+    const customerSession = await CustomerSession.findOne(customerSessionFilter);
     
     if (customerSession) {
       // Properly recalculate total amount
-      const allOrders = await Order.find({ _id: { $in: customerSession.orders } });
+      const orderFilter = { _id: { $in: customerSession.orders } };
+      if (req.tenantId) {
+        orderFilter.tenantId = req.tenantId;
+      }
+      const allOrders = await Order.find(orderFilter);
       customerSession.totalAmount = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       await customerSession.save();
     }

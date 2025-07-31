@@ -25,8 +25,11 @@ router.get('/', async (req, res) => {
       all = false  // Add this parameter to fetch all items
     } = req.query;
 
-    // Build query
+    // Build query with tenant filter
     const query = {};
+    if (req.tenantId) {
+      query.tenantId = req.tenantId;
+    }
     if (category) query.category = category;
     if (available !== undefined) query.available = available === 'true';
     if (inStock !== undefined) query.inStock = inStock === 'true';
@@ -83,7 +86,11 @@ router.get('/', async (req, res) => {
 // Get single menu item
 router.get('/:id', async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
@@ -119,17 +126,34 @@ router.post('/', cloudinaryUpload.single('image'), menuItemValidation, validate,
 
     // Generate unique ID - improved logic to prevent duplicates
     if (!itemData.id) {
-      const lastItem = await MenuItem.findOne().sort({ id: -1 });
+      const lastItemFilter = {};
+      if (req.tenantId) {
+        lastItemFilter.tenantId = req.tenantId;
+      }
+      const lastItem = await MenuItem.findOne(lastItemFilter).sort({ id: -1 });
       itemData.id = lastItem ? lastItem.id + 1 : 1;
       
       // Double-check for duplicates
-      const existingWithId = await MenuItem.findOne({ id: itemData.id });
+      const existingFilter = { id: itemData.id };
+      if (req.tenantId) {
+        existingFilter.tenantId = req.tenantId;
+      }
+      const existingWithId = await MenuItem.findOne(existingFilter);
       if (existingWithId) {
         // If duplicate found, find the actual highest ID
-        const allItems = await MenuItem.find().select('id').sort({ id: -1 });
+        const allItemsFilter = {};
+        if (req.tenantId) {
+          allItemsFilter.tenantId = req.tenantId;
+        }
+        const allItems = await MenuItem.find(allItemsFilter).select('id').sort({ id: -1 });
         const highestId = allItems[0]?.id || 0;
         itemData.id = highestId + 1;
       }
+    }
+
+    // Set tenant ID for new items
+    if (req.tenantId) {
+      itemData.tenantId = req.tenantId;
     }
 
     const newItem = new MenuItem(itemData);
@@ -156,8 +180,12 @@ router.put('/:id', cloudinaryUpload.single('image'), menuItemValidation, validat
       itemData.customizations = JSON.parse(itemData.customizations);
     }
 
-    // Find existing item
-    const existingItem = await MenuItem.findById(req.params.id);
+    // Find existing item with tenant filter
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const existingItem = await MenuItem.findOne(itemFilter);
     if (!existingItem) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
@@ -187,9 +215,13 @@ router.put('/:id', cloudinaryUpload.single('image'), menuItemValidation, validat
       delete itemData.uploadImage; // Remove base64 data from item data
     }
 
-    // Update item
-    const updatedItem = await MenuItem.findByIdAndUpdate(
-      req.params.id,
+    // Update item with tenant filter
+    const updateFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      updateFilter.tenantId = req.tenantId;
+    }
+    const updatedItem = await MenuItem.findOneAndUpdate(
+      updateFilter,
       itemData,
       { new: true, runValidators: true }
     );
@@ -207,17 +239,25 @@ router.put('/:id', cloudinaryUpload.single('image'), menuItemValidation, validat
 // Soft delete menu item
 router.delete('/:id', async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
 
-    // Check if item is referenced in any active orders
+    // Check if item is referenced in any active orders with tenant filter
     const Order = require('../../models/Order');
-    const activeOrderCount = await Order.countDocuments({
+    const orderFilter = {
       'items.menuItem': req.params.id,
       status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] }
-    });
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const activeOrderCount = await Order.countDocuments(orderFilter);
 
     if (activeOrderCount > 0) {
       return res.status(400).json({ 
@@ -241,7 +281,11 @@ router.delete('/:id', async (req, res) => {
 // Restore deleted menu item
 router.post('/:id/restore', authenticate, authorize(['admin', 'manager']), async (req, res) => {
   try {
-    const item = await MenuItem.findOne({ _id: req.params.id, isDeleted: true });
+    const itemFilter = { _id: req.params.id, isDeleted: true };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Deleted menu item not found' });
     }
@@ -261,7 +305,8 @@ router.post('/:id/restore', authenticate, authorize(['admin', 'manager']), async
 // Get deleted menu items
 router.get('/deleted/list', authenticate, authorize(['admin', 'manager']), async (req, res) => {
   try {
-    const deletedItems = await MenuItem.findDeleted()
+    const query = req.tenantId ? { tenantId: req.tenantId } : {};
+    const deletedItems = await MenuItem.findDeleted(query)
       .populate('deletedBy', 'name email')
       .sort('-deletedAt');
 
@@ -278,7 +323,11 @@ router.get('/deleted/list', authenticate, authorize(['admin', 'manager']), async
 // Toggle availability
 router.patch('/:id/availability', async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
@@ -314,8 +363,12 @@ router.post('/bulk-update', bulkUpdateValidation, validate, async (req, res) => 
 
     for (const itemId of items) {
       try {
+        const updateFilter = { id: itemId };
+        if (req.tenantId) {
+          updateFilter.tenantId = req.tenantId;
+        }
         await MenuItem.findOneAndUpdate(
-          { id: itemId },
+          updateFilter,
           updateFields,
           { runValidators: true }
         );
@@ -356,7 +409,11 @@ router.post('/bulk-upload', cloudinaryUpload.single('file'), async (req, res) =>
 // Upload multiple images for a menu item
 router.post('/:id/images', cloudinaryUpload.array('images', 5), async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
@@ -384,7 +441,11 @@ router.post('/:id/images', cloudinaryUpload.array('images', 5), async (req, res)
 // Delete an image from menu item
 router.delete('/:id/images/:imageIndex', async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const itemFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const item = await MenuItem.findOne(itemFilter);
     if (!item) {
       return res.status(404).json({ error: 'Menu item not found' });
     }
@@ -418,24 +479,40 @@ router.delete('/:id/images/:imageIndex', async (req, res) => {
 // Get menu statistics
 router.get('/stats/overview', async (req, res) => {
   try {
-    const stats = await MenuItem.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 },
-          available: { 
-            $sum: { $cond: ['$available', 1, 0] } 
-          },
-          avgPrice: { $avg: '$price' },
-          totalSold: { $sum: '$soldCount' }
-        }
+    // Build aggregate pipeline with tenant filter
+    const matchStage = {};
+    if (req.tenantId) {
+      matchStage.tenantId = req.tenantId;
+    }
+    
+    const pipeline = [];
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+    pipeline.push({
+      $group: {
+        _id: '$category',
+        count: { $sum: 1 },
+        available: { 
+          $sum: { $cond: ['$available', 1, 0] } 
+        },
+        avgPrice: { $avg: '$price' },
+        totalSold: { $sum: '$soldCount' }
       }
-    ]);
+    });
+    
+    const stats = await MenuItem.aggregate(pipeline);
 
-    const total = await MenuItem.countDocuments();
-    const available = await MenuItem.countDocuments({ available: true });
-    const featured = await MenuItem.countDocuments({ featured: true });
-    const outOfStock = await MenuItem.countDocuments({ inStock: false });
+    // Count queries with tenant filter
+    const baseFilter = {};
+    if (req.tenantId) {
+      baseFilter.tenantId = req.tenantId;
+    }
+    
+    const total = await MenuItem.countDocuments(baseFilter);
+    const available = await MenuItem.countDocuments({ ...baseFilter, available: true });
+    const featured = await MenuItem.countDocuments({ ...baseFilter, featured: true });
+    const outOfStock = await MenuItem.countDocuments({ ...baseFilter, inStock: false });
 
     res.json({
       total,

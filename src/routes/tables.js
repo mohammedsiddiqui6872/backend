@@ -34,12 +34,16 @@ router.get('/state', authenticate, async (req, res) => {
     const tablesWithDetails = await Promise.all(tables.map(async (table) => {
       const tableData = table.toObject();
       
-      // Get active orders for the table
-      const activeOrders = await Order.find({
+      // Get active orders for the table with tenant filter
+      const orderFilter = {
         tableNumber: table.tableNumber,
         status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
         paymentStatus: { $ne: 'paid' }
-      }).populate('items.menuItem').sort('-createdAt');
+      };
+      if (req.tenantId) {
+        orderFilter.tenantId = req.tenantId;
+      }
+      const activeOrders = await Order.find(orderFilter).populate('items.menuItem').sort('-createdAt');
       
       // Get waiter session info if waiter is assigned
       let waiterSessionInfo = null;
@@ -73,7 +77,11 @@ router.get('/state/:tableNumber', authenticate, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     
-    const tableState = await TableState.findOne({ tableNumber })
+    const stateFilter = { tableNumber };
+    if (req.tenantId) {
+      stateFilter.tenantId = req.tenantId;
+    }
+    const tableState = await TableState.findOne(stateFilter)
       .populate('currentWaiter', 'name email')
       .populate('assistingWaiters', 'name email')
       .populate('activeCustomerSession');
@@ -82,12 +90,16 @@ router.get('/state/:tableNumber', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
     
-    // Get active orders
-    const activeOrders = await Order.find({
+    // Get active orders with tenant filter
+    const orderFilter = {
       tableNumber: tableNumber,
       status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
       paymentStatus: { $ne: 'paid' }
-    }).populate('items.menuItem').sort('-createdAt');
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const activeOrders = await Order.find(orderFilter).populate('items.menuItem').sort('-createdAt');
     
     // Get waiter session info
     let waiterSessionInfo = null;
@@ -125,8 +137,12 @@ router.put('/:tableNumber/assign', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to assign tables' });
     }
     
-    // Get table state
-    const tableState = await TableState.findOne({ tableNumber });
+    // Get table state with tenant filter
+    const stateFilter = { tableNumber };
+    if (req.tenantId) {
+      stateFilter.tenantId = req.tenantId;
+    }
+    const tableState = await TableState.findOne(stateFilter);
     if (!tableState) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -173,8 +189,12 @@ router.put('/:tableNumber/release', authenticate, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     
-    // Get table state
-    const tableState = await TableState.findOne({ tableNumber });
+    // Get table state with tenant filter
+    const stateFilter = { tableNumber };
+    if (req.tenantId) {
+      stateFilter.tenantId = req.tenantId;
+    }
+    const tableState = await TableState.findOne(stateFilter);
     if (!tableState) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -185,9 +205,13 @@ router.put('/:tableNumber/release', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to release this table' });
     }
     
-    // Check for active customer session
+    // Check for active customer session with tenant filter
     if (tableState.activeCustomerSession) {
-      const customerSession = await CustomerSession.findById(tableState.activeCustomerSession);
+      const sessionFilter = { _id: tableState.activeCustomerSession };
+      if (req.tenantId) {
+        sessionFilter.tenantId = req.tenantId;
+      }
+      const customerSession = await CustomerSession.findOne(sessionFilter);
       if (customerSession && customerSession.isActive) {
         return res.status(400).json({ 
           error: 'Cannot release table with active customer session',
@@ -244,8 +268,12 @@ router.put('/:tableNumber/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    // Get table state
-    const tableState = await TableState.findOne({ tableNumber });
+    // Get table state with tenant filter
+    const stateFilter = { tableNumber };
+    if (req.tenantId) {
+      stateFilter.tenantId = req.tenantId;
+    }
+    const tableState = await TableState.findOne(stateFilter);
     if (!tableState) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -284,8 +312,12 @@ router.post('/', authenticate, authorize(['admin']), async (req, res) => {
   try {
     const { number, capacity, section, notes } = req.body;
     
-    // Check if table already exists
-    const existingTable = await Table.findOne({ number });
+    // Check if table already exists with tenant filter
+    const tableFilter = { number };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const existingTable = await Table.findOne(tableFilter);
     if (existingTable) {
       return res.status(400).json({ error: 'Table number already exists' });
     }
@@ -296,7 +328,8 @@ router.post('/', authenticate, authorize(['admin']), async (req, res) => {
       capacity: capacity || 4,
       section: section || 'main',
       notes: notes || '',
-      status: 'available'
+      status: 'available',
+      tenantId: req.tenantId
     });
     await table.save();
     
@@ -304,6 +337,7 @@ router.post('/', authenticate, authorize(['admin']), async (req, res) => {
     const tableState = new TableState({
       tableNumber: number,
       capacity: capacity || 4,
+      tenantId: req.tenantId,
       section: section || 'main',
       notes: notes || '',
       status: 'available'
@@ -327,11 +361,15 @@ router.delete('/:tableNumber', authenticate, authorize(['admin']), async (req, r
   try {
     const { tableNumber } = req.params;
     
-    // Check for active sessions
-    const activeSession = await CustomerSession.findOne({
+    // Check for active sessions with tenant filter
+    const sessionFilter = {
       tableNumber,
       isActive: true
-    });
+    };
+    if (req.tenantId) {
+      sessionFilter.tenantId = req.tenantId;
+    }
+    const activeSession = await CustomerSession.findOne(sessionFilter);
     
     if (activeSession) {
       return res.status(400).json({ 
@@ -339,12 +377,16 @@ router.delete('/:tableNumber', authenticate, authorize(['admin']), async (req, r
       });
     }
     
-    // Check for active orders
-    const activeOrders = await Order.find({
+    // Check for active orders with tenant filter
+    const orderFilter = {
       tableNumber,
       status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
       paymentStatus: { $ne: 'paid' }
-    });
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const activeOrders = await Order.find(orderFilter);
     
     if (activeOrders.length > 0) {
       return res.status(400).json({ 
@@ -352,9 +394,15 @@ router.delete('/:tableNumber', authenticate, authorize(['admin']), async (req, r
       });
     }
     
-    // Delete from both models
-    await Table.findOneAndDelete({ number: tableNumber });
-    await TableState.findOneAndDelete({ tableNumber });
+    // Delete from both models with tenant filter
+    const deleteTableFilter = { number: tableNumber };
+    const deleteStateFilter = { tableNumber };
+    if (req.tenantId) {
+      deleteTableFilter.tenantId = req.tenantId;
+      deleteStateFilter.tenantId = req.tenantId;
+    }
+    await Table.findOneAndDelete(deleteTableFilter);
+    await TableState.findOneAndDelete(deleteStateFilter);
     
     res.json({
       success: true,

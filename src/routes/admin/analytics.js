@@ -15,23 +15,31 @@ router.get('/dashboard', async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Today's stats
-    const todayOrders = await Order.find({
+    // Today's stats with tenant filter
+    const orderFilter = {
       createdAt: { $gte: today }
-    });
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const todayOrders = await Order.find(orderFilter);
 
     const todayRevenue = todayOrders.reduce((sum, order) => 
       order.paymentStatus === 'paid' ? sum + order.total : sum, 0
     );
 
-    // Best selling items
-    const bestSellers = await MenuItem.find()
+    // Best selling items with tenant filter
+    const menuFilter = {};
+    if (req.tenantId) {
+      menuFilter.tenantId = req.tenantId;
+    }
+    const bestSellers = await MenuItem.find(menuFilter)
       .sort('-soldCount')
       .limit(5)
       .select('name soldCount revenue category');
 
-    // Category performance
-    const categoryStats = await Order.aggregate([
+    // Category performance with tenant filter
+    const categoryPipeline = [
       { $match: { createdAt: { $gte: today } } },
       { $unwind: '$items' },
       { 
@@ -50,10 +58,17 @@ router.get('/dashboard', async (req, res) => {
           revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
         }
       }
-    ]);
+    ];
+    
+    // Add tenant filter to match stage
+    if (req.tenantId) {
+      categoryPipeline[0].$match.tenantId = req.tenantId;
+    }
+    
+    const categoryStats = await Order.aggregate(categoryPipeline);
 
-    // Hourly breakdown
-    const hourlyData = await Order.aggregate([
+    // Hourly breakdown with tenant filter
+    const hourlyPipeline = [
       { $match: { createdAt: { $gte: today } } },
       {
         $group: {
@@ -63,7 +78,14 @@ router.get('/dashboard', async (req, res) => {
         }
       },
       { $sort: { _id: 1 } }
-    ]);
+    ];
+    
+    // Add tenant filter to match stage
+    if (req.tenantId) {
+      hourlyPipeline[0].$match.tenantId = req.tenantId;
+    }
+    
+    const hourlyData = await Order.aggregate(hourlyPipeline);
 
     res.json({
       today: {
@@ -92,13 +114,21 @@ router.get('/detailed', async (req, res) => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    const orders = await Order.find({
+    // Add tenant filters to queries
+    const orderFilter = {
       createdAt: { $gte: start, $lte: end }
-    });
-
-    const payments = await Payment.find({
+    };
+    const paymentFilter = {
       createdAt: { $gte: start, $lte: end }
-    });
+    };
+    
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+      paymentFilter.tenantId = req.tenantId;
+    }
+    
+    const orders = await Order.find(orderFilter);
+    const payments = await Payment.find(paymentFilter);
 
     // Calculate various metrics
     const metrics = {
@@ -145,13 +175,19 @@ router.get('/export', async (req, res) => {
   try {
     const { startDate, endDate, format = 'json' } = req.query;
     
-    // Fetch all relevant data
-    const orders = await Order.find({
+    // Fetch all relevant data with tenant filter
+    const orderFilter = {
       createdAt: { 
         $gte: new Date(startDate), 
         $lte: new Date(endDate) 
       }
-    }).populate('items.menuItem waiter chef');
+    };
+    
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    
+    const orders = await Order.find(orderFilter).populate('items.menuItem waiter chef');
 
     if (format === 'csv') {
       // Convert to CSV format

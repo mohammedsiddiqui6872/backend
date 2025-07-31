@@ -7,9 +7,13 @@ const { authenticate, authorize } = require('../middleware/auth');
 // Get active kitchen orders
 router.get('/orders', authenticate, authorize('chef', 'admin'), async (req, res) => {
   try {
-    const orders = await Order.find({
+    const orderFilter = {
       status: { $in: ['confirmed', 'preparing'] }
-    })
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const orders = await Order.find(orderFilter)
     .populate('items.menuItem')
     .sort('createdAt');
 
@@ -24,7 +28,11 @@ router.patch('/orders/:orderId/items/:itemId', authenticate, authorize('chef', '
   try {
     const { status } = req.body;
     
-    const order = await Order.findById(req.params.orderId);
+    const orderFilter = { _id: req.params.orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOne(orderFilter);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -66,8 +74,12 @@ router.patch('/orders/:orderId/items/:itemId', authenticate, authorize('chef', '
 // Mark order as preparing
 router.patch('/orders/:orderId/start', authenticate, authorize('chef', 'admin'), async (req, res) => {
   try {
-    const order = await Order.findByIdAndUpdate(
-      req.params.orderId,
+    const orderFilter = { _id: req.params.orderId };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const order = await Order.findOneAndUpdate(
+      orderFilter,
       { 
         status: 'preparing',
         chef: req.user._id,

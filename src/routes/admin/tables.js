@@ -16,23 +16,39 @@ router.get('/', async (req, res) => {
     const TableState = require('../../models/TableState');
     const WaiterSession = require('../../models/WaiterSession');
     
-    // Get all tables
-    const tables = await Table.find()
+    // Get all tables with tenant filter
+    const tableFilter = {};
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const tables = await Table.find(tableFilter)
       .populate('currentOrder')
       .populate('waiter', 'name');
 
-    // Get all active customer sessions
-    const activeSessions = await CustomerSession.find({ isActive: true })
+    // Get all active customer sessions with tenant filter
+    const sessionFilter = { isActive: true };
+    if (req.tenantId) {
+      sessionFilter.tenantId = req.tenantId;
+    }
+    const activeSessions = await CustomerSession.find(sessionFilter)
       .populate('waiter', 'name email');
     
-    // Get all active orders
-    const activeOrders = await Order.find({
+    // Get all active orders with tenant filter
+    const orderFilter = {
       status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
       paymentStatus: { $ne: 'paid' }
-    }).populate('items.menuItem', 'name price');
+    };
+    if (req.tenantId) {
+      orderFilter.tenantId = req.tenantId;
+    }
+    const activeOrders = await Order.find(orderFilter).populate('items.menuItem', 'name price');
     
-    // Get table states
-    const tableStates = await TableState.find()
+    // Get table states with tenant filter
+    const stateFilter = {};
+    if (req.tenantId) {
+      stateFilter.tenantId = req.tenantId;
+    }
+    const tableStates = await TableState.find(stateFilter)
       .populate('currentWaiter', 'name email')
       .populate('activeCustomerSession');
     
@@ -93,7 +109,8 @@ router.post('/', authorize('admin', 'manager'), async (req, res) => {
       number,
       capacity,
       location,
-      qrCode
+      qrCode,
+      tenantId: req.tenantId
     });
 
     await table.save();
@@ -113,7 +130,11 @@ router.patch('/:tableNumber/status', async (req, res) => {
   try {
     const { status, waiterId } = req.body;
 
-    const table = await Table.findOne({ number: req.params.tableNumber });
+    const tableFilter = { number: req.params.tableNumber };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const table = await Table.findOne(tableFilter);
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -150,8 +171,12 @@ router.patch('/:tableNumber/waiter', authorize('admin', 'manager'), async (req, 
   try {
     const { waiterId } = req.body;
 
+    const tableFilter = { number: req.params.tableNumber };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
     const table = await Table.findOneAndUpdate(
-      { number: req.params.tableNumber },
+      tableFilter,
       { waiter: waiterId },
       { new: true }
     ).populate('waiter', 'name');
@@ -185,6 +210,11 @@ router.get('/:tableNumber/history', async (req, res) => {
       query.createdAt = { $gte: startDate, $lte: endDate };
     }
 
+    // Add tenant filter to query
+    if (req.tenantId) {
+      query.tenantId = req.tenantId;
+    }
+    
     const orders = await Order.find(query)
       .populate('waiter', 'name')
       .sort('-createdAt')
@@ -208,7 +238,11 @@ router.get('/:tableNumber/history', async (req, res) => {
 // Generate new QR code
 router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, res) => {
   try {
-    const table = await Table.findOne({ number: req.params.tableNumber });
+    const tableFilter = { number: req.params.tableNumber };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const table = await Table.findOne(tableFilter);
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -232,7 +266,11 @@ router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, 
 // Delete table
 router.delete('/:tableNumber', authorize('admin'), async (req, res) => {
   try {
-    const table = await Table.findOne({ number: req.params.tableNumber });
+    const tableFilter = { number: req.params.tableNumber };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const table = await Table.findOne(tableFilter);
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
     }
@@ -255,7 +293,11 @@ router.delete('/:tableNumber', authorize('admin'), async (req, res) => {
 // Get table layout
 router.get('/layout', async (req, res) => {
   try {
-    const tables = await Table.find({ isActive: true })
+    const tableFilter = { isActive: true };
+    if (req.tenantId) {
+      tableFilter.tenantId = req.tenantId;
+    }
+    const tables = await Table.find(tableFilter)
       .select('number capacity status location')
       .populate('currentOrder', 'orderNumber total')
       .populate('waiter', 'name');
