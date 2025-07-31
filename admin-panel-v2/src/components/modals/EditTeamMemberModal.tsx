@@ -1,5 +1,34 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Calendar, User, Phone, Mail, Building, MapPin, CreditCard, FileText, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+interface Address {
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+interface EmergencyContact {
+  name?: string;
+  relationship?: string;
+  phone?: string;
+  email?: string;
+}
+
+interface Salary {
+  amount?: number;
+  currency?: string;
+  type?: string;
+}
+
+interface BankDetails {
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+  iban?: string;
+}
 
 interface TeamMember {
   _id: string;
@@ -8,6 +37,25 @@ interface TeamMember {
   role: string;
   phone?: string;
   isActive: boolean;
+  profile?: {
+    dateOfBirth?: string;
+    gender?: string;
+    nationality?: string;
+    address?: Address;
+    emergencyContact?: EmergencyContact;
+    employeeId?: string;
+    department?: string;
+    position?: string;
+    hireDate?: string;
+    employmentType?: string;
+    salary?: Salary;
+    bankDetails?: BankDetails;
+    notes?: string;
+  };
+  shiftPreferences?: {
+    preferredShifts?: string[];
+    maxHoursPerWeek?: number;
+  };
 }
 
 interface EditTeamMemberModalProps {
@@ -18,13 +66,58 @@ interface EditTeamMemberModalProps {
 }
 
 const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMemberModalProps) => {
+  const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState({
+    // Basic Information
     name: '',
     email: '',
     role: 'waiter',
     phone: '',
     isActive: true,
-    password: '', // Optional for password reset
+    password: '',
+    
+    // Profile Information
+    profile: {
+      dateOfBirth: '',
+      gender: '',
+      nationality: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        country: '',
+        postalCode: ''
+      },
+      emergencyContact: {
+        name: '',
+        relationship: '',
+        phone: '',
+        email: ''
+      },
+      employeeId: '',
+      department: '',
+      position: '',
+      hireDate: '',
+      employmentType: 'full-time',
+      salary: {
+        amount: 0,
+        currency: 'AED',
+        type: 'monthly'
+      },
+      bankDetails: {
+        accountName: '',
+        accountNumber: '',
+        bankName: '',
+        iban: ''
+      },
+      notes: ''
+    },
+    
+    // Shift Preferences
+    shiftPreferences: {
+      preferredShifts: [],
+      maxHoursPerWeek: 40
+    }
   });
 
   useEffect(() => {
@@ -36,116 +129,758 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
         phone: member.phone || '',
         isActive: member.isActive,
         password: '',
+        profile: {
+          dateOfBirth: member.profile?.dateOfBirth ? new Date(member.profile.dateOfBirth).toISOString().split('T')[0] : '',
+          gender: member.profile?.gender || '',
+          nationality: member.profile?.nationality || '',
+          address: {
+            street: member.profile?.address?.street || '',
+            city: member.profile?.address?.city || '',
+            state: member.profile?.address?.state || '',
+            country: member.profile?.address?.country || '',
+            postalCode: member.profile?.address?.postalCode || ''
+          },
+          emergencyContact: {
+            name: member.profile?.emergencyContact?.name || '',
+            relationship: member.profile?.emergencyContact?.relationship || '',
+            phone: member.profile?.emergencyContact?.phone || '',
+            email: member.profile?.emergencyContact?.email || ''
+          },
+          employeeId: member.profile?.employeeId || '',
+          department: member.profile?.department || '',
+          position: member.profile?.position || '',
+          hireDate: member.profile?.hireDate ? new Date(member.profile.hireDate).toISOString().split('T')[0] : '',
+          employmentType: member.profile?.employmentType || 'full-time',
+          salary: {
+            amount: member.profile?.salary?.amount || 0,
+            currency: member.profile?.salary?.currency || 'AED',
+            type: member.profile?.salary?.type || 'monthly'
+          },
+          bankDetails: {
+            accountName: member.profile?.bankDetails?.accountName || '',
+            accountNumber: member.profile?.bankDetails?.accountNumber || '',
+            bankName: member.profile?.bankDetails?.bankName || '',
+            iban: member.profile?.bankDetails?.iban || ''
+          },
+          notes: member.profile?.notes || ''
+        },
+        shiftPreferences: {
+          preferredShifts: member.shiftPreferences?.preferredShifts || [],
+          maxHoursPerWeek: member.shiftPreferences?.maxHoursPerWeek || 40
+        }
       });
     }
   }, [member]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name || !formData.email || !formData.role) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
     // Only include password if it's been changed
     const updateData: any = { ...formData };
     if (!updateData.password) {
       delete updateData.password;
     }
+    
     onEdit(updateData);
   };
+
+  const tabs = [
+    { id: 'basic', label: 'Basic Info', icon: User },
+    { id: 'personal', label: 'Personal Info', icon: Calendar },
+    { id: 'employment', label: 'Employment', icon: Building },
+    { id: 'emergency', label: 'Emergency', icon: AlertCircle },
+    { id: 'banking', label: 'Banking', icon: CreditCard },
+    { id: 'preferences', label: 'Preferences', icon: FileText },
+  ];
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b">
           <h3 className="text-lg font-medium text-gray-900">Edit Team Member</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Name
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+                    ${activeTab === tab.id
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  <Icon className={`
+                    mr-2 h-5 w-5
+                    ${activeTab === tab.id ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'}
+                  `} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-200px)]">
+          <div className="p-6">
+            {/* Basic Information Tab */}
+            {activeTab === 'basic' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.employeeId}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, employeeId: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Role <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                      <option value="waiter">Waiter</option>
+                      <option value="chef">Chef</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                      <option value="host">Host</option>
+                      <option value="bartender">Bartender</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      New Password (Leave blank to keep current)
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="Enter new password if changing"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  />
+                  <label className="ml-2 block text-sm text-gray-900">
+                    Active
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Personal Information Tab */}
+            {activeTab === 'personal' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.profile.dateOfBirth}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, dateOfBirth: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Gender
+                    </label>
+                    <select
+                      value={formData.profile.gender}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, gender: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nationality
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.nationality}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, nationality: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-900">Address</h4>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Street
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.address.street}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          address: { ...formData.profile.address, street: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.profile.address.city}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            address: { ...formData.profile.address, city: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        State/Province
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.profile.address.state}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            address: { ...formData.profile.address, state: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Country
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.profile.address.country}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            address: { ...formData.profile.address, country: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.profile.address.postalCode}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            address: { ...formData.profile.address, postalCode: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Employment Tab */}
+            {activeTab === 'employment' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Department
+                    </label>
+                    <select
+                      value={formData.profile.department}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, department: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                      <option value="">Select Department</option>
+                      <option value="Kitchen">Kitchen</option>
+                      <option value="Service">Service</option>
+                      <option value="Management">Management</option>
+                      <option value="Bar">Bar</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Position
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.position}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, position: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Hire Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.profile.hireDate}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, hireDate: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Employment Type
+                    </label>
+                    <select
+                      value={formData.profile.employmentType}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: { ...formData.profile, employmentType: e.target.value }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                      <option value="full-time">Full-time</option>
+                      <option value="part-time">Part-time</option>
+                      <option value="contract">Contract</option>
+                      <option value="temporary">Temporary</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-900">Salary Information</h4>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Amount
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.profile.salary.amount}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            salary: { ...formData.profile.salary, amount: parseFloat(e.target.value) || 0 }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Currency
+                      </label>
+                      <select
+                        value={formData.profile.salary.currency}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            salary: { ...formData.profile.salary, currency: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      >
+                        <option value="AED">AED</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Pay Type
+                      </label>
+                      <select
+                        value={formData.profile.salary.type}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: {
+                            ...formData.profile,
+                            salary: { ...formData.profile.salary, type: e.target.value }
+                          }
+                        })}
+                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      >
+                        <option value="monthly">Monthly</option>
+                        <option value="hourly">Hourly</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="annual">Annual</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Notes
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.profile.notes}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      profile: { ...formData.profile, notes: e.target.value }
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Emergency Contact Tab */}
+            {activeTab === 'emergency' && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-900">Emergency Contact Information</h4>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.emergencyContact.name}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          emergencyContact: { ...formData.profile.emergencyContact, name: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Relationship
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.emergencyContact.relationship}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          emergencyContact: { ...formData.profile.emergencyContact, relationship: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.profile.emergencyContact.phone}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          emergencyContact: { ...formData.profile.emergencyContact, phone: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.profile.emergencyContact.email}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          emergencyContact: { ...formData.profile.emergencyContact, email: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Banking Tab */}
+            {activeTab === 'banking' && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-900">Bank Account Information</h4>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Account Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.bankDetails.accountName}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          bankDetails: { ...formData.profile.bankDetails, accountName: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.bankDetails.accountNumber}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          bankDetails: { ...formData.profile.bankDetails, accountNumber: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.bankDetails.bankName}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          bankDetails: { ...formData.profile.bankDetails, bankName: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      IBAN
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.profile.bankDetails.iban}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        profile: {
+                          ...formData.profile,
+                          bankDetails: { ...formData.profile.bankDetails, iban: e.target.value }
+                        }
+                      })}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preferences Tab */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preferred Shifts
+                  </label>
+                  <div className="space-y-2">
+                    {['morning', 'afternoon', 'evening', 'night'].map(shift => (
+                      <label key={shift} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.shiftPreferences.preferredShifts.includes(shift)}
+                          onChange={(e) => {
+                            const preferredShifts = e.target.checked
+                              ? [...formData.shiftPreferences.preferredShifts, shift]
+                              : formData.shiftPreferences.preferredShifts.filter(s => s !== shift);
+                            setFormData({
+                              ...formData,
+                              shiftPreferences: { ...formData.shiftPreferences, preferredShifts }
+                            });
+                          }}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700 capitalize">{shift}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Maximum Hours Per Week
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={formData.shiftPreferences.maxHoursPerWeek}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      shiftPreferences: {
+                        ...formData.shiftPreferences,
+                        maxHoursPerWeek: parseInt(e.target.value) || 40
+                      }
+                    })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              New Password (Leave blank to keep current)
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              placeholder="Enter new password if changing"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Role
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            >
-              <option value="waiter">Waiter</option>
-              <option value="kitchen">Kitchen Staff</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Phone
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-            />
-            <label className="ml-2 block text-sm text-gray-900">
-              Active
-            </label>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-3 px-6 py-4 bg-gray-50 border-t">
             <button
               type="button"
               onClick={onClose}
