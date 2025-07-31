@@ -34,6 +34,32 @@ const upload = multer({
   }
 });
 
+// Configure multer for document uploads (PDFs, images, etc.)
+const documentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/profiles/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'doc-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadDocuments = multer({ 
+  storage: documentStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for documents
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    
+    if (extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('File type not allowed. Allowed types: JPG, PNG, GIF, PDF, DOC, DOCX'));
+    }
+  }
+});
+
 // Get all team members with enhanced details
 router.get('/members', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
@@ -183,28 +209,38 @@ router.post('/members', authenticate, authorize(['users.create']), enterpriseTen
 // Update team member
 router.put('/members/:id', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
+    console.log('Update team member - Tenant:', req.tenant?.name, 'ID:', req.tenant?.tenantId);
+    
     const updates = { ...req.body };
     delete updates.password; // Don't allow password updates through this route
     delete updates.tenantId; // Don't allow tenant changes
 
-    const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.tenantId },
-      updates,
-      { new: true, runValidators: true }
-    ).select('-password');
+    // First find the user to ensure it exists and belongs to the tenant
+    const existingUser = await User.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId
+    });
 
-    if (!user) {
+    if (!existingUser) {
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
+
+    // Update using save() to maintain context
+    Object.assign(existingUser, updates);
+    await existingUser.save();
+
+    // Return without password
+    const userObject = existingUser.toObject();
+    delete userObject.password;
 
     res.json({ 
       success: true, 
       message: 'Team member updated successfully',
-      data: user 
+      data: userObject 
     });
   } catch (error) {
     console.error('Error updating team member:', error);
-    res.status(500).json({ success: false, message: 'Error updating team member' });
+    res.status(500).json({ success: false, message: error.message || 'Error updating team member' });
   }
 });
 
@@ -239,7 +275,7 @@ router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ent
 });
 
 // Upload documents
-router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, upload.array('documents', 5), async (req, res) => {
+router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, uploadDocuments.array('documents', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -253,15 +289,22 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
       uploadedAt: new Date()
     }));
 
-    const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.tenantId },
-      { $push: { 'profile.documents': { $each: documents } } },
-      { new: true }
-    ).select('-password');
+    // Find user first
+    const user = await User.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId
+    });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
+
+    // Add documents and save
+    if (!user.profile.documents) {
+      user.profile.documents = [];
+    }
+    user.profile.documents.push(...documents);
+    await user.save();
 
     res.json({ 
       success: true, 
