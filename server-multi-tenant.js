@@ -26,13 +26,21 @@ const io = socketIo(server, {
       // Allow all subdomains of gritservices.ae
       if (!origin) return callback(null, true);
       
+      // Parse comma-separated FRONTEND_URL
+      const allowedOrigins = process.env.FRONTEND_URL 
+        ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+        : [];
+      
       const allowedPatterns = [
         /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
         /^https?:\/\/localhost:\d+$/,
-        /^https?:\/\/127\.0\.0\.1:\d+$/
+        /^https?:\/\/127\.0\.0\.1:\d+$/,
+        /^https?:\/\/.*\.vercel\.app$/ // Allow Vercel preview deployments
       ];
       
-      const allowed = allowedPatterns.some(pattern => pattern.test(origin));
+      // Check if origin matches any allowed origin or pattern
+      const allowed = allowedOrigins.includes(origin) || 
+        allowedPatterns.some(pattern => pattern.test(origin));
       callback(null, allowed);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -52,19 +60,21 @@ app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
     
+    // Parse comma-separated FRONTEND_URL
+    const allowedOrigins = process.env.FRONTEND_URL 
+      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+      : [];
+    
     const allowedPatterns = [
       /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
       /^https?:\/\/localhost:\d+$/,
       /^https?:\/\/127\.0\.0\.1:\d+$/,
-      process.env.FRONTEND_URL
-    ].filter(Boolean);
+      /^https?:\/\/.*\.vercel\.app$/ // Allow Vercel preview deployments
+    ];
     
-    const allowed = allowedPatterns.some(pattern => {
-      if (typeof pattern === 'string') {
-        return origin === pattern;
-      }
-      return pattern.test(origin);
-    });
+    // Check if origin matches any allowed origin or pattern
+    const allowed = allowedOrigins.includes(origin) || 
+      allowedPatterns.some(pattern => pattern.test(origin));
     
     callback(null, allowed);
   },
