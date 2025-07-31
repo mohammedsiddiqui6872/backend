@@ -565,15 +565,26 @@ router.get('/stats/overview', authenticate, authorize(['shifts.reports']), ensur
         { $group: { 
           _id: null, 
           total: { 
-            $sum: { 
-              $divide: [
-                { $subtract: ['$scheduledTimes.end', '$scheduledTimes.start'] },
-                1000 * 60 * 60
-              ]
-            }
+            $sum: 0 // Will calculate differently since times are strings
           }
         }}
-      ]),
+      ]).then(async (result) => {
+        // Calculate hours from string times
+        const shifts = await Shift.find(matchStage);
+        const totalHours = shifts.reduce((sum, shift) => {
+          if (shift.scheduledTimes.start && shift.scheduledTimes.end) {
+            const startParts = shift.scheduledTimes.start.split(':');
+            const endParts = shift.scheduledTimes.end.split(':');
+            const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+            const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+            let duration = endMinutes - startMinutes;
+            if (duration < 0) duration += 24 * 60;
+            return sum + (duration / 60);
+          }
+          return sum;
+        }, 0);
+        return [{ _id: null, total: totalHours }];
+      }),
       Shift.aggregate([
         { $match: { ...matchStage, status: 'completed' } },
         { $group: { 

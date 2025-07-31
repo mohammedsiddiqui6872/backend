@@ -203,14 +203,118 @@ const Shifts = () => {
     }
   };
 
-  const exportShifts = () => {
-    // TODO: Implement CSV export
-    toast.success('Feature coming soon!');
+  const exportShifts = async () => {
+    try {
+      // Prepare CSV data
+      const csvData = shifts.map(shift => ({
+        Date: format(new Date(shift.date), 'yyyy-MM-dd'),
+        Employee: shift.employee.name,
+        'Employee Email': shift.employee.email,
+        Department: shift.department || '',
+        Position: shift.position || '',
+        'Shift Type': shift.shiftType,
+        'Start Time': shift.scheduledTimes.start,
+        'End Time': shift.scheduledTimes.end,
+        Status: shift.status,
+        'Clock In': shift.actualTimes?.clockIn ? format(new Date(shift.actualTimes.clockIn), 'HH:mm') : '',
+        'Clock Out': shift.actualTimes?.clockOut ? format(new Date(shift.actualTimes.clockOut), 'HH:mm') : '',
+        Notes: shift.notes || ''
+      }));
+
+      // Convert to CSV string
+      const headers = Object.keys(csvData[0] || {});
+      const csvString = [
+        headers.join(','),
+        ...csvData.map(row => 
+          headers.map(header => 
+            JSON.stringify(row[header as keyof typeof row] || '')
+          ).join(',')
+        )
+      ].join('\n');
+
+      // Download file
+      const blob = new Blob([csvString], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shifts-${format(weekStart, 'yyyy-MM-dd')}-to-${format(weekEnd, 'yyyy-MM-dd')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Shifts exported successfully');
+    } catch (error) {
+      toast.error('Failed to export shifts');
+      console.error('Export error:', error);
+    }
   };
 
   const importShifts = () => {
-    // TODO: Implement CSV import
-    toast.success('Feature coming soon!');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const lines = text.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        
+        const shifts = lines.slice(1).filter(line => line.trim()).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const shift: any = {};
+          headers.forEach((header, index) => {
+            shift[header] = values[index];
+          });
+          return shift;
+        });
+
+        // Process each shift
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const shiftData of shifts) {
+          try {
+            // Find employee by email
+            const employee = employees.find(e => e.email === shiftData['Employee Email']);
+            if (!employee) {
+              errorCount++;
+              continue;
+            }
+
+            await handleAddShift({
+              employee: employee._id,
+              date: shiftData.Date,
+              shiftType: shiftData['Shift Type'].toLowerCase(),
+              scheduledTimes: {
+                start: shiftData['Start Time'],
+                end: shiftData['End Time']
+              },
+              department: shiftData.Department,
+              position: shiftData.Position,
+              notes: shiftData.Notes
+            });
+
+            successCount++;
+          } catch (error) {
+            errorCount++;
+          }
+        }
+
+        toast.success(`Import completed: ${successCount} shifts imported${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
+        fetchShifts();
+        fetchStats();
+      } catch (error) {
+        toast.error('Failed to import CSV file');
+        console.error('Import error:', error);
+      }
+    };
+
+    input.click();
   };
 
   if (loading) {

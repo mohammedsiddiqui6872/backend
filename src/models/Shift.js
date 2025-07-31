@@ -30,8 +30,8 @@ const shiftSchema = new mongoose.Schema({
   },
   
   scheduledTimes: {
-    start: { type: Date, required: true },
-    end: { type: Date, required: true }
+    start: { type: String, required: true }, // Format: "HH:MM" in 24-hour format
+    end: { type: String, required: true }    // Format: "HH:MM" in 24-hour format
   },
   
   actualTimes: {
@@ -115,7 +115,17 @@ const shiftSchema = new mongoose.Schema({
 // Virtual for shift duration
 shiftSchema.virtual('scheduledDuration').get(function() {
   if (this.scheduledTimes.start && this.scheduledTimes.end) {
-    return (this.scheduledTimes.end - this.scheduledTimes.start) / (1000 * 60 * 60); // hours
+    // Convert time strings to minutes since midnight, then to hours
+    const startParts = this.scheduledTimes.start.split(':');
+    const endParts = this.scheduledTimes.end.split(':');
+    
+    const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+    
+    let duration = endMinutes - startMinutes;
+    if (duration < 0) duration += 24 * 60; // Handle overnight shifts
+    
+    return duration / 60; // Convert to hours
   }
   return 0;
 });
@@ -138,7 +148,6 @@ shiftSchema.virtual('actualDuration').get(function() {
 shiftSchema.pre('save', function(next) {
   if (this.actualTimes.clockIn && this.actualTimes.clockOut) {
     const actualHours = this.actualDuration;
-    const scheduledHours = this.scheduledDuration;
     
     // Calculate regular and overtime hours
     const regularHours = Math.min(actualHours, 8); // 8 hours regular
