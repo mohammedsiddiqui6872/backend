@@ -6,6 +6,32 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { ensureTenantIsolation } = require('../middleware/tenantContext');
 const mongoose = require('mongoose');
 
+// Get active shift for an employee
+router.get('/active', authenticate, authorize(['shifts.view']), ensureTenantIsolation, async (req, res) => {
+  try {
+    const { employee, date } = req.query;
+    
+    if (!employee) {
+      return res.status(400).json({ success: false, message: 'Employee ID required' });
+    }
+    
+    const queryDate = date ? new Date(date) : new Date();
+    queryDate.setHours(0, 0, 0, 0);
+    
+    const shift = await Shift.findOne({
+      tenantId: req.tenant.tenantId,
+      employee,
+      date: queryDate,
+      status: { $in: ['scheduled', 'in-progress'] }
+    }).populate('employee', 'name email role avatar');
+    
+    res.json({ success: true, data: shift });
+  } catch (error) {
+    console.error('Error fetching active shift:', error);
+    res.status(500).json({ success: false, message: 'Error fetching active shift' });
+  }
+});
+
 // Get shifts with filters
 router.get('/', authenticate, authorize(['shifts.view']), ensureTenantIsolation, async (req, res) => {
   try {

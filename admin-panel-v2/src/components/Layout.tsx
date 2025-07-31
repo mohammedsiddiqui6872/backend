@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  ChefHat
+  ChefHat,
+  Clock
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
@@ -49,6 +50,7 @@ const Layout = () => {
   const menuItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/team', icon: Users, label: 'Team' },
+    { path: '/shifts', icon: Clock, label: 'Shifts' },
     { path: '/menu', icon: MenuSquare, label: 'Menu' },
     { path: '/tables', icon: Grid3X3, label: 'Tables' },
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
+import Shifts from './pages/Shifts';
 import Menu from './pages/Menu';
 import Tables from './pages/Tables';
 import Orders from './pages/Orders';
@@ -69,6 +70,7 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="team" element={<Team />} />
+          <Route path="shifts" element={<Shifts />} />
           <Route path="menu" element={<Menu />} />
           <Route path="tables" element={<Tables />} />
           <Route path="orders" element={<Orders />} />

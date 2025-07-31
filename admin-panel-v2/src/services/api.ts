@@ -127,6 +127,51 @@ export const teamAPI = {
 };
 
 // Menu API
+// Shifts API
+export const shiftsAPI = {
+  getShifts: (params?: any) =>
+    api.get('/admin/shifts', { params }),
+  
+  getShift: (id: string) =>
+    api.get(`/admin/shifts/${id}`),
+  
+  createShift: (data: any) =>
+    api.post('/admin/shifts', data),
+  
+  updateShift: (id: string, data: any) =>
+    api.put(`/admin/shifts/${id}`, data),
+  
+  deleteShift: (id: string) =>
+    api.delete(`/admin/shifts/${id}`),
+  
+  getStats: (params?: any) =>
+    api.get('/admin/shifts/stats/overview', { params }),
+  
+  getEmployees: () =>
+    api.get('/admin/team/members', { params: { isActive: true } }),
+  
+  getActiveShift: (employeeId: string) =>
+    api.get('/admin/shifts/active', { params: { employee: employeeId, date: new Date().toISOString().split('T')[0] } }),
+  
+  clockIn: (shiftId: string) =>
+    api.post(`/admin/shifts/${shiftId}/clock-in`),
+  
+  clockOut: (shiftId: string) =>
+    api.post(`/admin/shifts/${shiftId}/clock-out`),
+  
+  startBreak: (shiftId: string, type: 'short' | 'meal') =>
+    api.post(`/admin/shifts/${shiftId}/break/start`, { type }),
+  
+  endBreak: (shiftId: string) =>
+    api.post(`/admin/shifts/${shiftId}/break/end`),
+  
+  requestSwap: (shiftId: string, data: any) =>
+    api.post(`/admin/shifts/${shiftId}/swap-request`, data),
+  
+  respondToSwap: (shiftId: string, status: 'approved' | 'rejected') =>
+    api.put(`/admin/shifts/${shiftId}/swap-request`, { status }),
+};
+
 export const menuAPI = {
   getCategories: () => 
     api.get('/admin/categories'),
