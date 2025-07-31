@@ -1,5 +1,8 @@
-import { X, Clock, User, Calendar, Building, Edit2, Trash2, Coffee, LogIn, LogOut, Timer } from 'lucide-react';
+import { X, Clock, User, Calendar, Building, Edit2, Trash2, Coffee, LogIn, LogOut, Timer, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { shiftsAPI } from '../../services/api';
 
 interface Employee {
   _id: string;
@@ -47,9 +50,15 @@ interface ShiftDetailsModalProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  employees?: Employee[];
 }
 
-const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete }: ShiftDetailsModalProps) => {
+const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees = [] }: ShiftDetailsModalProps) => {
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapWithEmployee, setSwapWithEmployee] = useState('');
+  const [swapReason, setSwapReason] = useState('');
+  const [isSwapping, setIsSwapping] = useState(false);
+
   if (!isOpen) return null;
 
   const getStatusBadge = (status: string) => {

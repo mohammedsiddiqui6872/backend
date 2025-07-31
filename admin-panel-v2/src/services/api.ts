@@ -3,7 +3,17 @@ import axios from 'axios';
 // Get tenant info from URL or localStorage
 const getTenantInfo = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  const subdomain = urlParams.get('subdomain') || localStorage.getItem('subdomain');
+  const urlSubdomain = urlParams.get('subdomain');
+  const storedSubdomain = localStorage.getItem('subdomain');
+  
+  // If URL has subdomain and it's different from stored, update storage
+  if (urlSubdomain && urlSubdomain !== storedSubdomain) {
+    localStorage.setItem('subdomain', urlSubdomain);
+    // Clear tenant ID as it might be from a different tenant
+    localStorage.removeItem('tenantId');
+  }
+  
+  const subdomain = urlSubdomain || storedSubdomain;
   const tenantId = localStorage.getItem('tenantId');
   
   return { subdomain, tenantId };
@@ -11,7 +21,9 @@ const getTenantInfo = () => {
 
 // Create axios instance
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? 'https://api.gritservices.ae/api'
+    : '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -249,6 +261,14 @@ export const analyticsAPI = {
   
   getRevenue: (period: string) => 
     api.get(`/admin/analytics/revenue?period=${period}`),
+};
+
+// Helper to clear tenant data when switching restaurants
+export const clearTenantData = () => {
+  localStorage.removeItem('subdomain');
+  localStorage.removeItem('tenantId');
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('isSuperAdmin');
 };
 
 export default api;
