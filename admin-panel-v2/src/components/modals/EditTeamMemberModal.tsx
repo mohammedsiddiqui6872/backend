@@ -115,7 +115,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit }: EditTeamMember
     
     // Shift Preferences
     shiftPreferences: {
-      preferredShifts: [],
+      preferredShifts: [] as string[],
       maxHoursPerWeek: 40
     }
   });
