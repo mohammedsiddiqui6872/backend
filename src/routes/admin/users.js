@@ -2,15 +2,17 @@ const express = require('express');
 const router = express.Router();
 const User = require('../../models/User');
 const { authenticate, authorize } = require('../../middleware/auth');
+const { ensureTenantIsolation } = require('../../middleware/tenantContext');
 
 router.use(authenticate);
 router.use(authorize('admin'));
+router.use(ensureTenantIsolation);
 
 // Get all users
 router.get('/', async (req, res) => {
   try {
     const { role, isActive } = req.query;
-    const query = {};
+    const query = { tenantId: req.tenant.id };
     
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
@@ -40,6 +42,7 @@ router.post('/', async (req, res) => {
     };
 
     userData.permissions = rolePermissions[userData.role] || [];
+    userData.tenantId = req.tenant.id;
 
     const user = new User(userData);
     await user.save();
@@ -65,8 +68,8 @@ router.put('/:userId', async (req, res) => {
   try {
     const { password, ...updateData } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.userId, tenantId: req.tenant.id },
       updateData,
       { new: true }
     ).select('-password');
@@ -94,7 +97,7 @@ router.put('/:userId', async (req, res) => {
 // Toggle user status
 router.patch('/:userId/status', async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    const user = await User.findOne({ _id: req.params.userId, tenantId: req.tenant.id });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -119,14 +122,14 @@ router.patch('/:userId/status', async (req, res) => {
 // Delete user
 router.delete('/:userId', async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    const user = await User.findOne({ _id: req.params.userId, tenantId: req.tenant.id });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Prevent deleting the last admin
     if (user.role === 'admin') {
-      const adminCount = await User.countDocuments({ role: 'admin', _id: { $ne: user._id } });
+      const adminCount = await User.countDocuments({ role: 'admin', tenantId: req.tenant.id, _id: { $ne: user._id } });
       if (adminCount === 0) {
         return res.status(400).json({ error: 'Cannot delete the last admin user' });
       }
@@ -137,7 +140,7 @@ router.delete('/:userId', async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
-    await User.findByIdAndDelete(req.params.userId);
+    await User.findOneAndDelete({ _id: req.params.userId, tenantId: req.tenant.id });
 
     res.json({
       success: true,
@@ -157,6 +160,7 @@ router.get('/:userId/stats', async (req, res) => {
     const Order = require('../../models/Order');
     
     const query = {
+      tenantId: req.tenant.id,
       $or: [
         { waiter: userId },
         { chef: userId }
