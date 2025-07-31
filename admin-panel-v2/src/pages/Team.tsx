@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Edit2, Trash2, Search, UserCheck, UserX, 
   Phone, Mail, Calendar, Clock, Award, AlertCircle,
@@ -71,6 +71,7 @@ const Team = () => {
   const [stats, setStats] = useState<TeamStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -81,46 +82,32 @@ const Team = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchTeamMembers();
     fetchTeamStats();
-  }, [currentPage]);
+  }, [currentPage, debouncedSearchQuery, filterRole, filterDepartment, filterStatus]);
 
   useEffect(() => {
-    // Filter members based on search and filters
-    let filtered = members;
-
-    if (searchQuery) {
-      filtered = filtered.filter(member =>
-        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.profile?.employeeId?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (filterRole) {
-      filtered = filtered.filter(member => member.role === filterRole);
-    }
-
-    if (filterDepartment) {
-      filtered = filtered.filter(member => member.profile?.department === filterDepartment);
-    }
-
-    if (filterStatus) {
-      filtered = filtered.filter(member => 
-        filterStatus === 'active' ? member.isActive : !member.isActive
-      );
-    }
-
-    setFilteredMembers(filtered);
-  }, [searchQuery, filterRole, filterDepartment, filterStatus, members]);
+    // Just set filtered members to the fetched members
+    // The filtering is now done server-side
+    setFilteredMembers(members);
+  }, [members]);
 
   const fetchTeamMembers = async () => {
     try {
       const response = await teamAPI.getMembers({
         page: currentPage,
         limit: 10,
-        search: searchQuery,
+        search: debouncedSearchQuery,
         role: filterRole,
         department: filterDepartment,
         isActive: filterStatus

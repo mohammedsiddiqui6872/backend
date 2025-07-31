@@ -37,8 +37,8 @@ const upload = multer({
 // Get all team members with enhanced details
 router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsolation, async (req, res) => {
   try {
-    console.log('Team members endpoint - Tenant:', req.tenant);
-    console.log('Team members endpoint - Tenant ID:', req.tenant?.id);
+    console.log('Team members endpoint - Tenant:', req.tenant?.name);
+    console.log('Team members endpoint - Tenant ID:', req.tenant?.tenantId);
     
     const { 
       page = 1, 
@@ -54,7 +54,8 @@ router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsol
 
     const query = { tenantId: req.tenant.tenantId };
     
-    if (search) {
+    // Only add search if it's not empty
+    if (search && search.trim()) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
@@ -62,11 +63,14 @@ router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsol
       ];
     }
     
-    if (role) query.role = role;
-    if (department) query['profile.department'] = department;
-    if (employmentType) query['profile.employmentType'] = employmentType;
-    if (isActive !== undefined) query.isActive = isActive === 'true';
+    // Only add filters if they have values
+    if (role && role.trim()) query.role = role;
+    if (department && department.trim()) query['profile.department'] = department;
+    if (employmentType && employmentType.trim()) query['profile.employmentType'] = employmentType;
+    if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
 
+    console.log('Query being executed:', JSON.stringify(query, null, 2));
+    
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
