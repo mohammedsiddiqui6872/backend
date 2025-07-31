@@ -276,9 +276,16 @@ router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ent
 
 // Upload documents
 router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, (req, res, next) => {
+  console.log('=== DOCUMENT UPLOAD DEBUG ===');
+  console.log('Headers:', req.headers);
+  console.log('Content-Type:', req.get('content-type'));
+  console.log('User ID:', req.params.id);
+  console.log('Tenant:', req.tenant?.name);
+  
   uploadDocuments.array('documents', 5)(req, res, (err) => {
     if (err) {
       console.error('Multer error:', err);
+      console.error('Error stack:', err.stack);
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ success: false, message: 'File too large. Maximum size is 10MB' });
       } else if (err.message && err.message.includes('File type not allowed')) {
@@ -286,6 +293,7 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
       }
       return res.status(400).json({ success: false, message: err.message || 'Error uploading file' });
     }
+    console.log('Multer processing complete');
     next();
   });
 }, async (req, res) => {

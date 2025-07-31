@@ -64,6 +64,12 @@ api.interceptors.request.use((config) => {
   console.log('Request URL:', config.url);
   console.log('Request Method:', config.method?.toUpperCase());
   
+  // If sending FormData, remove the default Content-Type header
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+    console.log('Removed Content-Type header for FormData upload');
+  }
+  
   if (tenantId) {
     config.headers['X-Tenant-Id'] = tenantId;
     console.log('Added X-Tenant-Id header:', tenantId);
@@ -165,9 +171,8 @@ export const teamAPI = {
   uploadPhoto: (id: string, file: File) => {
     const formData = new FormData();
     formData.append('photo', file);
-    return api.post(`/admin/team/members/${id}/photo`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    // Don't set Content-Type header - let the browser set it with proper boundary
+    return api.post(`/admin/team/members/${id}/photo`, formData);
   },
   
   uploadDocuments: (id: string, files: FileList, type: string, expiryDate?: string) => {
@@ -175,9 +180,8 @@ export const teamAPI = {
     Array.from(files).forEach(file => formData.append('documents', file));
     formData.append('type', type);
     if (expiryDate) formData.append('expiryDate', expiryDate);
-    return api.post(`/admin/team/members/${id}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    // Don't set Content-Type header - let the browser set it with proper boundary
+    return api.post(`/admin/team/members/${id}/documents`, formData);
   },
   
   getStats: () =>

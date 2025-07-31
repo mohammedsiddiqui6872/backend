@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Document Upload Test</h1>
+    
+    <div class="section">
+        <h2>1. Simple Test Upload</h2>
+        <p>Test basic file upload without authentication</p>
+        <input type="file" id="testFile" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+        <br>
+        <button onclick="testSimpleUpload()">Test Upload</button>
+        <div id="testResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Authenticated Document Upload</h2>
+        <p>Test document upload with authentication (as it would be from admin panel)</p>
+        <input type="text" id="authToken" placeholder="Enter JWT token" style="width: 100%; margin: 10px 0; padding: 5px;">
+        <input type="text" id="userId" placeholder="Enter User ID" style="width: 100%; margin: 10px 0; padding: 5px;">
+        <input type="file" id="authFile" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
+        <br>
+        <button onclick="testAuthUpload()">Test Authenticated Upload</button>
+        <div id="authResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Direct FormData Test</h2>
+        <p>Test FormData creation and inspection</p>
+        <input type="file" id="formFile" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
+        <br>
+        <button onclick="testFormData()">Test FormData</button>
+        <div id="formResult" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function testSimpleUpload() {
+            const fileInput = document.getElementById('testFile');
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!fileInput.files.length) {
+                resultDiv.textContent = 'Please select a file';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                console.log('Uploading to:', `${API_BASE}/api/test/upload`);
+                const response = await fetch(`${API_BASE}/api/test/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                resultDiv.textContent = JSON.stringify(result, null, 2);
+                resultDiv.style.display = 'block';
+                
+                console.log('Response:', result);
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.style.display = 'block';
+                console.error('Upload error:', error);
+            }
+        }
+
+        async function testAuthUpload() {
+            const fileInput = document.getElementById('authFile');
+            const tokenInput = document.getElementById('authToken');
+            const userIdInput = document.getElementById('userId');
+            const resultDiv = document.getElementById('authResult');
+            
+            if (!fileInput.files.length) {
+                resultDiv.textContent = 'Please select files';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            if (!tokenInput.value || !userIdInput.value) {
+                resultDiv.textContent = 'Please enter token and user ID';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('documents', file);
+            }
+            formData.append('type', 'certificate');
+
+            try {
+                console.log('Uploading to:', `${API_BASE}/api/admin/team/members/${userIdInput.value}/documents`);
+                const response = await fetch(`${API_BASE}/api/admin/team/members/${userIdInput.value}/documents`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${tokenInput.value}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                resultDiv.textContent = JSON.stringify(result, null, 2);
+                resultDiv.style.display = 'block';
+                
+                console.log('Response:', result);
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.style.display = 'block';
+                console.error('Upload error:', error);
+            }
+        }
+
+        function testFormData() {
+            const fileInput = document.getElementById('formFile');
+            const resultDiv = document.getElementById('formResult');
+            
+            if (!fileInput.files.length) {
+                resultDiv.textContent = 'Please select files';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            const formData = new FormData();
+            let output = 'FormData Contents:\n\n';
+            
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                formData.append('documents', file);
+                output += `File ${i + 1}:\n`;
+                output += `  Name: ${file.name}\n`;
+                output += `  Size: ${file.size} bytes\n`;
+                output += `  Type: ${file.type}\n`;
+                output += `  Last Modified: ${new Date(file.lastModified).toISOString()}\n\n`;
+            }
+            
+            formData.append('type', 'certificate');
+            formData.append('expiryDate', new Date().toISOString());
+            
+            output += 'Form Fields:\n';
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    output += `  ${key}: [File: ${value.name}]\n`;
+                } else {
+                    output += `  ${key}: ${value}\n`;
+                }
+            }
+            
+            resultDiv.textContent = output;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
