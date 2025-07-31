@@ -91,7 +91,7 @@ router.get('/', authenticate, authorize(['users.roles']), ensureTenantIsolation,
   try {
     const { includeInactive = false } = req.query;
     
-    const query = { tenantId: req.tenant.id };
+    const query = { tenantId: req.tenant.tenantId };
     if (!includeInactive) {
       query.isActive = true;
     }
@@ -113,7 +113,7 @@ router.get('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
   try {
     const role = await Role.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     })
     .populate('reportsTo', 'name code')
     .lean();
@@ -124,7 +124,7 @@ router.get('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
 
     // Get users with this role
     const usersCount = await User.countDocuments({ 
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       role: role.code 
     });
 
@@ -157,7 +157,7 @@ router.post('/', authenticate, authorize(['users.roles']), ensureTenantIsolation
     // Check if role code already exists
     const existingRole = await Role.findOne({ 
       code: code.toUpperCase(),
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (existingRole) {
@@ -165,7 +165,7 @@ router.post('/', authenticate, authorize(['users.roles']), ensureTenantIsolation
     }
 
     const role = new Role({
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       name,
       code: code.toUpperCase(),
       description,
@@ -201,7 +201,7 @@ router.put('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
 
     const role = await Role.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (!role) {
@@ -219,7 +219,7 @@ router.put('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
     if (updates.code && updates.code !== role.code) {
       const existingRole = await Role.findOne({ 
         code: updates.code,
-        tenantId: req.tenant.id,
+        tenantId: req.tenant.tenantId,
         _id: { $ne: req.params.id }
       });
 
@@ -250,7 +250,7 @@ router.delete('/:id', authenticate, authorize(['users.roles']), ensureTenantIsol
   try {
     const role = await Role.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (!role) {
@@ -266,7 +266,7 @@ router.delete('/:id', authenticate, authorize(['users.roles']), ensureTenantIsol
 
     // Check if any users have this role
     const usersWithRole = await User.countDocuments({ 
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       role: role.code 
     });
 
@@ -297,7 +297,7 @@ router.post('/:id/clone', authenticate, authorize(['users.roles']), ensureTenant
 
     const sourceRole = await Role.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (!sourceRole) {
@@ -307,7 +307,7 @@ router.post('/:id/clone', authenticate, authorize(['users.roles']), ensureTenant
     // Check if new code already exists
     const existingRole = await Role.findOne({ 
       code: code.toUpperCase(),
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (existingRole) {
@@ -315,7 +315,7 @@ router.post('/:id/clone', authenticate, authorize(['users.roles']), ensureTenant
     }
 
     const newRole = new Role({
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       name,
       code: code.toUpperCase(),
       description: `Cloned from ${sourceRole.name}`,

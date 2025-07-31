@@ -37,6 +37,9 @@ const upload = multer({
 // Get all team members with enhanced details
 router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsolation, async (req, res) => {
   try {
+    console.log('Team members endpoint - Tenant:', req.tenant);
+    console.log('Team members endpoint - Tenant ID:', req.tenant?.id);
+    
     const { 
       page = 1, 
       limit = 10, 
@@ -49,7 +52,7 @@ router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsol
       sortOrder = 'asc'
     } = req.query;
 
-    const query = { tenantId: req.tenant.id };
+    const query = { tenantId: req.tenant.tenantId };
     
     if (search) {
       query.$or = [
@@ -100,7 +103,7 @@ router.get('/members/:id', authenticate, authorize(['users.view']), ensureTenant
   try {
     const user = await User.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     }).select('-password').lean();
 
     if (!user) {
@@ -131,7 +134,7 @@ router.post('/members', authenticate, authorize(['users.create']), ensureTenantI
     // Check if user already exists
     const existingUser = await User.findOne({ 
       email, 
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     });
 
     if (existingUser) {
@@ -139,7 +142,7 @@ router.post('/members', authenticate, authorize(['users.create']), ensureTenantI
     }
 
     const user = new User({
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       name,
       email,
       password,
@@ -174,7 +177,7 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), ensureTena
     delete updates.tenantId; // Don't allow tenant changes
 
     const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.id },
+      { _id: req.params.id, tenantId: req.tenant.tenantId },
       updates,
       { new: true, runValidators: true }
     ).select('-password');
@@ -204,7 +207,7 @@ router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ens
     const photoUrl = `/uploads/profiles/${req.file.filename}`;
 
     const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.id },
+      { _id: req.params.id, tenantId: req.tenant.tenantId },
       { avatar: photoUrl },
       { new: true }
     ).select('-password');
@@ -240,7 +243,7 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
     }));
 
     const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.id },
+      { _id: req.params.id, tenantId: req.tenant.tenantId },
       { $push: { 'profile.documents': { $each: documents } } },
       { new: true }
     ).select('-password');
@@ -264,7 +267,7 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
 router.delete('/members/:id', authenticate, authorize(['users.delete']), ensureTenantIsolation, async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.id },
+      { _id: req.params.id, tenantId: req.tenant.tenantId },
       { isActive: false },
       { new: true }
     ).select('-password');
@@ -292,14 +295,14 @@ router.get('/stats', authenticate, authorize(['users.view']), ensureTenantIsolat
       roleDistribution,
       departmentDistribution
     ] = await Promise.all([
-      User.countDocuments({ tenantId: req.tenant.id }),
-      User.countDocuments({ tenantId: req.tenant.id, isActive: true }),
+      User.countDocuments({ tenantId: req.tenant.tenantId }),
+      User.countDocuments({ tenantId: req.tenant.tenantId, isActive: true }),
       User.aggregate([
-        { $match: { tenantId: req.tenant.id } },
+        { $match: { tenantId: req.tenant.tenantId } },
         { $group: { _id: '$role', count: { $sum: 1 } } }
       ]),
       User.aggregate([
-        { $match: { tenantId: req.tenant.id } },
+        { $match: { tenantId: req.tenant.tenantId } },
         { $group: { _id: '$profile.department', count: { $sum: 1 } } }
       ])
     ]);

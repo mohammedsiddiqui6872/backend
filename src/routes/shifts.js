@@ -19,7 +19,7 @@ router.get('/', authenticate, authorize(['shifts.view']), ensureTenantIsolation,
       limit = 20
     } = req.query;
 
-    const query = { tenantId: req.tenant.id };
+    const query = { tenantId: req.tenant.tenantId };
     
     // Date range filter
     if (startDate || endDate) {
@@ -67,7 +67,7 @@ router.get('/:id', authenticate, authorize(['shifts.view']), ensureTenantIsolati
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     })
     .populate('employee', 'name email avatar role profile')
     .populate('swapRequest.requestedBy', 'name email')
@@ -101,7 +101,7 @@ router.post('/', authenticate, authorize(['shifts.manage']), ensureTenantIsolati
     // Check if employee exists
     const employeeExists = await User.findOne({ 
       _id: employee, 
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       isActive: true 
     });
 
@@ -111,7 +111,7 @@ router.post('/', authenticate, authorize(['shifts.manage']), ensureTenantIsolati
 
     // Check for shift conflicts
     const conflictingShift = await Shift.findOne({
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee,
       date: new Date(date),
       status: { $nin: ['cancelled'] }
@@ -125,7 +125,7 @@ router.post('/', authenticate, authorize(['shifts.manage']), ensureTenantIsolati
     }
 
     const shift = new Shift({
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee,
       date: new Date(date),
       shiftType,
@@ -162,7 +162,7 @@ router.put('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIsola
     delete updates.actualTimes; // These should be updated through clock in/out
 
     const shift = await Shift.findOneAndUpdate(
-      { _id: req.params.id, tenantId: req.tenant.id },
+      { _id: req.params.id, tenantId: req.tenant.tenantId },
       updates,
       { new: true, runValidators: true }
     ).populate('employee', 'name email avatar role');
@@ -187,7 +187,7 @@ router.post('/:id/clock-in', authenticate, authorize(['shifts.clock']), ensureTe
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee: req.user.id,
       status: 'scheduled'
     });
@@ -228,7 +228,7 @@ router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), ensureT
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee: req.user.id,
       status: 'in-progress'
     });
@@ -274,7 +274,7 @@ router.post('/:id/break/start', authenticate, authorize(['shifts.clock']), ensur
     
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee: req.user.id,
       status: 'in-progress'
     });
@@ -318,7 +318,7 @@ router.post('/:id/break/end', authenticate, authorize(['shifts.clock']), ensureT
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee: req.user.id,
       status: 'in-progress'
     });
@@ -366,7 +366,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), ensur
     
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       employee: req.user.id,
       status: 'scheduled'
     });
@@ -389,7 +389,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), ensur
     // Verify requested employee exists and is active
     const requestedEmployee = await User.findOne({ 
       _id: requestedWithId, 
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       isActive: true 
     });
 
@@ -436,7 +436,7 @@ router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ens
 
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id,
+      tenantId: req.tenant.tenantId,
       'swapRequest.status': 'pending'
     });
 
@@ -476,7 +476,7 @@ router.delete('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIs
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
-      tenantId: req.tenant.id
+      tenantId: req.tenant.tenantId
     });
 
     if (!shift) {
@@ -513,7 +513,7 @@ router.get('/stats/overview', authenticate, authorize(['shifts.reports']), ensur
     if (endDate) dateFilter.$lte = new Date(endDate);
     
     const matchStage = { 
-      tenantId: req.tenant.id 
+      tenantId: req.tenant.tenantId 
     };
     
     if (Object.keys(dateFilter).length > 0) {
