@@ -61,8 +61,24 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (email: string, password: string) => 
-    api.post('/auth/admin/login', { email, password }),
+  login: async (email: string, password: string) => {
+    // Check if it's super admin
+    if (email === 'admin@gritservices.ae') {
+      // Try super admin login first
+      try {
+        const response = await axios.post('/api/super-admin/login', { email, password });
+        // Store super admin flag
+        localStorage.setItem('isSuperAdmin', 'true');
+        return response;
+      } catch (error) {
+        // If super admin login fails, continue with regular admin login
+        console.log('Not a super admin, trying regular admin login');
+      }
+    }
+    
+    // Regular tenant admin login
+    return api.post('/auth/admin/login', { email, password });
+  },
   
   logout: () => 
     api.post('/auth/logout'),
