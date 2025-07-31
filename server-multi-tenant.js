@@ -165,6 +165,11 @@ app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 
+// Enhanced team management routes
+app.use('/api/admin/team', ensureTenantIsolation, require('./src/routes/team'));
+app.use('/api/admin/shifts', ensureTenantIsolation, require('./src/routes/shifts'));
+app.use('/api/admin/roles', ensureTenantIsolation, require('./src/routes/roles'));
+
 // Special handling for admin panel to allow access without failing on tenant context
 app.get('/admin-panel', async (req, res, next) => {
   // Apply tenant context but don't fail if not found - let the frontend handle it
@@ -184,6 +189,9 @@ app.get('/admin-panel', async (req, res, next) => {
     res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
   }
 });
+
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve admin panel static assets
 app.use('/admin-panel', express.static(path.join(__dirname, 'admin-panel/dist')));
