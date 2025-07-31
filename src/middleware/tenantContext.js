@@ -13,7 +13,12 @@ const tenantContext = async (req, res, next) => {
       tenant = await Tenant.findOne({ tenantId: headerTenantId, status: 'active' });
     }
 
-    // 2. Extract from subdomain
+    // 2. Check for subdomain in query parameter (for admin panel)
+    if (!tenant && req.query.subdomain) {
+      tenant = await Tenant.findBySubdomain(req.query.subdomain);
+    }
+
+    // 3. Extract from subdomain
     if (!tenant) {
       const host = req.get('host') || '';
       const subdomain = host.split('.')[0];
@@ -24,12 +29,12 @@ const tenantContext = async (req, res, next) => {
       }
     }
 
-    // 3. Check for custom domain
+    // 4. Check for custom domain
     if (!tenant && req.get('host')) {
       tenant = await Tenant.findByDomain(req.get('host'));
     }
 
-    // 4. For super admin routes, allow without tenant
+    // 5. For super admin routes, allow without tenant
     if (req.path.startsWith('/api/super-admin') || req.path.startsWith('/api/public')) {
       // Super admin and public routes don't need tenant context
       return next();

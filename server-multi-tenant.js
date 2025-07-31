@@ -165,10 +165,15 @@ app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 
-// Serve admin panel with tenant context
-app.use('/admin-panel', tenantContext, express.static(path.join(__dirname, 'admin-panel/dist')));
-app.get('/admin-panel/*', tenantContext, (req, res) => {
-  // Check if the dist folder exists, if not serve from v2
+// Special handling for admin panel to allow access without failing on tenant context
+app.get('/admin-panel', async (req, res, next) => {
+  // Apply tenant context but don't fail if not found - let the frontend handle it
+  try {
+    await tenantContext(req, res, () => {});
+  } catch (error) {
+    console.log('Tenant context error for admin panel:', error);
+  }
+  
   const distPath = path.join(__dirname, 'admin-panel/dist');
   const indexPath = path.join(distPath, 'index.html');
   
@@ -176,6 +181,27 @@ app.get('/admin-panel/*', tenantContext, (req, res) => {
     res.sendFile(indexPath);
   } else {
     // Fallback to basic admin panel
+    res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
+  }
+});
+
+// Serve admin panel static assets
+app.use('/admin-panel', express.static(path.join(__dirname, 'admin-panel/dist')));
+
+// Handle all admin panel routes
+app.get('/admin-panel/*', async (req, res) => {
+  try {
+    await tenantContext(req, res, () => {});
+  } catch (error) {
+    console.log('Tenant context error for admin panel:', error);
+  }
+  
+  const distPath = path.join(__dirname, 'admin-panel/dist');
+  const indexPath = path.join(distPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
     res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
   }
 });
