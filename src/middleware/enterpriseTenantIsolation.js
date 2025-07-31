@@ -91,11 +91,24 @@ const enterpriseTenantIsolation = async (req, res, next) => {
     req.tenantId = tenant.tenantId;
 
     // Layer 5: Set async local storage for model-level isolation
-    asyncLocalStorage.run({ 
+    // Store context for the entire request lifecycle
+    const context = { 
       tenantId: tenant.tenantId,
       userId: req.user._id,
       requestId: req.id || Math.random().toString(36).substr(2, 9)
-    }, () => {
+    };
+    
+    // Store in request for backup
+    req._tenantContext = context;
+    
+    asyncLocalStorage.run(context, () => {
+      // Ensure context is maintained through async operations
+      const originalEnd = res.end;
+      res.end = function(...args) {
+        asyncLocalStorage.run(context, () => {
+          originalEnd.apply(res, args);
+        });
+      };
       next();
     });
 
@@ -145,13 +158,24 @@ const strictTenantIsolation = async (req, res, next) => {
 };
 
 // Helper to get current tenant context
-const getCurrentTenant = () => {
+const getCurrentTenant = (req) => {
+  // First try asyncLocalStorage
   const store = asyncLocalStorage.getStore();
-  return store ? {
-    tenantId: store.tenantId,
-    userId: store.userId,
-    requestId: store.requestId
-  } : null;
+  if (store) {
+    return {
+      tenantId: store.tenantId,
+      userId: store.userId,
+      requestId: store.requestId
+    };
+  }
+  
+  // Fallback to request context if available
+  if (req && req._tenantContext) {
+    console.log('Using fallback tenant context from request');
+    return req._tenantContext;
+  }
+  
+  return null;
 };
 
 // Middleware to log tenant access for audit

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { getCurrentTenantId } = require('../middleware/tenantContext');
+const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
 const shiftSchema = new mongoose.Schema({
   tenantId: { 
@@ -7,7 +7,8 @@ const shiftSchema = new mongoose.Schema({
     required: true, 
     index: true,
     default: function() {
-      return getCurrentTenantId();
+      const context = getCurrentTenant();
+      return context?.tenantId;
     }
   },
   
@@ -169,23 +170,50 @@ shiftSchema.pre('save', function(next) {
   next();
 });
 
-// Add tenant filter
+// Enterprise-grade tenant filter for all find operations
 shiftSchema.pre(/^find/, function() {
-  const tenantId = getCurrentTenantId();
-  if (tenantId && !this.getQuery().tenantId) {
-    // Only add tenant filter if not already present
-    this.where({ tenantId });
+  // Skip if tenantId is explicitly set to null (for super admin operations)
+  if (this.getOptions().skipTenantFilter) {
+    console.log('Shift model: Skipping tenant filter (super admin operation)');
+    return;
+  }
+  
+  // If query already has tenantId, verify it matches current context
+  const queryTenantId = this.getQuery().tenantId;
+  const context = getCurrentTenant();
+  
+  if (queryTenantId && context?.tenantId && queryTenantId !== context.tenantId) {
+    console.error('Shift model: SECURITY WARNING - Query tenant mismatch!', {
+      queryTenantId,
+      contextTenantId: context.tenantId,
+      userId: context.userId,
+      requestId: context.requestId
+    });
+    // Force empty result for security
+    this.where({ _id: null });
+    return;
+  }
+  
+  // Apply tenant filter from context
+  if (context?.tenantId) {
+    console.log('Shift model: Applying enterprise tenant filter:', context.tenantId);
+    this.where({ tenantId: context.tenantId });
+  } else if (!queryTenantId) {
+    console.warn('Shift model: No tenant context available - this should not happen in production');
+    // Force empty result for security when no tenant context
+    this.where({ _id: null });
   }
 });
 
+// Ensure tenantId is set when creating new shifts
 shiftSchema.pre('save', function(next) {
   if (!this.tenantId) {
-    const tenantId = getCurrentTenantId();
-    if (tenantId) {
-      this.tenantId = tenantId;
+    const context = getCurrentTenant();
+    if (context?.tenantId) {
+      this.tenantId = context.tenantId;
+      console.log('Shift model: Setting tenantId on save:', context.tenantId);
     } else {
-      // If no tenant context is available, we should error
-      return next(new Error('Tenant context is required to create a shift'));
+      return next(new Error('Cannot create shift without tenant context'));
     }
   }
   next();

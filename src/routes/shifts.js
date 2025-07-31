@@ -3,11 +3,11 @@ const router = express.Router();
 const Shift = require('../models/Shift');
 const User = require('../models/User');
 const { authenticate, authorize } = require('../middleware/auth');
-const { ensureTenantIsolation } = require('../middleware/tenantContext');
+const { enterpriseTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 const mongoose = require('mongoose');
 
 // Get active shift for an employee
-router.get('/active', authenticate, authorize(['shifts.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/active', authenticate, authorize(['shifts.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { employee, date } = req.query;
     
@@ -33,7 +33,7 @@ router.get('/active', authenticate, authorize(['shifts.view']), ensureTenantIsol
 });
 
 // Get shifts with filters
-router.get('/', authenticate, authorize(['shifts.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/', authenticate, authorize(['shifts.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { 
       startDate, 
@@ -89,7 +89,7 @@ router.get('/', authenticate, authorize(['shifts.view']), ensureTenantIsolation,
 });
 
 // Get shift by ID
-router.get('/:id', authenticate, authorize(['shifts.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/:id', authenticate, authorize(['shifts.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
@@ -112,7 +112,7 @@ router.get('/:id', authenticate, authorize(['shifts.view']), ensureTenantIsolati
 });
 
 // Create shift
-router.post('/', authenticate, authorize(['shifts.manage']), ensureTenantIsolation, async (req, res) => {
+router.post('/', authenticate, authorize(['shifts.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const {
       employee,
@@ -181,7 +181,7 @@ router.post('/', authenticate, authorize(['shifts.manage']), ensureTenantIsolati
 });
 
 // Update shift
-router.put('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIsolation, async (req, res) => {
+router.put('/:id', authenticate, authorize(['shifts.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const updates = { ...req.body };
     delete updates.tenantId;
@@ -209,7 +209,7 @@ router.put('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIsola
 });
 
 // Clock in
-router.post('/:id/clock-in', authenticate, authorize(['shifts.clock']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/clock-in', authenticate, authorize(['shifts.clock']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
@@ -250,7 +250,7 @@ router.post('/:id/clock-in', authenticate, authorize(['shifts.clock']), ensureTe
 });
 
 // Clock out
-router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
@@ -294,7 +294,7 @@ router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), ensureT
 });
 
 // Start break
-router.post('/:id/break/start', authenticate, authorize(['shifts.clock']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/break/start', authenticate, authorize(['shifts.clock']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { type = 'short' } = req.body;
     
@@ -340,7 +340,7 @@ router.post('/:id/break/start', authenticate, authorize(['shifts.clock']), ensur
 });
 
 // End break
-router.post('/:id/break/end', authenticate, authorize(['shifts.clock']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/break/end', authenticate, authorize(['shifts.clock']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
@@ -386,7 +386,7 @@ router.post('/:id/break/end', authenticate, authorize(['shifts.clock']), ensureT
 });
 
 // Request shift swap
-router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { requestedWithId, reason } = req.body;
     
@@ -449,7 +449,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), ensur
 });
 
 // Approve/reject swap request
-router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ensureTenantIsolation, async (req, res) => {
+router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { status } = req.body;
     
@@ -498,7 +498,7 @@ router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ens
 });
 
 // Delete/cancel shift
-router.delete('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIsolation, async (req, res) => {
+router.delete('/:id', authenticate, authorize(['shifts.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const shift = await Shift.findOne({ 
       _id: req.params.id,
@@ -530,7 +530,7 @@ router.delete('/:id', authenticate, authorize(['shifts.manage']), ensureTenantIs
 });
 
 // Get shift statistics
-router.get('/stats/overview', authenticate, authorize(['shifts.reports']), ensureTenantIsolation, async (req, res) => {
+router.get('/stats/overview', authenticate, authorize(['shifts.reports']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
