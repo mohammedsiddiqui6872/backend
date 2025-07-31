@@ -275,8 +275,25 @@ router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ent
 });
 
 // Upload documents
-router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, uploadDocuments.array('documents', 5), async (req, res) => {
+router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, (req, res, next) => {
+  uploadDocuments.array('documents', 5)(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'File too large. Maximum size is 10MB' });
+      } else if (err.message && err.message.includes('File type not allowed')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      return res.status(400).json({ success: false, message: err.message || 'Error uploading file' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    console.log('Document upload - Tenant:', req.tenant?.name, 'User ID:', req.params.id);
+    console.log('Files received:', req.files?.length || 0);
+    console.log('Body:', req.body);
+    
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
     }
@@ -306,14 +323,19 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
     user.profile.documents.push(...documents);
     await user.save();
 
+    // Return user object without password
+    const userObject = user.toObject();
+    delete userObject.password;
+    
     res.json({ 
       success: true, 
       message: 'Documents uploaded successfully',
-      data: documents
+      data: documents,
+      user: userObject
     });
   } catch (error) {
     console.error('Error uploading documents:', error);
-    res.status(500).json({ success: false, message: 'Error uploading documents' });
+    res.status(500).json({ success: false, message: error.message || 'Error uploading documents' });
   }
 });
 
