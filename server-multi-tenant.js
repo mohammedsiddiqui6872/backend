@@ -12,6 +12,8 @@ require('dotenv').config();
 
 // Import multi-tenant middleware
 const { tenantContext, ensureTenantIsolation } = require('./src/middleware/tenantContext');
+const { enterpriseTenantIsolation, strictTenantIsolation, auditTenantAccess } = require('./src/middleware/enterpriseTenantIsolation');
+const { authenticate } = require('./src/middleware/auth');
 
 // Initialize Express
 const app = express();
@@ -171,10 +173,10 @@ app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 
-// Enhanced team management routes
-app.use('/api/admin/team', ensureTenantIsolation, require('./src/routes/team'));
-app.use('/api/admin/shifts', ensureTenantIsolation, require('./src/routes/shifts'));
-app.use('/api/admin/roles', ensureTenantIsolation, require('./src/routes/roles'));
+// Enhanced team management routes - Using enterprise isolation
+app.use('/api/admin/team', require('./src/routes/team'));
+app.use('/api/admin/shifts', require('./src/routes/shifts'));
+app.use('/api/admin/roles', require('./src/routes/roles'));
 
 // Special handling for admin panel to allow access without failing on tenant context
 app.get('/admin-panel', async (req, res, next) => {

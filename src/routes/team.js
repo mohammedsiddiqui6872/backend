@@ -5,7 +5,7 @@ const path = require('path');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const { authenticate, authorize } = require('../middleware/auth');
-const { ensureTenantIsolation } = require('../middleware/tenantContext');
+const { enterpriseTenantIsolation, strictTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -35,7 +35,7 @@ const upload = multer({
 });
 
 // Get all team members with enhanced details
-router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/members', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     console.log('Team members endpoint - Tenant:', req.tenant?.name);
     console.log('Team members endpoint - Tenant ID:', req.tenant?.tenantId);
@@ -110,7 +110,7 @@ router.get('/members', authenticate, authorize(['users.view']), ensureTenantIsol
 });
 
 // Get single team member with full details
-router.get('/members/:id', authenticate, authorize(['users.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/members/:id', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const user = await User.findOne({ 
       _id: req.params.id,
@@ -129,7 +129,7 @@ router.get('/members/:id', authenticate, authorize(['users.view']), ensureTenant
 });
 
 // Create new team member
-router.post('/members', authenticate, authorize(['users.create']), ensureTenantIsolation, async (req, res) => {
+router.post('/members', authenticate, authorize(['users.create']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const {
       name,
@@ -181,7 +181,7 @@ router.post('/members', authenticate, authorize(['users.create']), ensureTenantI
 });
 
 // Update team member
-router.put('/members/:id', authenticate, authorize(['users.manage']), ensureTenantIsolation, async (req, res) => {
+router.put('/members/:id', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const updates = { ...req.body };
     delete updates.password; // Don't allow password updates through this route
@@ -209,7 +209,7 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), ensureTena
 });
 
 // Upload profile photo
-router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ensureTenantIsolation, upload.single('photo'), async (req, res) => {
+router.post('/members/:id/photo', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
@@ -239,7 +239,7 @@ router.post('/members/:id/photo', authenticate, authorize(['users.manage']), ens
 });
 
 // Upload documents
-router.post('/members/:id/documents', authenticate, authorize(['users.manage']), ensureTenantIsolation, upload.array('documents', 5), async (req, res) => {
+router.post('/members/:id/documents', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, upload.array('documents', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -275,7 +275,7 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
 });
 
 // Delete team member
-router.delete('/members/:id', authenticate, authorize(['users.delete']), ensureTenantIsolation, async (req, res) => {
+router.delete('/members/:id', authenticate, authorize(['users.delete']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.tenant.tenantId },
@@ -298,7 +298,7 @@ router.delete('/members/:id', authenticate, authorize(['users.delete']), ensureT
 });
 
 // Get team stats
-router.get('/stats', authenticate, authorize(['users.view']), ensureTenantIsolation, async (req, res) => {
+router.get('/stats', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const [
       totalMembers,

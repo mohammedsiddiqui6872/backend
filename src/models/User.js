@@ -130,33 +130,53 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Import getCurrentTenantId for tenant filtering
-const { getCurrentTenantId } = require('../middleware/tenantContext');
+// Import getCurrentTenant for enterprise tenant filtering
+const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
-// Add tenant filter to all find operations
+// Enterprise-grade tenant filter for all find operations
 userSchema.pre(/^find/, function() {
-  // Skip auto-filtering if tenantId is already in the query
-  if (this.getQuery().tenantId) {
-    console.log('User model: TenantId already in query:', this.getQuery().tenantId);
+  // Skip if tenantId is explicitly set to null (for super admin operations)
+  if (this.getOptions().skipTenantFilter) {
+    console.log('User model: Skipping tenant filter (super admin operation)');
     return;
   }
   
-  const tenantId = getCurrentTenantId();
-  console.log('User model: Getting tenantId from asyncLocalStorage:', tenantId);
-  if (tenantId) {
-    console.log('User model: Adding tenant filter:', tenantId);
-    this.where({ tenantId });
-  } else {
-    console.log('User model: WARNING - No tenantId found in context');
+  // If query already has tenantId, verify it matches current context
+  const queryTenantId = this.getQuery().tenantId;
+  const context = getCurrentTenant();
+  
+  if (queryTenantId && context?.tenantId && queryTenantId !== context.tenantId) {
+    console.error('User model: SECURITY WARNING - Query tenant mismatch!', {
+      queryTenantId,
+      contextTenantId: context.tenantId,
+      userId: context.userId,
+      requestId: context.requestId
+    });
+    // Force empty result for security
+    this.where({ _id: null });
+    return;
+  }
+  
+  // Apply tenant filter from context
+  if (context?.tenantId) {
+    console.log('User model: Applying enterprise tenant filter:', context.tenantId);
+    this.where({ tenantId: context.tenantId });
+  } else if (!queryTenantId) {
+    console.warn('User model: No tenant context available - this should not happen in production');
+    // Force empty result for security when no tenant context
+    this.where({ _id: null });
   }
 });
 
 // Ensure tenantId is set when creating new users
 userSchema.pre('save', function(next) {
   if (!this.tenantId) {
-    const tenantId = getCurrentTenantId();
-    if (tenantId) {
-      this.tenantId = tenantId;
+    const context = getCurrentTenant();
+    if (context?.tenantId) {
+      this.tenantId = context.tenantId;
+      console.log('User model: Setting tenantId on save:', context.tenantId);
+    } else {
+      return next(new Error('Cannot create user without tenant context'));
     }
   }
   next();

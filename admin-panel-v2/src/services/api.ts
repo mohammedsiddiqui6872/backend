@@ -11,15 +11,10 @@ const getTenantInfo = () => {
   console.log('URL subdomain param:', urlSubdomain);
   console.log('Stored subdomain:', storedSubdomain);
   
-  // Always prefer URL subdomain over stored subdomain
-  if (urlSubdomain) {
-    if (urlSubdomain !== storedSubdomain) {
-      console.log('Updating stored subdomain from', storedSubdomain, 'to', urlSubdomain);
-      localStorage.setItem('subdomain', urlSubdomain);
-      // Clear tenant ID as it might be from a different tenant
-      localStorage.removeItem('tenantId');
-      console.log('Cleared tenant ID due to subdomain change');
-    }
+  // Store subdomain for display purposes only
+  if (urlSubdomain && urlSubdomain !== storedSubdomain) {
+    console.log('Storing subdomain for display:', urlSubdomain);
+    localStorage.setItem('subdomain', urlSubdomain);
     storedSubdomain = urlSubdomain;
   }
   
