@@ -175,8 +175,6 @@ app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/adm
 app.use('/api/admin/team', ensureTenantIsolation, require('./src/routes/team'));
 app.use('/api/admin/shifts', ensureTenantIsolation, require('./src/routes/shifts'));
 app.use('/api/admin/roles', ensureTenantIsolation, require('./src/routes/roles'));
-app.use('/api/admin/debug', ensureTenantIsolation, require('./src/routes/admin/debug'));
-app.use('/api/test-tenant', require('./src/routes/test-tenant'));
 
 // Special handling for admin panel to allow access without failing on tenant context
 app.get('/admin-panel', async (req, res, next) => {
