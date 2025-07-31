@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+.git
+.gitignore
+README.md
+.DS_Store
+admin-panel-v2/node_modules
+admin-panel-v2/dist
+admin-panel/dist
+uploads/*
+!uploads/.gitkeep
+*.log
