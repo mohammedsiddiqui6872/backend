@@ -654,6 +654,7 @@ const Shifts = () => {
             setShowDetailsModal(false);
             setSelectedShift(null);
           }}
+          employees={employees}
         />
       )}
 

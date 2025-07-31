@@ -42,6 +42,13 @@ interface Shift {
     hourlyRate?: number;
     totalPay?: number;
   };
+  swapRequest?: {
+    requestedBy: Employee;
+    requestedWith: Employee;
+    reason: string;
+    status: 'pending' | 'approved' | 'rejected';
+    requestDate: string;
+  };
 }
 
 interface ShiftDetailsModalProps {
@@ -113,9 +120,42 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
     return `${hours}h ${minutes}m`;
   };
 
+  const handleSwapRequest = async () => {
+    if (!swapWithEmployee) {
+      toast.error('Please select an employee to swap with');
+      return;
+    }
+
+    if (!swapReason.trim()) {
+      toast.error('Please provide a reason for the swap request');
+      return;
+    }
+
+    setIsSwapping(true);
+    try {
+      await shiftsAPI.requestSwap(shift._id, {
+        requestedWithId: swapWithEmployee,
+        reason: swapReason
+      });
+      toast.success('Swap request submitted successfully');
+      setShowSwapModal(false);
+      setSwapWithEmployee('');
+      setSwapReason('');
+      onClose();
+    } catch (error) {
+      toast.error('Failed to submit swap request');
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
+  const canSwap = shift.status === 'scheduled' && !shift.swapRequest;
+  const canCancel = ['scheduled', 'cancelled'].includes(shift.status);
+
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <>
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex justify-between items-center p-6 border-b">
           <div className="flex items-center space-x-3">
             <h3 className="text-lg font-medium text-gray-900">Shift Details</h3>
@@ -270,6 +310,38 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
             </div>
           )}
 
+          {/* Swap Request */}
+          {shift.swapRequest && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Swap Request</h4>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <Repeat className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">
+                      Swap requested with {shift.swapRequest.requestedWith.name}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Reason: {shift.swapRequest.reason}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Requested on {format(new Date(shift.swapRequest.requestDate), 'MMM d, yyyy')}
+                    </p>
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        shift.swapRequest.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        shift.swapRequest.status === 'approved' ? 'bg-green-100 text-green-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {shift.swapRequest.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           {shift.notes && (
             <div className="mb-6">
@@ -282,13 +354,26 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
         </div>
 
         <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t">
-          <button
-            onClick={onDelete}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Cancel Shift
-          </button>
+          <div className="flex space-x-3">
+            {canCancel && (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Cancel Shift
+              </button>
+            )}
+            {canSwap && (
+              <button
+                onClick={() => setShowSwapModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200"
+              >
+                <Repeat className="h-4 w-4 mr-2" />
+                Request Swap
+              </button>
+            )}
+          </div>
           <div className="flex space-x-3">
             <button
               onClick={onClose}
@@ -296,17 +381,105 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
             >
               Close
             </button>
-            <button
-              onClick={onEdit}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-            >
-              <Edit2 className="h-4 w-4 mr-2" />
-              Edit Shift
-            </button>
+            {canCancel && (
+              <button
+                onClick={onEdit}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Shift
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
+
+    {/* Swap Request Modal */}
+    {showSwapModal && (
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-[60]">
+        <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Request Shift Swap</h3>
+            <button
+              onClick={() => setShowSwapModal(false)}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Current Shift
+              </label>
+              <div className="bg-gray-50 p-3 rounded-md">
+                <p className="text-sm font-medium">{format(new Date(shift.date), 'EEEE, MMM d, yyyy')}</p>
+                <p className="text-sm text-gray-600">
+                  {format(new Date(`2000-01-01T${shift.scheduledTimes.start}`), 'h:mm a')} - 
+                  {format(new Date(`2000-01-01T${shift.scheduledTimes.end}`), 'h:mm a')}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Swap With <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={swapWithEmployee}
+                onChange={(e) => setSwapWithEmployee(e.target.value)}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                required
+              >
+                <option value="">Select Employee</option>
+                {employees
+                  .filter(emp => emp._id !== shift.employee._id)
+                  .map(emp => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.name} - {emp.role}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={swapReason}
+                onChange={(e) => setSwapReason(e.target.value)}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Please provide a reason for the swap request..."
+                required
+              />
+            </div>
+
+            <div className="pt-4 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowSwapModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                disabled={isSwapping}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSwapRequest}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400"
+                disabled={isSwapping}
+              >
+                {isSwapping ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
