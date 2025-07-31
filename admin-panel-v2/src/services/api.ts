@@ -4,23 +4,34 @@ import axios from 'axios';
 const getTenantInfo = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSubdomain = urlParams.get('subdomain');
-  const storedSubdomain = localStorage.getItem('subdomain');
+  let storedSubdomain = localStorage.getItem('subdomain');
   
   console.log('=== ADMIN PANEL API DEBUG ===');
   console.log('Current URL:', window.location.href);
   console.log('URL subdomain param:', urlSubdomain);
   console.log('Stored subdomain:', storedSubdomain);
   
-  // If URL has subdomain and it's different from stored, update storage
-  if (urlSubdomain && urlSubdomain !== storedSubdomain) {
-    console.log('Updating stored subdomain from', storedSubdomain, 'to', urlSubdomain);
-    localStorage.setItem('subdomain', urlSubdomain);
-    // Clear tenant ID as it might be from a different tenant
-    localStorage.removeItem('tenantId');
-    console.log('Cleared tenant ID due to subdomain change');
+  // Always prefer URL subdomain over stored subdomain
+  if (urlSubdomain) {
+    if (urlSubdomain !== storedSubdomain) {
+      console.log('Updating stored subdomain from', storedSubdomain, 'to', urlSubdomain);
+      localStorage.setItem('subdomain', urlSubdomain);
+      // Clear tenant ID as it might be from a different tenant
+      localStorage.removeItem('tenantId');
+      console.log('Cleared tenant ID due to subdomain change');
+    }
+    storedSubdomain = urlSubdomain;
   }
   
-  const subdomain = urlSubdomain || storedSubdomain;
+  // If no subdomain in URL but we have one stored, add it to the URL
+  if (!urlSubdomain && storedSubdomain && window.location.pathname.includes('/admin-panel')) {
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('subdomain', storedSubdomain);
+    window.history.replaceState({}, '', newUrl.toString());
+    console.log('Added subdomain to URL:', storedSubdomain);
+  }
+  
+  const subdomain = storedSubdomain;
   const tenantId = localStorage.getItem('tenantId');
   
   console.log('Final tenant info:');

@@ -44,6 +44,14 @@ function App() {
     const subdomain = urlParams.get('subdomain');
     if (subdomain) {
       localStorage.setItem('subdomain', subdomain);
+    } else {
+      // If no subdomain in URL but we have one stored, add it to URL
+      const storedSubdomain = localStorage.getItem('subdomain');
+      if (storedSubdomain && window.location.pathname.includes('/admin-panel')) {
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('subdomain', storedSubdomain);
+        window.history.replaceState({}, '', newUrl.toString());
+      }
     }
 
     // Check if user is authenticated and get tenant info
