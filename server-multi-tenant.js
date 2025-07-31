@@ -168,7 +168,16 @@ app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/adm
 // Serve admin panel with tenant context
 app.use('/admin-panel', tenantContext, express.static(path.join(__dirname, 'admin-panel/dist')));
 app.get('/admin-panel/*', tenantContext, (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin-panel/dist', 'index.html'));
+  // Check if the dist folder exists, if not serve from v2
+  const distPath = path.join(__dirname, 'admin-panel/dist');
+  const indexPath = path.join(distPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Fallback to basic admin panel
+    res.sendFile(path.join(__dirname, 'admin-panel', 'index.html'));
+  }
 });
 
 // Error handling

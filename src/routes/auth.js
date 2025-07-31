@@ -139,6 +139,59 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Admin login endpoint - for admin panel access
+router.post('/admin/login', async (req, res) => {
+  try {
+    console.log('Admin login attempt:', req.body);
+    
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user has admin or manager role
+    if (!['admin', 'manager'].includes(user.role)) {
+      return res.status(403).json({ error: 'Access denied. Admin or manager role required.' });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ error: 'Account deactivated' });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        permissions: user.permissions
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get current user with active table sessions
 router.get('/me', authenticate, async (req, res) => {
   try {
