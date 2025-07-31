@@ -1,20 +1,28 @@
 import axios from 'axios';
+import storageManager from '../utils/storageManager';
 
-// Get tenant info from URL or localStorage
+// Get tenant info from URL or subdomain-specific localStorage
 const getTenantInfo = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const urlSubdomain = urlParams.get('subdomain');
-  let storedSubdomain = localStorage.getItem('subdomain');
+  
+  // Update storage manager's subdomain if URL has it
+  if (urlSubdomain) {
+    storageManager.setSubdomain(urlSubdomain);
+  }
+  
+  let storedSubdomain = storageManager.getItem('subdomain');
   
   console.log('=== ADMIN PANEL API DEBUG ===');
   console.log('Current URL:', window.location.href);
   console.log('URL subdomain param:', urlSubdomain);
-  console.log('Stored subdomain:', storedSubdomain);
+  console.log('Stored subdomain (isolated):', storedSubdomain);
+  console.log('Storage subdomain:', storageManager.getSubdomain());
   
   // Store subdomain for display purposes only
   if (urlSubdomain && urlSubdomain !== storedSubdomain) {
     console.log('Storing subdomain for display:', urlSubdomain);
-    localStorage.setItem('subdomain', urlSubdomain);
+    storageManager.setItem('subdomain', urlSubdomain);
     storedSubdomain = urlSubdomain;
   }
   
@@ -26,8 +34,8 @@ const getTenantInfo = () => {
     console.log('Added subdomain to URL:', storedSubdomain);
   }
   
-  const subdomain = storedSubdomain;
-  const tenantId = localStorage.getItem('tenantId');
+  const subdomain = urlSubdomain || storedSubdomain;
+  const tenantId = storageManager.getItem('tenantId');
   
   console.log('Final tenant info:');
   console.log('- Subdomain:', subdomain);
@@ -50,7 +58,7 @@ const api = axios.create({
 // Add tenant headers to all requests
 api.interceptors.request.use((config) => {
   const { subdomain, tenantId } = getTenantInfo();
-  const token = localStorage.getItem('adminToken');
+  const token = storageManager.getItem('adminToken');
   
   console.log('=== API REQUEST INTERCEPTOR ===');
   console.log('Request URL:', config.url);
@@ -99,9 +107,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('adminToken');
+      storageManager.removeItem('adminToken');
       // Preserve subdomain when redirecting to login
-      const subdomain = localStorage.getItem('subdomain');
+      const subdomain = storageManager.getItem('subdomain');
       const queryParam = subdomain ? `?subdomain=${subdomain}` : '';
       window.location.href = `/admin-panel/login${queryParam}`;
     }
@@ -118,7 +126,7 @@ export const authAPI = {
       try {
         const response = await axios.post('/api/super-admin/login', { email, password });
         // Store super admin flag
-        localStorage.setItem('isSuperAdmin', 'true');
+        storageManager.setItem('isSuperAdmin', 'true');
         return response;
       } catch (error) {
         // If super admin login fails, continue with regular admin login
@@ -303,10 +311,7 @@ export const analyticsAPI = {
 
 // Helper to clear tenant data when switching restaurants
 export const clearTenantData = () => {
-  localStorage.removeItem('subdomain');
-  localStorage.removeItem('tenantId');
-  localStorage.removeItem('adminToken');
-  localStorage.removeItem('isSuperAdmin');
+  storageManager.clearSubdomainData();
 };
 
 export default api;

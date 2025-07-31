@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChefHat, Mail, Lock, AlertCircle } from 'lucide-react';
 import { authAPI } from '../services/api';
+import storageManager from '../utils/storageManager';
 import toast from 'react-hot-toast';
 
 interface LoginProps {
@@ -39,7 +40,7 @@ const Login = ({ onLogin }: LoginProps) => {
       
       const tenantId = tenantMap[subdomain.toLowerCase().replace(/-/g, '')];
       if (tenantId) {
-        localStorage.setItem('tenantId', tenantId);
+        storageManager.setItem('tenantId', tenantId);
       }
     }
   }, []);
@@ -50,22 +51,27 @@ const Login = ({ onLogin }: LoginProps) => {
     setLoading(true);
 
     try {
-      // Clear any previous tenant data before login
-      localStorage.removeItem('tenantId');
-      localStorage.removeItem('subdomain');
+      // Update storage manager with current subdomain
+      const urlParams = new URLSearchParams(window.location.search);
+      const subdomain = urlParams.get('subdomain');
+      if (subdomain) {
+        storageManager.setSubdomain(subdomain);
+      }
+      
+      // Clear any previous tenant data for this subdomain
+      storageManager.removeItem('tenantId');
+      storageManager.removeItem('adminToken');
       
       const response = await authAPI.login(email, password);
       const { token, user } = response.data;
       
-      // Store token and user info
-      localStorage.setItem('adminToken', token);
-      localStorage.setItem('adminUser', JSON.stringify(user));
+      // Store token and user info with subdomain isolation
+      storageManager.setItem('adminToken', token);
+      storageManager.setItem('adminUser', JSON.stringify(user));
       
-      // Store subdomain from URL for consistent UI
-      const urlParams = new URLSearchParams(window.location.search);
-      const subdomain = urlParams.get('subdomain');
+      // Store subdomain for consistent UI
       if (subdomain) {
-        localStorage.setItem('subdomain', subdomain);
+        storageManager.setItem('subdomain', subdomain);
       }
       
       toast.success('Login successful!');

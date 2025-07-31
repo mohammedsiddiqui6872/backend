@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import storageManager from '../utils/storageManager';
 import toast from 'react-hot-toast';
 
 const Layout = () => {
@@ -24,7 +25,7 @@ const Layout = () => {
   useEffect(() => {
     // Get restaurant name from tenant config
     const subdomain = new URLSearchParams(window.location.search).get('subdomain') || 
-                      localStorage.getItem('subdomain');
+                      storageManager.getItem('subdomain');
     if (subdomain) {
       // Format subdomain to restaurant name
       const name = subdomain
@@ -38,8 +39,8 @@ const Layout = () => {
   const handleLogout = async () => {
     try {
       await authAPI.logout();
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('tenantId');
+      storageManager.removeItem('adminToken');
+      storageManager.removeItem('tenantId');
       // Don't remove subdomain - we need it for the login page
       navigate(`/login${location.search}`);
     } catch (error) {

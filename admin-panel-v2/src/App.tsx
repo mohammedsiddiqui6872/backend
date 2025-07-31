@@ -12,6 +12,7 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Layout from './components/Layout';
 import { authAPI } from './services/api';
+import storageManager from './utils/storageManager';
 
 // Component to handle navigation with query params preserved
 function NavigateWithQuery({ to }: { to: string }) {
@@ -39,14 +40,15 @@ function App() {
   }, [tenantInfo]);
 
   useEffect(() => {
-    // Preserve subdomain in localStorage from URL params
+    // Initialize storage manager with subdomain from URL
     const urlParams = new URLSearchParams(window.location.search);
     const subdomain = urlParams.get('subdomain');
     if (subdomain) {
-      localStorage.setItem('subdomain', subdomain);
+      storageManager.setSubdomain(subdomain);
+      storageManager.setItem('subdomain', subdomain);
     } else {
       // If no subdomain in URL but we have one stored, add it to URL
-      const storedSubdomain = localStorage.getItem('subdomain');
+      const storedSubdomain = storageManager.getItem('subdomain');
       if (storedSubdomain && window.location.pathname.includes('/admin-panel')) {
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.set('subdomain', storedSubdomain);
@@ -56,7 +58,7 @@ function App() {
 
     // Check if user is authenticated and get tenant info
     const checkAuth = async () => {
-      const token = localStorage.getItem('adminToken');
+      const token = storageManager.getItem('adminToken');
       if (token) {
         try {
           const response = await authAPI.getProfile();
@@ -68,7 +70,7 @@ function App() {
             console.log('Tenant info loaded:', response.data.tenant);
           }
         } catch (error) {
-          localStorage.removeItem('adminToken');
+          storageManager.removeItem('adminToken');
           setIsAuthenticated(false);
         }
       }
