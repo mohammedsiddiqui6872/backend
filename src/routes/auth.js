@@ -145,6 +145,10 @@ router.post('/admin/login', async (req, res) => {
     console.log('Admin login attempt:', req.body);
     
     const { email, password } = req.body;
+    
+    // Get subdomain from query params or headers
+    const subdomain = req.query.subdomain || req.headers['x-tenant-subdomain'];
+    console.log('Admin login subdomain:', subdomain);
 
     // Validate input
     if (!email || !password) {
@@ -165,13 +169,34 @@ router.post('/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Account deactivated' });
     }
 
+    // CRITICAL: Verify tenant match
+    if (subdomain && user.tenantId) {
+      // Get tenant from subdomain
+      const Tenant = require('../models/Tenant');
+      const tenant = await Tenant.findOne({ subdomain: subdomain });
+      
+      if (!tenant) {
+        return res.status(404).json({ error: 'Restaurant not found' });
+      }
+      
+      // Check if user belongs to this tenant
+      if (user.tenantId !== tenant.tenantId) {
+        console.log('Tenant mismatch:', user.tenantId, 'vs', tenant.tenantId);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    }
+
     // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
+    // Generate token with tenant info
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { 
+        id: user._id, 
+        role: user.role,
+        tenantId: user.tenantId
+      },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -183,7 +208,8 @@ router.post('/admin/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        permissions: user.permissions
+        permissions: user.permissions,
+        tenantId: user.tenantId
       }
     });
   } catch (error) {

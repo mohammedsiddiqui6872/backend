@@ -18,6 +18,24 @@ exports.auth = exports.authenticate = async (req, res, next) => {
       throw new Error();
     }
 
+    // SECURITY: Verify tenant context matches
+    if (decoded.tenantId && user.tenantId && decoded.tenantId !== user.tenantId) {
+      console.error('Token tenant mismatch:', decoded.tenantId, 'vs', user.tenantId);
+      throw new Error('Invalid token');
+    }
+
+    // For admin panel requests, verify tenant from subdomain
+    if (req.headers['x-tenant-subdomain'] || req.query.subdomain) {
+      const subdomain = req.headers['x-tenant-subdomain'] || req.query.subdomain;
+      const Tenant = require('../models/Tenant');
+      const tenant = await Tenant.findOne({ subdomain: subdomain });
+      
+      if (tenant && user.tenantId !== tenant.tenantId) {
+        console.error('User tenant mismatch for subdomain:', subdomain, user.tenantId, 'vs', tenant.tenantId);
+        throw new Error('Access denied');
+      }
+    }
+
     // Load role permissions if user has a role
     if (user.role) {
       const role = await Role.findOne({ 
