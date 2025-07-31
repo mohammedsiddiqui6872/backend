@@ -285,11 +285,11 @@ app.use('/api/categories', require('./src/routes/categories')); // Public route
 app.use('/api/admin/menu', require('./src/routes/admin/menu'));
 app.use('/api/admin/inventory', require('./src/routes/admin/Inventory'));
 app.use('/api/admin/analytics', require('./src/routes/admin/analytics'));
-app.use('/api/admin/users', require('./src/routes/admin/users'));
+app.use('/api/admin/users', require('./src/routes/admin/users')); // Keep for backward compatibility
 app.use('/api/admin/tables', require('./src/routes/admin/tables'));
 app.use('/api/admin/categories', require('./src/routes/admin/categories'));
 
-// Enhanced team management routes
+// Enhanced team management routes (replacing the users route functionality)
 app.use('/api/admin/team', require('./src/routes/team'));
 app.use('/api/admin/shifts', require('./src/routes/shifts'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
