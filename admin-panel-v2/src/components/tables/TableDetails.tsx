@@ -9,7 +9,8 @@ import {
   Layers,
   Package,
   Shield,
-  Wrench
+  Wrench,
+  QrCode
 } from 'lucide-react';
 import { Table } from '../../types/table';
 import api from '../../services/api';
@@ -127,30 +128,71 @@ const TableDetails: React.FC<TableDetailsProps> = ({ table, onClose }) => {
               {/* Basic Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-4">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Table Number</p>
-                    <p className="font-medium">{table.number}</p>
+                    <p className="font-medium text-lg">{table.number}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Display Name</p>
-                    <p className="font-medium">{table.displayName || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Type</p>
-                    <p className="font-medium capitalize">{table.type}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Shape</p>
-                    <p className="font-medium capitalize">{table.shape}</p>
+                    <p className="font-medium text-lg">{table.displayName || '-'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Current Status</p>
-                    <p className="font-medium capitalize">{table.status}</p>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      table.status === 'available' ? 'bg-green-100 text-green-800' :
+                      table.status === 'occupied' ? 'bg-red-100 text-red-800' :
+                      table.status === 'reserved' ? 'bg-orange-100 text-orange-800' :
+                      table.status === 'cleaning' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {table.status.toUpperCase()}
+                    </span>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Active</p>
-                    <p className="font-medium">{table.isActive ? 'Yes' : 'No'}</p>
+                    <p className="text-sm text-gray-500">Active Status</p>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      table.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {table.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Created</p>
+                    <p className="font-medium">{format(new Date(table.createdAt), 'MMM dd, yyyy')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Last Updated</p>
+                    <p className="font-medium">{format(new Date(table.updatedAt), 'MMM dd, yyyy HH:mm')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Type and Shape */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 mb-4">Type & Shape</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">Table Type</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl">
+                        {table.type === 'vip' ? '👑' : 
+                         table.type === 'outdoor' ? '🌳' :
+                         table.type === 'private' ? '🔒' :
+                         table.type === 'bar' ? '🍺' : '🪑'}
+                      </span>
+                      <span className="font-medium capitalize text-lg">{table.type}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">Table Shape</p>
+                    <div className={`inline-flex items-center justify-center w-16 h-16 border-2 border-gray-300 ${
+                      table.shape === 'round' || table.shape === 'oval' ? 'rounded-full' : 'rounded-lg'
+                    }`}>
+                      <span className="text-xs font-medium text-gray-600">
+                        {table.shape.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -181,28 +223,52 @@ const TableDetails: React.FC<TableDetailsProps> = ({ table, onClose }) => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="font-medium text-gray-900 mb-4 flex items-center">
                   <MapPin className="h-5 w-5 mr-2" />
-                  Location
+                  Location Details
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Floor</p>
-                    <p className="font-medium capitalize">{table.location.floor}</p>
+                    <p className="font-medium capitalize text-lg">{table.location.floor}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Section</p>
-                    <p className="font-medium capitalize">{table.location.section}</p>
+                    <p className="font-medium capitalize text-lg">{table.location.section}</p>
                   </div>
+                  {table.location.zone && (
+                    <div>
+                      <p className="text-sm text-gray-500">Zone</p>
+                      <p className="font-medium capitalize">{table.location.zone}</p>
+                    </div>
+                  )}
                   {table.location.x !== undefined && (
-                    <>
-                      <div>
-                        <p className="text-sm text-gray-500">X Position</p>
-                        <p className="font-medium">{table.location.x}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Y Position</p>
-                        <p className="font-medium">{table.location.y}</p>
-                      </div>
-                    </>
+                    <div>
+                      <p className="text-sm text-gray-500">X Position</p>
+                      <p className="font-medium">{table.location.x}px</p>
+                    </div>
+                  )}
+                  {table.location.y !== undefined && (
+                    <div>
+                      <p className="text-sm text-gray-500">Y Position</p>
+                      <p className="font-medium">{table.location.y}px</p>
+                    </div>
+                  )}
+                  {table.location.rotation !== undefined && (
+                    <div>
+                      <p className="text-sm text-gray-500">Rotation</p>
+                      <p className="font-medium">{table.location.rotation}°</p>
+                    </div>
+                  )}
+                  {table.location.width && (
+                    <div>
+                      <p className="text-sm text-gray-500">Width</p>
+                      <p className="font-medium">{table.location.width}px</p>
+                    </div>
+                  )}
+                  {table.location.height && (
+                    <div>
+                      <p className="text-sm text-gray-500">Height</p>
+                      <p className="font-medium">{table.location.height}px</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -228,38 +294,156 @@ const TableDetails: React.FC<TableDetailsProps> = ({ table, onClose }) => {
               )}
 
               {/* Combination Info */}
-              {table.combination && (table.combination.isCombined || table.isCombinable) && (
+              {(table.combination && (table.combination.isCombined || table.isCombinable)) || table.isCombinable ? (
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-medium text-gray-900 mb-4 flex items-center">
                     <Layers className="h-5 w-5 mr-2" />
-                    Combination
+                    Combination Settings
                   </h3>
-                  {table.combination.isCombined ? (
-                    <div className="space-y-2">
-                      <p className="text-sm">
-                        <span className="text-gray-500">Status:</span>
-                        <span className="ml-2 font-medium">
-                          {table.combination.isMainTable ? 'Main Table' : 'Combined Table'}
-                        </span>
-                      </p>
+                  {table.combination?.isCombined ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Status</p>
+                          <p className="font-medium">
+                            {table.combination.isMainTable ? 'Main Table' : 'Combined Table'}
+                          </p>
+                        </div>
+                        {table.combination.arrangement && (
+                          <div>
+                            <p className="text-sm text-gray-500">Arrangement</p>
+                            <p className="font-medium capitalize">{table.combination.arrangement}</p>
+                          </div>
+                        )}
+                        {table.combination.totalCapacity && (
+                          <div>
+                            <p className="text-sm text-gray-500">Total Capacity</p>
+                            <p className="font-medium">{table.combination.totalCapacity} guests</p>
+                          </div>
+                        )}
+                        {table.combination.combinedAt && (
+                          <div>
+                            <p className="text-sm text-gray-500">Combined At</p>
+                            <p className="font-medium">{format(new Date(table.combination.combinedAt), 'MMM dd, HH:mm')}</p>
+                          </div>
+                        )}
+                      </div>
                       {table.combination.combinedTables && table.combination.combinedTables.length > 0 && (
-                        <p className="text-sm">
-                          <span className="text-gray-500">Combined with:</span>
-                          <span className="ml-2 font-medium">
-                            Tables {table.combination.combinedTables.map(t => t.tableNumber).join(', ')}
-                          </span>
-                        </p>
-                      )}
-                      {table.combination.totalCapacity && (
-                        <p className="text-sm">
-                          <span className="text-gray-500">Total Capacity:</span>
-                          <span className="ml-2 font-medium">{table.combination.totalCapacity}</span>
-                        </p>
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Combined Tables</p>
+                          <div className="flex flex-wrap gap-2">
+                            {table.combination.combinedTables.map((t) => (
+                              <span key={t.tableId} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
+                                Table {t.tableNumber}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm">This table can be combined with other tables</p>
+                    <div className="space-y-2">
+                      <p className="text-sm">
+                        <span className="text-gray-500">Combinable:</span>
+                        <span className="ml-2 font-medium">{table.isCombinable ? 'Yes' : 'No'}</span>
+                      </p>
+                      {table.combinesWith && table.combinesWith.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Can combine with:</p>
+                          <p className="font-medium">Tables {table.combinesWith.join(', ')}</p>
+                        </div>
+                      )}
+                    </div>
                   )}
+                </div>
+              ) : null}
+
+              {/* QR Code Info */}
+              {table.qrCode && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                    <QrCode className="h-5 w-5 mr-2" />
+                    QR Code Information
+                  </h3>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-sm text-gray-500">QR Code</p>
+                      <p className="font-mono text-xs bg-gray-100 p-2 rounded break-all">{table.qrCode.code}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">URL</p>
+                      <a 
+                        href={table.qrCode.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 text-sm break-all"
+                      >
+                        {table.qrCode.url}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Current Service Info */}
+              {(table.currentWaiter || table.activeCustomerSession) && (
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                    <Activity className="h-5 w-5 mr-2" />
+                    Current Service
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {table.currentWaiter && (
+                      <div>
+                        <p className="text-sm text-gray-500">Assigned Waiter</p>
+                        <p className="font-medium">{table.currentWaiter.name}</p>
+                      </div>
+                    )}
+                    {table.assistingWaiters && table.assistingWaiters.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-500">Assisting Waiters</p>
+                        <p className="font-medium">{table.assistingWaiters.map(w => w.name).join(', ')}</p>
+                      </div>
+                    )}
+                    {table.activeCustomerSession && (
+                      <div>
+                        <p className="text-sm text-gray-500">Active Session</p>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          IN SERVICE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              {table.metadata && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-4 flex items-center">
+                    <Info className="h-5 w-5 mr-2" />
+                    Additional Information
+                  </h3>
+                  <div className="space-y-2">
+                    {table.metadata.lastCleaned && (
+                      <div>
+                        <p className="text-sm text-gray-500">Last Cleaned</p>
+                        <p className="font-medium">{format(new Date(table.metadata.lastCleaned), 'MMM dd, yyyy HH:mm')}</p>
+                      </div>
+                    )}
+                    {table.metadata.maintenanceNotes && (
+                      <div>
+                        <p className="text-sm text-gray-500">Maintenance Notes</p>
+                        <p className="font-medium">{table.metadata.maintenanceNotes}</p>
+                      </div>
+                    )}
+                    {table.metadata.preferredWaiters && table.metadata.preferredWaiters.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-500">Preferred Waiters</p>
+                        <p className="font-medium">{table.metadata.preferredWaiters.join(', ')}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
