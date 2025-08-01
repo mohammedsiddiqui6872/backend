@@ -322,6 +322,22 @@ export const menuAPI = {
     formData.append('image', file);
     return api.post('/admin/menu/upload', formData);
   },
+  
+  // Bulk operations
+  bulkImportCategories: (data: any[], format: 'csv' | 'json') =>
+    api.post('/admin/categories/bulk-import', { data, format }),
+  
+  bulkImportItems: (data: any[], format: 'csv' | 'json') =>
+    api.post('/admin/menu/bulk-import', { data, format }),
+  
+  bulkImportZip: (formData: FormData) =>
+    api.post('/admin/menu/bulk-import-zip', formData),
+  
+  exportCategories: (format: 'csv' | 'json') =>
+    api.get(`/admin/categories/export?format=${format}`),
+  
+  exportItems: (format: 'csv' | 'json') =>
+    api.get(`/admin/menu/export?format=${format}`),
 };
 
 // Tables API

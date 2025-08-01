@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { Category, CategoryInput } from '../../types/menu';
+import { compressImage } from '../../utils/imageUtils';
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -20,7 +21,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   const [formData, setFormData] = useState<CategoryInput>({
     name: '',
     nameAr: '',
-    slug: '',
     icon: 'utensils',
     displayOrder: 0,
     isActive: true,
@@ -40,7 +40,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
       setFormData({
         name: '',
         nameAr: '',
-        slug: '',
         icon: 'utensils',
         displayOrder: 0,
         isActive: true,
@@ -52,15 +51,29 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     setImageFile(null);
   }, [category]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Check file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+          // Compress the image if it's too large
+          const compressed = await compressImage(file, 1200, 1200, 0.8);
+          setImagePreview(compressed);
+          setImageFile(null); // We'll use the base64 string instead
+        } else {
+          // File is small enough, use as is
+          setImageFile(file);
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setImagePreview(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        console.error('Error processing image:', error);
+        alert('Failed to process image. Please try a smaller image.');
+      }
     }
   };
 
@@ -69,7 +82,8 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     
     const dataToSave = {
       ...formData,
-      uploadImage: imageFile ? imagePreview.split(',')[1] : undefined
+      uploadImage: imagePreview && !imageFile ? imagePreview.split(',')[1] : 
+                   imageFile ? imagePreview.split(',')[1] : undefined
     };
     
     onSave(dataToSave);

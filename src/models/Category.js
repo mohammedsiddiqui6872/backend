@@ -53,8 +53,14 @@ const categorySchema = new mongoose.Schema({
 
 // Auto-generate slug from name
 categorySchema.pre('save', function(next) {
-  if (this.isModified('name')) {
-    this.slug = this.name.toLowerCase().replace(/\s+/g, '-');
+  if (this.isModified('name') || !this.slug) {
+    // Generate slug from name - handle special characters and ensure it's URL-safe
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-')          // Replace spaces with hyphens
+      .replace(/-+/g, '-')           // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, '');        // Remove leading/trailing hyphens
   }
   next();
 });

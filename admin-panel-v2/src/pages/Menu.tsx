@@ -5,6 +5,7 @@ import CategoryCard from '../components/menu/CategoryCard';
 import CategoryModal from '../components/menu/CategoryModal';
 import MenuItemCard from '../components/menu/MenuItemCard';
 import MenuItemModal from '../components/menu/MenuItemModal';
+import ImportExportModal from '../components/menu/ImportExportModal';
 import { Category, MenuItem, CategoryInput, MenuItemInput } from '../types/menu';
 
 const Menu = () => {
@@ -17,6 +18,7 @@ const Menu = () => {
   // Modal states
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showImportExportModal, setShowImportExportModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -188,6 +190,59 @@ const Menu = () => {
     return category?.name || slug;
   };
 
+  // Import/Export handlers
+  const handleImport = async (data: any, type: 'categories' | 'items', format: 'csv' | 'json' | 'zip') => {
+    try {
+      setModalLoading(true);
+      
+      if (format === 'zip') {
+        // Handle ZIP file upload
+        const formData = new FormData();
+        formData.append('file', data);
+        formData.append('type', type);
+        
+        await menuAPI.bulkImportZip(formData);
+      } else {
+        // Handle CSV/JSON data
+        if (type === 'categories') {
+          await menuAPI.bulkImportCategories(data, format);
+        } else {
+          await menuAPI.bulkImportItems(data, format);
+        }
+      }
+      
+      await fetchData();
+      setShowImportExportModal(false);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.error || 'Import failed');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleExport = async (type: 'categories' | 'items', format: 'csv' | 'json') => {
+    try {
+      const response = type === 'categories' 
+        ? await menuAPI.exportCategories(format)
+        : await menuAPI.exportItems(format);
+      
+      // Create download link
+      const blob = new Blob([format === 'csv' ? response.data : JSON.stringify(response.data, null, 2)], {
+        type: format === 'csv' ? 'text/csv' : 'application/json'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${type}_export_${new Date().toISOString().split('T')[0]}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.error || 'Export failed');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -226,13 +281,12 @@ const Menu = () => {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          <button 
+            onClick={() => setShowImportExportModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
             <Upload className="h-4 w-4 mr-2" />
-            Import
-          </button>
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+            Import/Export
           </button>
           <button 
             onClick={activeTab === 'items' ? handleAddItem : handleAddCategory}
@@ -417,6 +471,14 @@ const Menu = () => {
         item={selectedItem}
         categories={categories}
         isLoading={modalLoading}
+      />
+
+      <ImportExportModal
+        isOpen={showImportExportModal}
+        onClose={() => setShowImportExportModal(false)}
+        onImport={handleImport}
+        onExport={handleExport}
+        type={activeTab === 'items' ? 'items' : 'categories'}
       />
     </div>
   );

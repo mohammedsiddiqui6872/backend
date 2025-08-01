@@ -47,8 +47,9 @@ export interface MenuItem {
 }
 
 // For creating new items where _id doesn't exist yet
-export interface CategoryInput extends Omit<Category, '_id'> {
+export interface CategoryInput extends Omit<Category, '_id' | 'slug'> {
   _id?: string;
+  slug?: string;
   uploadImage?: string;
 }
 

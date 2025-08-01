@@ -208,8 +208,8 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Apply body parsing and rate limiting to API routes
 // app.use('/api', limiter);
-app.use('/api', express.json({ limit: '10mb' }));
-app.use('/api', express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api', express.json({ limit: '50mb' }));
+app.use('/api', express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Ensure CORS headers are set for all API responses
 app.use('/api', (req, res, next) => {

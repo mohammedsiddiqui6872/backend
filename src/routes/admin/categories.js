@@ -33,6 +33,11 @@ router.post('/', cloudinaryUpload.single('image'), async (req, res) => {
       categoryData.tenantId = req.tenantId;
     }
     
+    // Auto-generate slug from name if not provided
+    if (!categoryData.slug && categoryData.name) {
+      categoryData.slug = categoryData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    }
+    
     // Handle image upload
     if (req.file) {
       categoryData.image = req.file.path; // Cloudinary URL
@@ -64,6 +69,11 @@ router.post('/', cloudinaryUpload.single('image'), async (req, res) => {
 router.put('/:id', cloudinaryUpload.single('image'), async (req, res) => {
   try {
     const categoryData = req.body;
+    
+    // Auto-generate slug from name if name changed and slug not provided
+    if (categoryData.name && !categoryData.slug) {
+      categoryData.slug = categoryData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    }
     
     // Find existing category with tenant filter
     const filter = { _id: req.params.id };
@@ -179,9 +189,118 @@ router.post('/reorder', async (req, res) => {
       });
     }
     
-    clearCategoryCache();
+    if (typeof clearCategoryCache === 'function') {
+      clearCategoryCache();
+    }
     
     res.json({ message: 'Categories reordered successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export categories
+router.get('/export', async (req, res) => {
+  try {
+    const { format = 'json' } = req.query;
+    
+    // Get all categories with tenant filter
+    const filter = req.tenantId ? { tenantId: req.tenantId } : {};
+    const categories = await Category.find(filter)
+      .select('-__v -createdAt -updatedAt');
+    
+    if (format === 'csv') {
+      // Convert to CSV format
+      const fields = ['name', 'nameAr', 'slug', 'icon', 'displayOrder', 'isActive', 'description', 'descriptionAr', 'image'];
+      
+      let csv = fields.join(',') + '\n';
+      
+      categories.forEach(cat => {
+        const row = fields.map(field => {
+          let value = cat[field];
+          if (typeof value === 'string' && value.includes(',')) {
+            value = `"${value}"`; // Quote values containing commas
+          }
+          return value || '';
+        });
+        csv += row.join(',') + '\n';
+      });
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="categories.csv"');
+      res.send(csv);
+    } else {
+      // JSON format
+      res.json(categories);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk import categories
+router.post('/bulk-import', async (req, res) => {
+  try {
+    const { data, format } = req.body;
+    
+    if (!data || !Array.isArray(data)) {
+      return res.status(400).json({ error: 'Invalid data format' });
+    }
+    
+    const results = {
+      success: [],
+      failed: [],
+      total: data.length
+    };
+    
+    // Process each category
+    for (const catData of data) {
+      try {
+        // Prepare category data
+        const categoryData = {
+          name: catData.name,
+          nameAr: catData.nameAr,
+          icon: catData.icon || 'utensils',
+          displayOrder: catData.displayOrder ? parseInt(catData.displayOrder) : 0,
+          isActive: catData.isActive === 'true' || catData.isActive === true || catData.isActive === undefined,
+          description: catData.description,
+          descriptionAr: catData.descriptionAr,
+          tenantId: req.tenantId
+        };
+        
+        // Handle image
+        if (catData.imageUrl) {
+          categoryData.image = catData.imageUrl;
+        } else if (catData.imageBase64) {
+          // Upload base64 image to Cloudinary
+          const result = await uploadBase64Image(catData.imageBase64);
+          categoryData.image = result.secure_url;
+        }
+        
+        // Create category
+        const newCategory = new Category(categoryData);
+        await newCategory.save();
+        
+        results.success.push({
+          name: newCategory.name,
+          slug: newCategory.slug
+        });
+      } catch (error) {
+        results.failed.push({
+          name: catData.name || 'Unknown',
+          error: error.message
+        });
+      }
+    }
+    
+    if (typeof clearCategoryCache === 'function') {
+      clearCategoryCache();
+    }
+    
+    res.json({
+      message: `Import completed. ${results.success.length} categories imported successfully.`,
+      results
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

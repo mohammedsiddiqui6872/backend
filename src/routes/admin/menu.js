@@ -388,19 +388,109 @@ router.post('/bulk-update', bulkUpdateValidation, validate, async (req, res) => 
   }
 });
 
-// Bulk upload menu items (CSV/JSON)
-router.post('/bulk-upload', cloudinaryUpload.single('file'), async (req, res) => {
+// Bulk import menu items
+router.post('/bulk-import', async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    const { data, format } = req.body;
+    
+    if (!data || !Array.isArray(data)) {
+      return res.status(400).json({ error: 'Invalid data format' });
     }
-
-    // Note: For CSV/JSON upload, you might want to handle this differently
-    // since Cloudinary is for images. You could use memory storage for data files.
-    return res.status(400).json({ 
-      error: 'Bulk upload temporarily disabled. Please use individual item creation.' 
+    
+    const results = {
+      success: [],
+      failed: [],
+      total: data.length
+    };
+    
+    // Get all categories for validation
+    const Category = require('../../models/Category');
+    const categoriesFilter = req.tenantId ? { tenantId: req.tenantId } : {};
+    const validCategories = await Category.find(categoriesFilter).select('slug');
+    const validCategorySlugs = validCategories.map(c => c.slug);
+    
+    // Process each item
+    for (const itemData of data) {
+      try {
+        // Validate category
+        if (!validCategorySlugs.includes(itemData.category)) {
+          results.failed.push({
+            name: itemData.name,
+            error: `Invalid category: ${itemData.category}`
+          });
+          continue;
+        }
+        
+        // Prepare item data
+        const menuItem = {
+          name: itemData.name,
+          nameAr: itemData.nameAr,
+          category: itemData.category,
+          price: parseFloat(itemData.price) || 0,
+          cost: itemData.cost ? parseFloat(itemData.cost) : undefined,
+          description: itemData.description || '',
+          descriptionAr: itemData.descriptionAr,
+          available: itemData.available === 'true' || itemData.available === true,
+          inStock: itemData.inStock === 'true' || itemData.inStock === true,
+          stockQuantity: itemData.stockQuantity ? parseInt(itemData.stockQuantity) : -1,
+          prepTime: itemData.prepTime ? parseInt(itemData.prepTime) : 15,
+          calories: itemData.calories ? parseInt(itemData.calories) : undefined,
+          protein: itemData.protein ? parseFloat(itemData.protein) : undefined,
+          carbs: itemData.carbs ? parseFloat(itemData.carbs) : undefined,
+          fat: itemData.fat ? parseFloat(itemData.fat) : undefined,
+          isSpecial: itemData.isSpecial === 'true' || itemData.isSpecial === true,
+          discount: itemData.discount ? parseInt(itemData.discount) : 0,
+          recommended: itemData.recommended === 'true' || itemData.recommended === true,
+          featured: itemData.featured === 'true' || itemData.featured === true,
+          tenantId: req.tenantId
+        };
+        
+        // Handle arrays
+        if (itemData.allergens) {
+          menuItem.allergens = typeof itemData.allergens === 'string' 
+            ? itemData.allergens.split(';').map(a => a.trim()).filter(Boolean)
+            : itemData.allergens;
+        }
+        
+        if (itemData.dietary) {
+          menuItem.dietary = typeof itemData.dietary === 'string'
+            ? itemData.dietary.split(';').map(d => d.trim()).filter(Boolean)
+            : itemData.dietary;
+        }
+        
+        // Handle image
+        if (itemData.imageUrl) {
+          menuItem.image = itemData.imageUrl;
+        } else if (itemData.imageBase64) {
+          // Upload base64 image to Cloudinary
+          const result = await uploadBase64Image(itemData.imageBase64);
+          menuItem.image = result.secure_url;
+        }
+        
+        // Generate ID
+        const lastItem = await MenuItem.findOne({ tenantId: req.tenantId }).sort({ id: -1 });
+        menuItem.id = lastItem ? lastItem.id + 1 : 1;
+        
+        // Create item
+        const newItem = new MenuItem(menuItem);
+        await newItem.save();
+        
+        results.success.push({
+          id: newItem.id,
+          name: newItem.name
+        });
+      } catch (error) {
+        results.failed.push({
+          name: itemData.name || 'Unknown',
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      message: `Import completed. ${results.success.length} items imported successfully.`,
+      results
     });
-
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -471,6 +561,54 @@ router.delete('/:id/images/:imageIndex', async (req, res) => {
       item,
       message: 'Image deleted successfully'
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export menu items
+router.get('/export', async (req, res) => {
+  try {
+    const { format = 'json' } = req.query;
+    
+    // Get all items with tenant filter
+    const filter = req.tenantId ? { tenantId: req.tenantId } : {};
+    const items = await MenuItem.find(filter)
+      .select('-__v -createdAt -updatedAt');
+    
+    if (format === 'csv') {
+      // Convert to CSV format
+      const fields = [
+        'id', 'name', 'nameAr', 'category', 'price', 'cost', 
+        'description', 'descriptionAr', 'available', 'inStock',
+        'stockQuantity', 'allergens', 'dietary', 'prepTime',
+        'calories', 'protein', 'carbs', 'fat', 'isSpecial',
+        'discount', 'recommended', 'featured', 'image'
+      ];
+      
+      let csv = fields.join(',') + '\n';
+      
+      items.forEach(item => {
+        const row = fields.map(field => {
+          let value = item[field];
+          if (Array.isArray(value)) {
+            value = value.join(';'); // Use semicolon for array values
+          }
+          if (typeof value === 'string' && value.includes(',')) {
+            value = `"${value}"`; // Quote values containing commas
+          }
+          return value || '';
+        });
+        csv += row.join(',') + '\n';
+      });
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="menu_items.csv"');
+      res.send(csv);
+    } else {
+      // JSON format
+      res.json(items);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
