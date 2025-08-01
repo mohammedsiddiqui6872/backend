@@ -217,7 +217,7 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
-      ) : analytics ? (
+      ) : analytics && analytics.metrics ? (
         <>
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -229,10 +229,10 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Total Sessions</p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {analytics.metrics.totalSessions}
+                    {analytics.metrics.totalSessions || 0}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {analytics.metrics.totalGuests} guests
+                    {analytics.metrics.totalGuests || 0} guests
                   </p>
                 </div>
               </div>
@@ -246,10 +246,10 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Revenue</p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatCurrency(analytics.metrics.revenue)}
+                    {formatCurrency(analytics.metrics.revenue || 0)}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {formatCurrency(analytics.metrics.averageOrderValue)} avg
+                    {formatCurrency(analytics.metrics.averageOrderValue || 0)} avg
                   </p>
                 </div>
               </div>
@@ -263,10 +263,10 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Avg Duration</p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatDuration(analytics.metrics.averageOccupancyTime)}
+                    {formatDuration(analytics.metrics.averageOccupancyTime || 0)}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {analytics.metrics.turnoverRate.toFixed(1)} turns/day
+                    {(analytics.metrics.turnoverRate || 0).toFixed(1)} turns/day
                   </p>
                 </div>
               </div>
@@ -280,7 +280,7 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Satisfaction</p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {analytics.metrics.customerSatisfaction.toFixed(1)}/5
+                    {(analytics.metrics.customerSatisfaction || 0).toFixed(1)}/5
                   </p>
                   <p className="text-sm text-gray-500">
                     Customer rating
@@ -291,7 +291,7 @@ const TableAnalytics: React.FC<TableAnalyticsProps> = ({
           </div>
 
           {/* Popular Times */}
-          {analytics.metrics.popularTimes.length > 0 && (
+          {analytics.metrics.popularTimes && analytics.metrics.popularTimes.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Popular Times</h4>
               <div className="h-64">

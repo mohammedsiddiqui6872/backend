@@ -239,19 +239,22 @@ router.patch('/:tableNumber/status', async (req, res) => {
     table.status = status;
     
     if (status === 'occupied' && waiterId) {
-      table.waiter = waiterId;
+      table.currentWaiter = waiterId;
     } else if (status === 'available') {
-      table.waiter = null;
+      table.currentWaiter = null;
       table.currentOrder = null;
     }
 
     await table.save();
 
-    // Emit real-time update
-    req.app.get('io').emit('table-status-update', {
-      tableNumber: table.number,
-      status: table.status
-    });
+    // Emit real-time update if Socket.io is available
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('table-status-update', {
+        tableNumber: table.number,
+        status: table.status
+      });
+    }
 
     res.json({
       success: true,

@@ -50,6 +50,9 @@ const io = socketIo(server, {
   }
 });
 
+// Make io accessible to routes
+app.set('io', io);
+
 // Security middleware
 app.use(compression());
 app.use(helmet({
