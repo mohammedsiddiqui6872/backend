@@ -8,6 +8,9 @@ interface TableCardProps {
   onUpdateStatus: (tableId: string, status: TableStatus) => void;
   onDelete: () => void;
   onViewDetails: () => void;
+  onQRCode?: () => void;
+  floorName?: string;
+  sectionName?: string;
 }
 
 const TableCard: React.FC<TableCardProps> = ({
@@ -15,7 +18,10 @@ const TableCard: React.FC<TableCardProps> = ({
   onEdit,
   onUpdateStatus,
   onDelete,
-  onViewDetails
+  onViewDetails,
+  onQRCode,
+  floorName,
+  sectionName
 }) => {
   const [showActions, setShowActions] = useState(false);
 
@@ -76,7 +82,7 @@ const TableCard: React.FC<TableCardProps> = ({
               {table.displayName || `Table ${table.number}`}
             </h3>
             <p className="text-sm text-gray-500">
-              {table.location.floor} - {table.location.section}
+              {floorName || table.location.floor} - {sectionName || table.location.section}
             </p>
           </div>
         </div>
@@ -177,13 +183,16 @@ const TableCard: React.FC<TableCardProps> = ({
         </select>
       </div>
 
-      {/* QR Code Indicator */}
+      {/* QR Code Button */}
       <div className="mt-3 pt-3 border-t border-gray-100">
         <div className="flex items-center justify-between">
-          <div className="flex items-center text-sm text-gray-500">
+          <button
+            onClick={onQRCode}
+            className="flex items-center text-sm text-gray-600 hover:text-primary-600 transition-colors"
+          >
             <QrCode className="h-4 w-4 mr-1" />
             <span>QR Code</span>
-          </div>
+          </button>
           {table.isCombinable && (
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
               Combinable

@@ -8,6 +8,7 @@ import TableLayoutDesigner from '../components/tables/TableLayoutDesigner';
 import TableAnalytics from '../components/tables/TableAnalytics';
 import QRCodeManager from '../components/tables/QRCodeManager';
 import FloorManager from '../components/tables/FloorManager';
+import QRCodeViewer from '../components/tables/QRCodeViewer';
 
 type ViewMode = 'grid' | 'layout' | 'analytics';
 
@@ -23,6 +24,7 @@ const Tables = () => {
   const [showTableModal, setShowTableModal] = useState(false);
   const [showQRManager, setShowQRManager] = useState(false);
   const [showFloorManager, setShowFloorManager] = useState(false);
+  const [showQRViewer, setShowQRViewer] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -206,18 +208,16 @@ const Tables = () => {
 
       {/* Filters */}
       {viewMode === 'grid' && (
-        <div className="flex space-x-4">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by table number or name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by table number or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
           </div>
           <select
             value={filterStatus}
@@ -237,22 +237,34 @@ const Tables = () => {
       {/* Content */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredTables.map((table) => (
-            <TableCard
-              key={table._id}
-              table={table}
-              onEdit={() => {
-                setSelectedTable(table);
-                setShowTableModal(true);
-              }}
-              onUpdateStatus={handleUpdateStatus}
-              onDelete={() => handleDeleteTable(table.number)}
-              onViewDetails={() => {
-                setSelectedTable(table);
-                setViewMode('analytics');
-              }}
-            />
-          ))}
+          {filteredTables.map((table) => {
+            // Find floor and section names from layout
+            const floor = layout?.floors.find(f => f.id === table.location.floor);
+            const section = floor?.sections.find(s => s.id === table.location.section);
+            
+            return (
+              <TableCard
+                key={table._id}
+                table={table}
+                floorName={floor?.name}
+                sectionName={section?.name}
+                onEdit={() => {
+                  setSelectedTable(table);
+                  setShowTableModal(true);
+                }}
+                onUpdateStatus={handleUpdateStatus}
+                onDelete={() => handleDeleteTable(table.number)}
+                onViewDetails={() => {
+                  setSelectedTable(table);
+                  setViewMode('analytics');
+                }}
+                onQRCode={() => {
+                  setSelectedTable(table);
+                  setShowQRViewer(true);
+                }}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -312,6 +324,19 @@ const Tables = () => {
           onUpdate={async () => {
             await fetchData();
           }}
+        />
+      )}
+
+      {showQRViewer && selectedTable && (
+        <QRCodeViewer
+          isOpen={showQRViewer}
+          onClose={() => {
+            setShowQRViewer(false);
+            setSelectedTable(null);
+          }}
+          table={selectedTable}
+          floorName={layout?.floors.find(f => f.id === selectedTable.location.floor)?.name}
+          sectionName={layout?.floors.find(f => f.id === selectedTable.location.floor)?.sections.find(s => s.id === selectedTable.location.section)?.name}
         />
       )}
     </div>
