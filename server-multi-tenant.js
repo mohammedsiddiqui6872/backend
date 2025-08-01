@@ -244,6 +244,9 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
+// Disable strict populate globally to avoid issues with backward compatibility fields
+mongoose.set('strictPopulate', false);
+
 // MongoDB connection with multi-tenant setup
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,

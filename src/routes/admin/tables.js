@@ -1,50 +1,83 @@
 // src/routes/admin/tables.js
 const express = require('express');
 const router = express.Router();
+
+// Load models in dependency order to avoid circular reference issues
+const User = require('../../models/User');
+const Order = require('../../models/Order');
+const CustomerSession = require('../../models/CustomerSession');
 const Table = require('../../models/Table');
 const TableLayout = require('../../models/TableLayout');
 const TableCustomerSession = require('../../models/TableCustomerSession');
-const Order = require('../../models/Order');
+const TableState = require('../../models/TableState');
+const WaiterSession = require('../../models/WaiterSession');
+
 const { authenticate, authorize } = require('../../middleware/auth');
-const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const archiver = require('archiver');
 
+// Note: Tenant isolation is already applied at the app level in server-multi-tenant.js
 router.use(authenticate);
-router.use(enterpriseTenantIsolation);
 router.use(authorize('admin', 'manager', 'waiter'));
 
 // Get all tables with complete details
 router.get('/', async (req, res) => {
   try {
-    const CustomerSession = require('../../models/CustomerSession');
-    const TableState = require('../../models/TableState');
-    const WaiterSession = require('../../models/WaiterSession');
+    console.log('[Tables API] Starting request for tenant:', req.tenantId);
     
     // Get all tables with MANDATORY tenant filter
-    const tables = await Table.find({ tenantId: req.tenantId })
-      .populate('currentOrder')
-      .populate('waiter', 'name');
+    let tables;
+    try {
+      tables = await Table.find({ tenantId: req.tenantId })
+        .populate({ path: 'currentOrder', strictPopulate: false })
+        .populate({ path: 'currentWaiter', select: 'name', strictPopulate: false })
+        .populate({ path: 'assistingWaiters', select: 'name', strictPopulate: false });
+      console.log('[Tables API] Tables query successful, found:', tables.length);
+    } catch (error) {
+      console.error('[Tables API] Error in tables query:', error.message);
+      throw error;
+    }
 
     // Get all active customer sessions with MANDATORY tenant filter
-    const activeSessions = await CustomerSession.find({ 
-      tenantId: req.tenantId,
-      isActive: true 
-    })
-      .populate('waiter', 'name email');
+    let activeSessions;
+    try {
+      activeSessions = await CustomerSession.find({ 
+        tenantId: req.tenantId,
+        isActive: true 
+      })
+        .populate({ path: 'waiter', select: 'name email', strictPopulate: false });
+      console.log('[Tables API] Customer sessions query successful, found:', activeSessions.length);
+    } catch (error) {
+      console.error('[Tables API] Error in customer sessions query:', error.message);
+      throw error;
+    }
     
     // Get all active orders with MANDATORY tenant filter
-    const activeOrders = await Order.find({
-      tenantId: req.tenantId,
-      status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
-      paymentStatus: { $ne: 'paid' }
-    }).populate('items.menuItem', 'name price');
+    let activeOrders;
+    try {
+      activeOrders = await Order.find({
+        tenantId: req.tenantId,
+        status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'served'] },
+        paymentStatus: { $ne: 'paid' }
+      }).populate({ path: 'items.menuItem', select: 'name price', strictPopulate: false });
+      console.log('[Tables API] Orders query successful, found:', activeOrders.length);
+    } catch (error) {
+      console.error('[Tables API] Error in orders query:', error.message);
+      throw error;
+    }
     
     // Get table states with MANDATORY tenant filter
-    const tableStates = await TableState.find({ tenantId: req.tenantId })
-      .populate('currentWaiter', 'name email')
-      .populate('activeCustomerSession');
+    let tableStates;
+    try {
+      tableStates = await TableState.find({ tenantId: req.tenantId })
+        .populate({ path: 'currentWaiter', select: 'name email', strictPopulate: false })
+        .populate({ path: 'activeCustomerSession', strictPopulate: false });
+      console.log('[Tables API] Table states query successful, found:', tableStates.length);
+    } catch (error) {
+      console.error('[Tables API] Error in table states query:', error.message);
+      throw error;
+    }
     
     // Map all data together
     const tablesWithDetails = tables.map(table => {
@@ -163,8 +196,8 @@ router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
       { _id: req.params.id, tenantId: req.tenantId },
       { $set: updates },
       { new: true, runValidators: true }
-    ).populate('currentWaiter', 'name email')
-     .populate('assistingWaiters', 'name email');
+    ).populate({ path: 'currentWaiter', select: 'name email', strictPopulate: false })
+     .populate({ path: 'assistingWaiters', select: 'name email', strictPopulate: false });
 
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
@@ -240,9 +273,9 @@ router.patch('/:tableNumber/waiter', authorize('admin', 'manager'), async (req, 
         tenantId: req.tenantId,
         number: req.params.tableNumber 
       },
-      { waiter: waiterId },
+      { currentWaiter: waiterId },
       { new: true }
-    ).populate('waiter', 'name');
+    ).populate({ path: 'currentWaiter', select: 'name', strictPopulate: false });
 
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
@@ -277,7 +310,7 @@ router.get('/:tableNumber/history', async (req, res) => {
     query.tenantId = req.tenantId;
     
     const orders = await Order.find(query)
-      .populate('waiter', 'name')
+      .populate({ path: 'waiter', select: 'name', strictPopulate: false })
       .sort('-createdAt')
       .limit(50);
 
@@ -357,8 +390,8 @@ router.get('/layout', async (req, res) => {
       isActive: true 
     })
       .select('number capacity status location')
-      .populate('currentOrder', 'orderNumber total')
-      .populate('waiter', 'name');
+      .populate({ path: 'currentOrder', select: 'orderNumber total', strictPopulate: false })
+      .populate({ path: 'currentWaiter', select: 'name', strictPopulate: false });
 
     const layout = tables.reduce((acc, table) => {
       const floor = table.location?.floor || 'main';
