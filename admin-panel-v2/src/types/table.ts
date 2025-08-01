@@ -29,12 +29,27 @@ export interface TableMetadata {
   preferredWaiters?: string[];
 }
 
+export interface TableCombination {
+  isCombined: boolean;
+  isMainTable: boolean;
+  mainTableId?: string;
+  combinedTables?: Array<{
+    tableId: string;
+    tableNumber: string;
+  }>;
+  combinedAt?: Date;
+  combinedBy?: string;
+  totalCapacity?: number;
+  arrangement?: 'linear' | 'square' | 'L-shape' | 'U-shape' | 'custom';
+}
+
 export interface Table {
   _id: string;
   tenantId: string;
   number: string;
   displayName?: string;
   capacity: number;
+  originalCapacity?: number;
   minCapacity?: number;
   maxCapacity?: number;
   type: TableType;
@@ -44,6 +59,7 @@ export interface Table {
   features: string[];
   isCombinable: boolean;
   combinesWith?: string[];
+  combination?: TableCombination;
   status: TableStatus;
   metadata: TableMetadata;
   currentWaiter?: {
@@ -55,6 +71,12 @@ export interface Table {
     name: string;
   }>;
   activeCustomerSession?: string;
+  stats?: {
+    totalSessions: number;
+    totalRevenue: number;
+    averageOccupancyTime: number;
+    lastOccupied?: Date;
+  };
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

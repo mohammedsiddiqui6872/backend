@@ -76,6 +76,38 @@ router.post('/create', authenticate, async (req, res) => {
     // Update table state
     await tableState.setCustomerSession(customerSession._id);
     
+    // Start service history tracking
+    try {
+      const tableServiceHistoryService = req.app.get('tableServiceHistoryService');
+      if (tableServiceHistoryService) {
+        const table = await Table.findOne({ 
+          number: String(tableNumber),
+          tenantId: req.tenantId 
+        });
+        
+        if (table) {
+          await tableServiceHistoryService.startService(
+            req.tenantId,
+            table._id,
+            String(tableNumber),
+            {
+              sessionId: customerSession._id,
+              sessionMetricsId: null, // Will be set later when metrics are available
+              customerName,
+              customerPhone,
+              numberOfGuests: occupancy || 1,
+              waiterId: req.user._id,
+              waiterName: req.user.name,
+              notes: `Session started by ${req.user.name}`
+            }
+          );
+        }
+      }
+    } catch (serviceError) {
+      console.warn('Service history tracking failed:', serviceError);
+      // Don't fail the session creation
+    }
+    
     // Check if there are any existing orders on this table that should be linked
     const existingOrders = await Order.find({
       tableNumber: String(tableNumber),
@@ -263,6 +295,35 @@ router.post('/:sessionId/close', authenticate, async (req, res) => {
     }
     
     await session.save();
+    
+    // Complete service history
+    try {
+      const tableServiceHistoryService = req.app.get('tableServiceHistoryService');
+      if (tableServiceHistoryService) {
+        await tableServiceHistoryService.completeService(
+          req.tenantId,
+          session.tableNumber,
+          {
+            payment: {
+              method: session.paymentMethod || 'cash',
+              amount: session.totalAmount || 0,
+              tip: session.tipAmount || 0
+            },
+            feedback: session.feedback ? {
+              rating: session.feedback.rating,
+              foodRating: session.feedback.foodRating,
+              serviceRating: session.feedback.serviceRating,
+              ambienceRating: session.feedback.ambienceRating,
+              comment: session.feedback.comment,
+              submittedAt: new Date()
+            } : null
+          }
+        );
+      }
+    } catch (serviceError) {
+      console.warn('Service history completion failed:', serviceError);
+      // Don't fail the session closure
+    }
     
     // Update table status to available
     const Table = require('../models/Table');

@@ -69,6 +69,11 @@ const SessionMetricsService = require('./src/services/sessionMetricsService');
 const sessionMetricsService = new SessionMetricsService(io);
 app.set('sessionMetricsService', sessionMetricsService);
 
+// Initialize table service history service
+const TableServiceHistoryService = require('./src/services/tableServiceHistoryService');
+const tableServiceHistoryService = new TableServiceHistoryService(io);
+app.set('tableServiceHistoryService', tableServiceHistoryService);
+
 // Security middleware
 app.use(compression());
 app.use(helmet({
@@ -192,11 +197,13 @@ app.use('/api/admin/users', ensureTenantIsolation, require('./src/routes/admin/u
 app.use('/api/admin/menu', ensureTenantIsolation, require('./src/routes/admin/menu'));
 app.use('/api/admin/categories', ensureTenantIsolation, require('./src/routes/admin/categories'));
 app.use('/api/admin/tables/import', ensureTenantIsolation, require('./src/routes/admin/tableImport'));
+app.use('/api/admin/tables/combination', ensureTenantIsolation, require('./src/routes/admin/tableCombination'));
 app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 app.use('/api/admin/table-status-rules', ensureTenantIsolation, require('./src/routes/admin/tableStatusRules'));
 app.use('/api/admin/session-analytics', ensureTenantIsolation, require('./src/routes/admin/sessionAnalytics'));
+app.use('/api/admin/table-service-history', ensureTenantIsolation, require('./src/routes/admin/tableServiceHistory'));
 
 // Enhanced team management routes - Using enterprise isolation
 app.use('/api/admin/team', require('./src/routes/team'));

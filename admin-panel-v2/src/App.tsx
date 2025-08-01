@@ -11,6 +11,7 @@ import Orders from './pages/Orders';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Layout from './components/Layout';
+import TableServiceHistory from './components/tables/TableServiceHistory';
 import { authAPI } from './services/api';
 import storageManager from './utils/storageManager';
 
@@ -115,6 +116,7 @@ function App() {
           <Route path="shifts" element={<Shifts />} />
           <Route path="menu" element={<Menu />} />
           <Route path="tables" element={<Tables />} />
+          <Route path="tables/:tableId/history" element={<TableServiceHistory />} />
           <Route path="orders" element={<Orders />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />

@@ -1,33 +1,56 @@
-import { Edit, Trash2, Users, QrCode, Info, MoreVertical, Link2, Unlink, History } from 'lucide-react';
+import { Edit, Trash2, Users, QrCode, Info, MoreVertical, Link2, Unlink, History, Check } from 'lucide-react';
 import { Table, TableStatus } from '../../types/table';
-import { useState } from 'react';
+import { useState, MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-interface TableCardProps {
+interface TableCardV2Props {
   table: Table;
+  isSelected: boolean;
   onEdit: () => void;
   onUpdateStatus: (tableId: string, status: TableStatus) => void;
   onDelete: () => void;
   onViewDetails: () => void;
   onQRCode?: () => void;
   onCombination?: () => void;
+  onSelect: (tableId: string, isMulti: boolean) => void;
   floorName?: string;
   sectionName?: string;
 }
 
-const TableCard: React.FC<TableCardProps> = ({
+const TableCardV2: React.FC<TableCardV2Props> = ({
   table,
+  isSelected,
   onEdit,
   onUpdateStatus,
   onDelete,
   onViewDetails,
   onQRCode,
   onCombination,
+  onSelect,
   floorName,
   sectionName
 }) => {
   const [showActions, setShowActions] = useState(false);
   const navigate = useNavigate();
+
+  const handleCardClick = (e: MouseEvent<HTMLDivElement>) => {
+    // Prevent selection when clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'SELECT' ||
+      target.tagName === 'OPTION' ||
+      target.closest('button') ||
+      target.closest('select') ||
+      target.closest('.action-menu')
+    ) {
+      return;
+    }
+
+    // Check if Ctrl (or Cmd on Mac) is held
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    onSelect(table._id, isMultiSelect);
+  };
 
   const getStatusColor = (status: TableStatus) => {
     switch (status) {
@@ -74,7 +97,19 @@ const TableCard: React.FC<TableCardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow relative">
+    <div 
+      className={`bg-white rounded-lg shadow-sm border-2 p-4 hover:shadow-md transition-all relative cursor-pointer select-none ${
+        isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
+      }`}
+      onClick={handleCardClick}
+    >
+      {/* Selection Indicator */}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-primary-500 text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
+
       {/* Table Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center space-x-2">
@@ -93,16 +128,20 @@ const TableCard: React.FC<TableCardProps> = ({
         
         <div className="relative">
           <button
-            onClick={() => setShowActions(!showActions)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowActions(!showActions);
+            }}
             className="p-1 rounded hover:bg-gray-100"
           >
             <MoreVertical className="h-5 w-5 text-gray-400" />
           </button>
           
           {showActions && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200 action-menu">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onEdit();
                   setShowActions(false);
                 }}
@@ -112,7 +151,8 @@ const TableCard: React.FC<TableCardProps> = ({
                 Edit Table
               </button>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onViewDetails();
                   setShowActions(false);
                 }}
@@ -122,7 +162,8 @@ const TableCard: React.FC<TableCardProps> = ({
                 View Details
               </button>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   navigate(`/tables/${table._id}/history`);
                   setShowActions(false);
                 }}
@@ -133,7 +174,8 @@ const TableCard: React.FC<TableCardProps> = ({
               </button>
               {onCombination && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onCombination();
                     setShowActions(false);
                   }}
@@ -153,7 +195,8 @@ const TableCard: React.FC<TableCardProps> = ({
                 </button>
               )}
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onDelete();
                   setShowActions(false);
                 }}
@@ -230,7 +273,11 @@ const TableCard: React.FC<TableCardProps> = ({
         <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
         <select
           value={table.status}
-          onChange={(e) => onUpdateStatus(table._id, e.target.value as TableStatus)}
+          onChange={(e) => {
+            e.stopPropagation();
+            onUpdateStatus(table._id, e.target.value as TableStatus);
+          }}
+          onClick={(e) => e.stopPropagation()}
           className={`w-full px-3 py-1 text-sm border rounded-md ${getStatusColor(table.status)}`}
         >
           <option value="available">Available</option>
@@ -245,7 +292,10 @@ const TableCard: React.FC<TableCardProps> = ({
       <div className="mt-3 pt-3 border-t border-gray-100">
         <div className="flex items-center justify-between">
           <button
-            onClick={onQRCode}
+            onClick={(e) => {
+              e.stopPropagation();
+              onQRCode?.();
+            }}
             className="flex items-center text-sm text-gray-600 hover:text-primary-600 transition-colors"
           >
             <QrCode className="h-4 w-4 mr-1" />
@@ -262,4 +312,4 @@ const TableCard: React.FC<TableCardProps> = ({
   );
 };
 
-export default TableCard;
+export default TableCardV2;

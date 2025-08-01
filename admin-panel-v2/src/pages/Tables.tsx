@@ -3,6 +3,7 @@ import { Plus, Grid3X3, Download, Upload, Layers, BarChart3, Settings, Search, F
 import { Table, TableLayout, TableInput } from '../types/table';
 import { tableAPI } from '../services/tableAPI';
 import TableCard from '../components/tables/TableCard';
+import TableCardV2 from '../components/tables/TableCardV2';
 import TableModal from '../components/tables/TableModal';
 import TableLayoutDesigner from '../components/tables/TableLayoutDesigner';
 import TableLayoutDesignerV2 from '../components/tables/TableLayoutDesignerV2';
@@ -12,6 +13,8 @@ import FloorManager from '../components/tables/FloorManager';
 import QRCodeViewer from '../components/tables/QRCodeViewer';
 import TableStatusRules from '../components/tables/TableStatusRules';
 import TableImport from '../components/tables/TableImport';
+import TableCombination from '../components/tables/TableCombination';
+import TableDetails from '../components/tables/TableDetails';
 
 type ViewMode = 'grid' | 'layout' | 'analytics' | 'rules';
 
@@ -31,6 +34,9 @@ const Tables = () => {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showCombination, setShowCombination] = useState(false);
+  const [showTableDetails, setShowTableDetails] = useState(false);
+  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -77,11 +83,36 @@ const Tables = () => {
     try {
       const table = tables.find(t => t._id === tableId);
       if (table) {
+        // Optimistic update - update local state immediately
+        setTables(prevTables => 
+          prevTables.map(t => 
+            t._id === tableId ? { ...t, status: status as any } : t
+          )
+        );
+        
+        // Then update on server
         await tableAPI.updateTableStatus(table.number, status);
-        await fetchData();
+        
+        // Only fetch if there's an error
       }
     } catch (error) {
       console.error('Error updating status:', error);
+      // Revert on error by fetching fresh data
+      await fetchData();
+    }
+  };
+  
+  const handleTableSelect = (tableId: string, isMulti: boolean) => {
+    if (isMulti) {
+      // Multi-select with Ctrl/Cmd
+      setSelectedTableIds(prev => 
+        prev.includes(tableId) 
+          ? prev.filter(id => id !== tableId)
+          : [...prev, tableId]
+      );
+    } else {
+      // Single select
+      setSelectedTableIds([tableId]);
     }
   };
 
@@ -256,6 +287,49 @@ const Tables = () => {
         </div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {selectedTableIds.length > 0 && viewMode === 'grid' && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-primary-900">
+                {selectedTableIds.length} table{selectedTableIds.length > 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={() => setSelectedTableIds([])}
+                className="text-sm text-primary-700 hover:text-primary-900"
+              >
+                Clear selection
+              </button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Update status for ${selectedTableIds.length} tables?`)) {
+                    // Implement bulk status update
+                    setSelectedTableIds([]);
+                  }
+                }}
+                className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+              >
+                Update Status
+              </button>
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Delete ${selectedTableIds.length} tables?`)) {
+                    // Implement bulk delete
+                    setSelectedTableIds([]);
+                  }
+                }}
+                className="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -265,9 +339,10 @@ const Tables = () => {
             const section = floor?.sections.find(s => s.id === table.location.section);
             
             return (
-              <TableCard
+              <TableCardV2
                 key={table._id}
                 table={table}
+                isSelected={selectedTableIds.includes(table._id)}
                 floorName={floor?.name}
                 sectionName={section?.name}
                 onEdit={() => {
@@ -278,12 +353,17 @@ const Tables = () => {
                 onDelete={() => handleDeleteTable(table.number)}
                 onViewDetails={() => {
                   setSelectedTable(table);
-                  setViewMode('analytics');
+                  setShowTableDetails(true);
                 }}
                 onQRCode={() => {
                   setSelectedTable(table);
                   setShowQRViewer(true);
                 }}
+                onCombination={() => {
+                  setSelectedTable(table);
+                  setShowCombination(true);
+                }}
+                onSelect={handleTableSelect}
               />
             );
           })}
@@ -379,6 +459,37 @@ const Tables = () => {
           onImportComplete={() => {
             setShowImport(false);
             fetchData();
+          }}
+        />
+      )}
+
+      {showCombination && selectedTable && (
+        <TableCombination
+          table={selectedTable}
+          onCombine={() => {
+            setShowCombination(false);
+            setSelectedTable(null);
+            fetchData();
+          }}
+          onSplit={() => {
+            setShowCombination(false);
+            setSelectedTable(null);
+            fetchData();
+          }}
+          onClose={() => {
+            setShowCombination(false);
+            setSelectedTable(null);
+          }}
+        />
+      )}
+
+      {/* Table Details Modal */}
+      {showTableDetails && selectedTable && (
+        <TableDetails
+          table={selectedTable}
+          onClose={() => {
+            setShowTableDetails(false);
+            setSelectedTable(null);
           }}
         />
       )}

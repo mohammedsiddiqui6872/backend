@@ -287,6 +287,21 @@ router.post('/', authenticate, async (req, res) => {
       await customerSession.save();
     }
     
+    // Track in service history
+    try {
+      const tableServiceHistoryService = req.app.get('tableServiceHistoryService');
+      if (tableServiceHistoryService) {
+        await tableServiceHistoryService.updateServiceWithOrder(
+          req.tenantId,
+          String(orderData.tableNumber),
+          order
+        );
+      }
+    } catch (serviceError) {
+      console.warn('Service history tracking failed:', serviceError);
+      // Don't fail the order
+    }
+    
     // Update table status
     const tableFilter = { number: String(orderData.tableNumber) };
     if (req.tenantId) {
