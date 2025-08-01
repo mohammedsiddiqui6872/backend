@@ -2,18 +2,16 @@ const express = require('express');
 const router = express.Router();
 const TableStatusRule = require('../../models/TableStatusRule');
 const { authenticate, authorize } = require('../../middleware/auth');
-const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 
 // Apply middleware
 router.use(authenticate);
-router.use(enterpriseTenantIsolation);
 router.use(authorize('admin', 'manager'));
 
 // Get all status rules
 router.get('/', async (req, res) => {
   try {
     const rules = await TableStatusRule.find({ 
-      tenantId: req.tenant.tenantId 
+      tenantId: req.tenantId 
     })
     .sort({ priority: -1, name: 1 })
     .populate('createdBy', 'name email')
@@ -37,7 +35,7 @@ router.get('/:id', async (req, res) => {
   try {
     const rule = await TableStatusRule.findOne({
       _id: req.params.id,
-      tenantId: req.tenant.tenantId
+      tenantId: req.tenantId
     })
     .populate('createdBy', 'name email')
     .populate('updatedBy', 'name email');
@@ -67,7 +65,7 @@ router.post('/', async (req, res) => {
   try {
     const ruleData = {
       ...req.body,
-      tenantId: req.tenant.tenantId,
+      tenantId: req.tenantId,
       createdBy: req.user._id,
       updatedBy: req.user._id
     };
@@ -111,7 +109,7 @@ router.put('/:id', async (req, res) => {
     const rule = await TableStatusRule.findOneAndUpdate(
       {
         _id: req.params.id,
-        tenantId: req.tenant.tenantId
+        tenantId: req.tenantId
       },
       { $set: updates },
       { new: true, runValidators: true }
@@ -145,7 +143,7 @@ router.patch('/:id/toggle', async (req, res) => {
   try {
     const rule = await TableStatusRule.findOne({
       _id: req.params.id,
-      tenantId: req.tenant.tenantId
+      tenantId: req.tenantId
     });
 
     if (!rule) {
@@ -178,7 +176,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const rule = await TableStatusRule.findOneAndDelete({
       _id: req.params.id,
-      tenantId: req.tenant.tenantId
+      tenantId: req.tenantId
     });
 
     if (!rule) {
@@ -208,7 +206,7 @@ router.post('/:id/test', async (req, res) => {
 
     const rule = await TableStatusRule.findOne({
       _id: req.params.id,
-      tenantId: req.tenant.tenantId
+      tenantId: req.tenantId
     });
 
     if (!rule) {
@@ -255,7 +253,7 @@ router.post('/reorder', async (req, res) => {
       updateOne: {
         filter: { 
           _id: ruleId, 
-          tenantId: req.tenant.tenantId 
+          tenantId: req.tenantId 
         },
         update: { 
           priority: ruleIds.length - index,

@@ -287,6 +287,8 @@ app.use('/api/admin/inventory', require('./src/routes/admin/Inventory'));
 app.use('/api/admin/analytics', require('./src/routes/admin/analytics'));
 app.use('/api/admin/users', require('./src/routes/admin/users')); // Keep for backward compatibility
 app.use('/api/admin/tables', require('./src/routes/admin/tables'));
+app.use('/api/admin/table-status-rules', require('./src/routes/admin/tableStatusRules'));
+app.use('/api/admin/table-service-history', require('./src/routes/admin/tableServiceHistory'));
 app.use('/api/admin/categories', require('./src/routes/admin/categories'));
 
 // Enhanced team management routes (replacing the users route functionality)

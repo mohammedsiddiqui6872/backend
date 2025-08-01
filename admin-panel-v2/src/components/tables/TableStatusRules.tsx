@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, AlertCircle, X, Save } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -15,7 +15,7 @@ interface TableStatusRule {
   }>;
   actions: Array<{
     type: string;
-    config: any;
+    config: { [key: string]: any };
   }>;
   priority: number;
   isActive: boolean;
@@ -260,28 +260,429 @@ const TableStatusRules: React.FC = () => {
         </div>
       </div>
 
-      {/* TODO: Add create/edit modal */}
+      {/* Rule Editor Modal */}
       {(showCreateModal || editingRule) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
-            <h3 className="text-xl font-semibold mb-4">
-              {editingRule ? 'Edit Rule' : 'Create Rule'}
+        <RuleEditorModal
+          rule={editingRule}
+          onClose={() => {
+            setShowCreateModal(false);
+            setEditingRule(null);
+          }}
+          onSave={() => {
+            setShowCreateModal(false);
+            setEditingRule(null);
+            fetchRules();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Rule Editor Modal Component
+interface RuleEditorModalProps {
+  rule: TableStatusRule | null;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+const RuleEditorModal: React.FC<RuleEditorModalProps> = ({ rule, onClose, onSave }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    triggerEvent: 'status_changed',
+    conditions: [{ field: 'status', operator: 'equals', value: '' }],
+    actions: [{ type: 'change_status', config: { status: 'available' } }],
+    priority: 50,
+    isActive: true
+  });
+
+  useEffect(() => {
+    if (rule) {
+      setFormData({
+        name: rule.name,
+        description: rule.description,
+        triggerEvent: rule.triggerEvent,
+        conditions: rule.conditions.length > 0 ? rule.conditions : [{ field: 'status', operator: 'equals', value: '' }],
+        actions: rule.actions.length > 0 ? rule.actions : [{ type: 'change_status', config: { status: 'available' } }],
+        priority: rule.priority,
+        isActive: rule.isActive
+      });
+    }
+  }, [rule]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      setLoading(true);
+      
+      if (rule) {
+        // Update existing rule
+        const response = await api.put(`/admin/table-status-rules/${rule._id}`, formData);
+        if (response.data.success) {
+          toast.success('Rule updated successfully');
+          onSave();
+        }
+      } else {
+        // Create new rule
+        const response = await api.post('/admin/table-status-rules', formData);
+        if (response.data.success) {
+          toast.success('Rule created successfully');
+          onSave();
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to save rule');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addCondition = () => {
+    setFormData({
+      ...formData,
+      conditions: [...formData.conditions, { field: 'status', operator: 'equals', value: '' }]
+    });
+  };
+
+  const removeCondition = (index: number) => {
+    setFormData({
+      ...formData,
+      conditions: formData.conditions.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateCondition = (index: number, field: string, value: any) => {
+    const newConditions = [...formData.conditions];
+    newConditions[index] = { ...newConditions[index], [field]: value };
+    setFormData({ ...formData, conditions: newConditions });
+  };
+
+  const addAction = () => {
+    setFormData({
+      ...formData,
+      actions: [...formData.actions, { type: 'change_status', config: { status: 'available' } }]
+    });
+  };
+
+  const removeAction = (index: number) => {
+    setFormData({
+      ...formData,
+      actions: formData.actions.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateAction = (index: number, field: string, value: any) => {
+    const newActions = [...formData.actions];
+    if (field === 'type') {
+      // Reset config when action type changes
+      newActions[index] = { 
+        type: value, 
+        config: value === 'change_status' ? { status: 'available' } : 
+                value === 'send_notification' ? { message: '' } :
+                value === 'start_timer' ? { duration: 30 } : {} 
+      };
+    } else {
+      // Update config fields
+      newActions[index] = { 
+        ...newActions[index], 
+        config: { 
+          ...newActions[index].config, 
+          [field]: value 
+        } 
+      };
+    }
+    setFormData({ ...formData, actions: newActions });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <form onSubmit={handleSubmit}>
+          <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+            <h3 className="text-xl font-semibold">
+              {rule ? 'Edit Rule' : 'Create New Rule'}
             </h3>
-            <p className="text-gray-600">Rule editor coming soon...</p>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setEditingRule(null);
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rule Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority (1-100)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            {/* Trigger Event */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Trigger Event
+              </label>
+              <select
+                value={formData.triggerEvent}
+                onChange={(e) => setFormData({ ...formData, triggerEvent: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
               >
-                Cancel
-              </button>
+                <option value="order_placed">Order Placed</option>
+                <option value="payment_completed">Payment Completed</option>
+                <option value="table_reserved">Table Reserved</option>
+                <option value="status_changed">Status Changed</option>
+                <option value="session_check">Session Check</option>
+                <option value="manual_trigger">Manual Trigger</option>
+              </select>
+            </div>
+
+            {/* Conditions */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Conditions (All must be true)
+                </label>
+                <button
+                  type="button"
+                  onClick={addCondition}
+                  className="text-sm text-primary-600 hover:text-primary-700"
+                >
+                  + Add Condition
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.conditions.map((condition, index) => (
+                  <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <select
+                      value={condition.field}
+                      onChange={(e) => updateCondition(index, 'field', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="status">Table Status</option>
+                      <option value="duration_minutes">Duration (minutes)</option>
+                      <option value="has_active_order">Has Active Order</option>
+                      <option value="table_type">Table Type</option>
+                      <option value="capacity">Table Capacity</option>
+                    </select>
+                    <select
+                      value={condition.operator}
+                      onChange={(e) => updateCondition(index, 'operator', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="equals">Equals</option>
+                      <option value="not_equals">Not Equals</option>
+                      <option value="greater_than">Greater Than</option>
+                      <option value="less_than">Less Than</option>
+                      <option value="contains">Contains</option>
+                    </select>
+                    {condition.field === 'status' ? (
+                      <select
+                        value={condition.value}
+                        onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select Status</option>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="maintenance">Maintenance</option>
+                      </select>
+                    ) : condition.field === 'table_type' ? (
+                      <select
+                        value={condition.value}
+                        onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select Type</option>
+                        <option value="regular">Regular</option>
+                        <option value="vip">VIP</option>
+                        <option value="outdoor">Outdoor</option>
+                        <option value="private">Private</option>
+                        <option value="bar">Bar</option>
+                      </select>
+                    ) : (
+                      <input
+                        type={condition.field === 'duration_minutes' || condition.field === 'capacity' ? 'number' : 'text'}
+                        value={condition.value}
+                        onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                        placeholder="Value"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    )}
+                    {formData.conditions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCondition(index)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Actions
+                </label>
+                <button
+                  type="button"
+                  onClick={addAction}
+                  className="text-sm text-primary-600 hover:text-primary-700"
+                >
+                  + Add Action
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.actions.map((action, index) => (
+                  <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <select
+                        value={action.type}
+                        onChange={(e) => updateAction(index, 'type', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="change_status">Change Status</option>
+                        <option value="send_notification">Send Notification</option>
+                        <option value="start_timer">Start Timer</option>
+                      </select>
+                      {formData.actions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeAction(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {action.type === 'change_status' && (
+                      <select
+                        value={(action.config as { status?: string }).status || ''}
+                        onChange={(e) => updateAction(index, 'status', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Select Status</option>
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="maintenance">Maintenance</option>
+                      </select>
+                    )}
+                    {action.type === 'send_notification' && (
+                      <input
+                        type="text"
+                        value={(action.config as { message?: string }).message || ''}
+                        onChange={(e) => updateAction(index, 'message', e.target.value)}
+                        placeholder="Notification message"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    )}
+                    {action.type === 'start_timer' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={(action.config as { duration?: number }).duration || 30}
+                          onChange={(e) => updateAction(index, 'duration', parseInt(e.target.value))}
+                          min="1"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                        <span className="text-sm text-gray-600">minutes</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Status */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                Rule is active
+              </label>
             </div>
           </div>
-        </div>
-      )}
+
+          <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {rule ? 'Update Rule' : 'Create Rule'}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
