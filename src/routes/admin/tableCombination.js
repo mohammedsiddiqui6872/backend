@@ -30,6 +30,9 @@ router.get('/:tableId/combinable', async (req, res) => {
       });
     }
 
+    // Debug logging
+    console.log(`[TableCombination] Table ${table.number} combinesWith:`, table.combinesWith);
+    
     // Get all tables this can combine with
     const combinableTables = await Table.find({
       tenantId: req.tenantId,
@@ -38,6 +41,9 @@ router.get('/:tableId/combinable', async (req, res) => {
       status: 'available',
       'combination.isCombined': false
     }).select('number displayName capacity location status type');
+    
+    console.log(`[TableCombination] Found ${combinableTables.length} combinable tables:`, 
+      combinableTables.map(t => t.number));
 
     res.json({
       success: true,
@@ -80,6 +86,11 @@ router.post('/:tableId/combine', async (req, res) => {
         error: 'Table not found' 
       });
     }
+    
+    // Debug logging
+    console.log(`[TableCombination] Combining tables:`);
+    console.log(`  Main table: ${mainTable.number}, combinesWith:`, mainTable.combinesWith);
+    console.log(`  Tables to combine:`, tablesToCombine.map(t => t.tableNumber));
 
     // Process table status rules for combination
     const ruleEngine = req.app.get('ruleEngine');

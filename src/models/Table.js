@@ -200,11 +200,27 @@ tableSchema.methods.removeWaiter = function(waiterId) {
 };
 
 tableSchema.methods.canCombineWith = function(tableNumber) {
-  return this.isCombinable && this.combinesWith.includes(tableNumber);
+  console.log(`[canCombineWith] Checking if table ${this.number} can combine with ${tableNumber}`);
+  console.log(`  this.isCombinable:`, this.isCombinable);
+  console.log(`  this.combinesWith:`, this.combinesWith);
+  console.log(`  tableNumber type:`, typeof tableNumber);
+  console.log(`  combinesWith types:`, this.combinesWith.map(n => typeof n));
+  
+  // Ensure string comparison
+  const tableNumberStr = String(tableNumber);
+  const combinesWithStrings = this.combinesWith.map(n => String(n));
+  const canCombine = this.isCombinable && combinesWithStrings.includes(tableNumberStr);
+  
+  console.log(`  String comparison result:`, canCombine);
+  return canCombine;
 };
 
 // Combination methods
 tableSchema.methods.combineWith = async function(tablesToCombine, userId, arrangement = 'linear') {
+  console.log(`[combineWith] Starting combination process for table ${this.number}`);
+  console.log(`  Tables to combine:`, tablesToCombine);
+  console.log(`  Main table combinesWith:`, this.combinesWith);
+  
   if (!this.isCombinable) {
     throw new Error('This table is not combinable');
   }
@@ -235,7 +251,10 @@ tableSchema.methods.combineWith = async function(tablesToCombine, userId, arrang
     }
     
     if (!this.canCombineWith(table.number)) {
-      throw new Error(`Cannot combine with table ${table.number}`);
+      console.log(`[Table.combineWith] Table ${this.number} cannot combine with ${table.number}`);
+      console.log(`  Main table's combinesWith list:`, this.combinesWith);
+      console.log(`  Attempting to combine with:`, table.number);
+      throw new Error(`Table ${this.number} is not configured to combine with table ${table.number}. Please update the table settings.`);
     }
     
     if (table.combination.isCombined) {
