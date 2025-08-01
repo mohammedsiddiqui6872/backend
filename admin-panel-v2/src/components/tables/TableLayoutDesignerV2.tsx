@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Table, TableLayout, TableStatus, TableSelection } from '../../types/table';
-import { Move, RotateCw, Save, Grid, ZoomIn, ZoomOut, Maximize2, Lock, Unlock, Edit3, Trash2, Copy } from 'lucide-react';
+import { Move, RotateCw, Save, Grid, ZoomIn, ZoomOut, Maximize2, Lock, Unlock, Edit3, Trash2, Copy, RefreshCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface TableLayoutDesignerProps {
@@ -279,9 +279,18 @@ const TableLayoutDesignerV2: React.FC<TableLayoutDesignerProps> = ({
       const x = (e.clientX - rect.left) / zoom - dragState.offsetX;
       const y = (e.clientY - rect.top) / zoom - dragState.offsetY;
 
+      // Get floor dimensions for boundary constraints
+      const floor = layout.floors.find(f => f.id === selectedFloor);
+      const maxX = floor ? floor.dimensions.width : 1000;
+      const maxY = floor ? floor.dimensions.height : 800;
+      
       // Snap to grid if enabled
-      const snapX = layout.snapToGrid ? Math.round(x / layout.gridSize.width) * layout.gridSize.width : x;
-      const snapY = layout.snapToGrid ? Math.round(y / layout.gridSize.height) * layout.gridSize.height : y;
+      let snapX = layout.snapToGrid ? Math.round(x / layout.gridSize.width) * layout.gridSize.width : x;
+      let snapY = layout.snapToGrid ? Math.round(y / layout.gridSize.height) * layout.gridSize.height : y;
+      
+      // Apply boundary constraints (prevent dragging outside canvas)
+      snapX = Math.max(0, Math.min(snapX, maxX - 100)); // Assuming table width ~100px
+      snapY = Math.max(0, Math.min(snapY, maxY - 80));  // Assuming table height ~80px
 
       if (dragState.isMultiDrag && dragState.multiDragOffsets) {
         // Move all selected tables
@@ -290,12 +299,19 @@ const TableLayoutDesignerV2: React.FC<TableLayoutDesignerProps> = ({
 
         setLocalTables(prev => prev.map(table => {
           if (selectedTables.has(table._id)) {
+            const newX = table.location.x + deltaX;
+            const newY = table.location.y + deltaY;
+            
+            // Apply boundary constraints for each table
+            const constrainedX = Math.max(0, Math.min(newX, maxX - 100));
+            const constrainedY = Math.max(0, Math.min(newY, maxY - 80));
+            
             return {
               ...table,
               location: {
                 ...table.location,
-                x: table.location.x + deltaX,
-                y: table.location.y + deltaY
+                x: constrainedX,
+                y: constrainedY
               }
             };
           }
@@ -371,6 +387,38 @@ const TableLayoutDesignerV2: React.FC<TableLayoutDesignerProps> = ({
   const handleSelectAll = () => {
     const allTableIds = new Set(floorTables.map(t => t._id));
     setSelectedTables(allTableIds);
+  };
+
+  const handleResetAllPositions = async () => {
+    if (!window.confirm('Reset all tables to their default positions? This will arrange them in a grid.')) {
+      return;
+    }
+    
+    const floor = layout.floors.find(f => f.id === selectedFloor);
+    const maxX = floor ? floor.dimensions.width : 1000;
+    const maxY = floor ? floor.dimensions.height : 800;
+    
+    const resetTables = floorTables.map((table, index) => {
+      const cols = Math.floor(maxX / 150); // 150px spacing between tables
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      return {
+        ...table,
+        location: {
+          ...table.location,
+          x: Math.min(col * 150 + 50, maxX - 100), // Ensure within boundaries
+          y: Math.min(row * 120 + 50, maxY - 80),  // Ensure within boundaries
+          rotation: 0
+        }
+      };
+    });
+    
+    if (onTablesUpdate) {
+      await onTablesUpdate(resetTables);
+    }
+    
+    toast.success('All tables have been reset to default positions');
   };
 
   const handleDeselectAll = () => {
@@ -484,6 +532,14 @@ const TableLayoutDesignerV2: React.FC<TableLayoutDesignerProps> = ({
               title={isLocked ? 'Unlock layout' : 'Lock layout'}
             >
               {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+            </button>
+            <div className="h-6 w-px bg-gray-300" />
+            <button
+              onClick={handleResetAllPositions}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-md"
+              title="Reset all table positions"
+            >
+              <RefreshCcw className="h-4 w-4" />
             </button>
             <button
               onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
