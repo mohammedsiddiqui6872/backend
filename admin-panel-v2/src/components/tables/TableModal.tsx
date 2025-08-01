@@ -71,6 +71,15 @@ const TableModal: React.FC<TableModalProps> = ({
 
   useEffect(() => {
     if (table) {
+      // Check if the table's section exists in the floor
+      const tableFloor = floors.find(f => f.id === table.location.floor);
+      const sectionExists = tableFloor?.sections.some(s => s.id === table.location.section);
+      
+      // If section doesn't exist in the floor, use the first available section
+      const validSection = sectionExists 
+        ? table.location.section 
+        : (tableFloor?.sections[0]?.id || table.location.section);
+
       setFormData({
         _id: table._id,
         number: table.number,
@@ -81,7 +90,10 @@ const TableModal: React.FC<TableModalProps> = ({
         type: table.type,
         shape: table.shape,
         status: table.status,
-        location: table.location,
+        location: {
+          ...table.location,
+          section: validSection
+        },
         features: table.features,
         isCombinable: table.isCombinable,
         combinesWith: table.combinesWith || [],
@@ -89,7 +101,7 @@ const TableModal: React.FC<TableModalProps> = ({
         isActive: table.isActive
       });
     }
-  }, [table]);
+  }, [table, floors]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -298,10 +310,20 @@ const TableModal: React.FC<TableModalProps> = ({
                 </label>
                 <select
                   value={formData.location.floor}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    location: { ...formData.location, floor: e.target.value }
-                  })}
+                  onChange={(e) => {
+                    const newFloor = e.target.value;
+                    const newFloorData = floors.find(f => f.id === newFloor);
+                    const firstSection = newFloorData?.sections[0]?.id || '';
+                    
+                    setFormData({
+                      ...formData,
+                      location: { 
+                        ...formData.location, 
+                        floor: newFloor,
+                        section: firstSection // Reset section to first available section
+                      }
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
                   {floors.map((floor) => (

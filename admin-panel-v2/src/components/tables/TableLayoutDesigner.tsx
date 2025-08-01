@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Table, TableLayout, TableStatus } from '../../types/table';
-import { Move, RotateCw, Save, Grid, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Move, RotateCw, Save, Grid, ZoomIn, ZoomOut, Maximize2, Lock, Unlock } from 'lucide-react';
 
 interface TableLayoutDesignerProps {
   tables: Table[];
@@ -32,6 +32,7 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     tableId: null,
@@ -113,6 +114,7 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent, table: Table) => {
     if (e.button !== 0) return; // Only left click
+    if (isLocked) return; // Don't allow dragging when locked
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -194,7 +196,9 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
     return (
       <div
         key={table._id}
-        className={`absolute cursor-move select-none transition-shadow ${
+        className={`absolute select-none transition-shadow ${
+          isLocked ? 'cursor-not-allowed' : 'cursor-move'
+        } ${
           isSelected ? 'ring-2 ring-primary-500 shadow-lg z-10' : 'hover:shadow-md'
         }`}
         style={{
@@ -287,6 +291,19 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
               <Grid className="h-4 w-4" />
             </button>
 
+            {/* Lock Toggle */}
+            <button
+              onClick={() => setIsLocked(!isLocked)}
+              className={`p-2 border rounded ${
+                isLocked 
+                  ? 'border-red-500 bg-red-50 text-red-600' 
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+              title={isLocked ? "Unlock Layout" : "Lock Layout"}
+            >
+              {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+            </button>
+
             {/* Selected Table Actions */}
             {selectedTable && (
               <>
@@ -322,6 +339,14 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
               <Save className="h-4 w-4 mr-1" />
               Auto-saved
             </div>
+
+            {/* Lock Indicator */}
+            {isLocked && (
+              <div className="flex items-center text-sm text-red-600 ml-4">
+                <Lock className="h-4 w-4 mr-1" />
+                Layout Locked
+              </div>
+            )}
           </div>
         </div>
       </div>

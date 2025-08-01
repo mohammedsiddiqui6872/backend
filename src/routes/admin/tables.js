@@ -205,12 +205,42 @@ router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
 
     // Update layout if location changed
     if (updates.location) {
-      const layout = await TableLayout.getOrCreate(req.tenantId);
-      await layout.assignTableToSection(
-        updates.location.floor,
-        updates.location.section,
-        table.number
-      );
+      try {
+        const layout = await TableLayout.getOrCreate(req.tenantId);
+        
+        // Verify that the section exists in the floor
+        const floor = layout.getFloor(updates.location.floor);
+        if (!floor) {
+          return res.status(400).json({ error: `Floor ${updates.location.floor} not found` });
+        }
+        
+        const section = layout.getSection(updates.location.floor, updates.location.section);
+        if (!section) {
+          // If section doesn't exist, use the first section of the floor
+          const firstSection = floor.sections[0];
+          if (!firstSection) {
+            return res.status(400).json({ error: `No sections found in floor ${updates.location.floor}` });
+          }
+          
+          console.log(`Section ${updates.location.section} not found in floor ${updates.location.floor}, using first section: ${firstSection.id}`);
+          updates.location.section = firstSection.id;
+          
+          // Update the table with the corrected section
+          await Table.findOneAndUpdate(
+            { _id: req.params.id, tenantId: req.tenantId },
+            { $set: { 'location.section': firstSection.id } }
+          );
+        }
+        
+        await layout.assignTableToSection(
+          updates.location.floor,
+          updates.location.section,
+          table.number
+        );
+      } catch (layoutError) {
+        console.error('Error updating table layout:', layoutError);
+        return res.status(500).json({ error: `Failed to update table layout: ${layoutError.message}` });
+      }
     }
 
     res.json({
