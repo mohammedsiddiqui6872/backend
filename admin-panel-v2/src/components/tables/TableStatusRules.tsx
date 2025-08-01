@@ -286,9 +286,26 @@ interface RuleEditorModalProps {
   onSave: () => void;
 }
 
+interface RuleFormData {
+  name: string;
+  description: string;
+  triggerEvent: string;
+  conditions: Array<{
+    field: string;
+    operator: string;
+    value: any;
+  }>;
+  actions: Array<{
+    type: string;
+    config: { [key: string]: any };
+  }>;
+  priority: number;
+  isActive: boolean;
+}
+
 const RuleEditorModal: React.FC<RuleEditorModalProps> = ({ rule, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RuleFormData>({
     name: '',
     description: '',
     triggerEvent: 'status_changed',
@@ -305,7 +322,10 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({ rule, onClose, onSave
         description: rule.description,
         triggerEvent: rule.triggerEvent,
         conditions: rule.conditions.length > 0 ? rule.conditions : [{ field: 'status', operator: 'equals', value: '' }],
-        actions: rule.actions.length > 0 ? rule.actions : [{ type: 'change_status', config: { status: 'available' } }],
+        actions: rule.actions.length > 0 ? rule.actions.map(a => ({ 
+          type: a.type, 
+          config: { ...a.config } 
+        })) : [{ type: 'change_status', config: { status: 'available' } }],
         priority: rule.priority,
         isActive: rule.isActive
       });
@@ -378,11 +398,17 @@ const RuleEditorModal: React.FC<RuleEditorModalProps> = ({ rule, onClose, onSave
     const newActions = [...formData.actions];
     if (field === 'type') {
       // Reset config when action type changes
+      let newConfig: { [key: string]: any } = {};
+      if (value === 'change_status') {
+        newConfig = { status: 'available' };
+      } else if (value === 'send_notification') {
+        newConfig = { message: '' };
+      } else if (value === 'start_timer') {
+        newConfig = { duration: 30 };
+      }
       newActions[index] = { 
         type: value, 
-        config: value === 'change_status' ? { status: 'available' } : 
-                value === 'send_notification' ? { message: '' } :
-                value === 'start_timer' ? { duration: 30 } : {} 
+        config: newConfig
       };
     } else {
       // Update config fields
