@@ -72,7 +72,7 @@ const tableSchema = new mongoose.Schema({
 // Compound index for tenant-specific table numbers
 tableSchema.index({ tenantId: 1, number: 1 }, { unique: true });
 tableSchema.index({ tenantId: 1, status: 1 });
-tableSchema.index({ 'qrCode.code': 1 });
+// qrCode.code already has unique: true in schema, which creates an index automatically
 tableSchema.index({ tenantId: 1, 'location.floor': 1, 'location.section': 1 });
 
 // Validate and generate defaults before saving
