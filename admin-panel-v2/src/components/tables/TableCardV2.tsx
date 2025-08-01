@@ -47,9 +47,12 @@ const TableCardV2: React.FC<TableCardV2Props> = ({
       return;
     }
 
-    // Check if Ctrl (or Cmd on Mac) is held
+    // Only select if Ctrl (or Cmd on Mac) is held
     const isMultiSelect = e.ctrlKey || e.metaKey;
-    onSelect(table._id, isMultiSelect);
+    if (isMultiSelect) {
+      onSelect(table._id, true);
+    }
+    // Regular click does nothing (no selection)
   };
 
   const getStatusColor = (status: TableStatus) => {
@@ -98,10 +101,12 @@ const TableCardV2: React.FC<TableCardV2Props> = ({
 
   return (
     <div 
-      className={`bg-white rounded-lg shadow-sm border-2 p-4 hover:shadow-md transition-all relative cursor-pointer select-none ${
+      className={`bg-white rounded-lg shadow-sm border-2 p-4 hover:shadow-md transition-all relative select-none ${
         isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
       }`}
       onClick={handleCardClick}
+      style={{ cursor: 'default' }}
+      title="Hold Ctrl/Cmd + Click to select"
     >
       {/* Selection Indicator */}
       {isSelected && (
