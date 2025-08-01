@@ -45,7 +45,7 @@ const Menu = () => {
       
       console.log('Menu API Response:', itemsRes.data);
       console.log('Sample menu item:', itemsRes.data.items?.[0] || itemsRes.data[0]);
-      console.log('Items with images:', (itemsRes.data.items || itemsRes.data).filter(item => item.image));
+      console.log('Items with images:', (itemsRes.data.items || itemsRes.data).filter((item: MenuItem) => item.image));
       
       setCategories(categoriesRes.data);
       setMenuItems(itemsRes.data.items || itemsRes.data);
