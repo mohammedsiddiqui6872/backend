@@ -37,6 +37,8 @@ const Tables = () => {
   const [showCombination, setShowCombination] = useState(false);
   const [showTableDetails, setShowTableDetails] = useState(false);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [bulkStatusUpdate, setBulkStatusUpdate] = useState<string>('available');
 
   useEffect(() => {
     fetchData();
@@ -125,6 +127,30 @@ const Tables = () => {
         console.error('Error deleting table:', error);
         alert('Failed to delete table');
       }
+    }
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    try {
+      setModalLoading(true);
+      // Update status for all selected tables
+      const updatePromises = selectedTableIds.map(tableId => {
+        const table = tables.find(t => t._id === tableId);
+        if (table) {
+          return tableAPI.updateTableStatus(table.number, bulkStatusUpdate);
+        }
+        return Promise.resolve();
+      });
+      
+      await Promise.all(updatePromises);
+      await fetchData();
+      setSelectedTableIds([]);
+      setShowBulkStatusModal(false);
+    } catch (error) {
+      console.error('Error updating table statuses:', error);
+      alert('Failed to update some tables');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -304,12 +330,7 @@ const Tables = () => {
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={async () => {
-                  if (window.confirm(`Update status for ${selectedTableIds.length} tables?`)) {
-                    // Implement bulk status update
-                    setSelectedTableIds([]);
-                  }
-                }}
+                onClick={() => setShowBulkStatusModal(true)}
                 className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50"
               >
                 Update Status
@@ -492,6 +513,53 @@ const Tables = () => {
             setSelectedTable(null);
           }}
         />
+      )}
+
+      {/* Bulk Status Update Modal */}
+      {showBulkStatusModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Update Status for {selectedTableIds.length} Table{selectedTableIds.length > 1 ? 's' : ''}
+            </h2>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select New Status
+              </label>
+              <select
+                value={bulkStatusUpdate}
+                onChange={(e) => setBulkStatusUpdate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="available">Available</option>
+                <option value="occupied">Occupied</option>
+                <option value="reserved">Reserved</option>
+                <option value="cleaning">Cleaning</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowBulkStatusModal(false);
+                  setBulkStatusUpdate('available');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkStatusUpdate}
+                disabled={modalLoading}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                {modalLoading ? 'Updating...' : 'Update Status'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
