@@ -111,8 +111,15 @@ router.post('/', cloudinaryUpload.single('image'), menuItemValidation, validate,
     }
 
     // Handle image upload - check for Cloudinary URL
+    console.log('Image upload debug:', {
+      hasFile: !!req.file,
+      file: req.file ? { path: req.file.path, filename: req.file.filename } : null,
+      hasUploadImage: !!itemData.uploadImage
+    });
+    
     if (req.file) {
       itemData.image = req.file.path; // Cloudinary returns the URL in 'path'
+      console.log('Cloudinary URL:', itemData.image);
     } else if (itemData.uploadImage) {
       // Handle base64 image from custom upload component
       try {

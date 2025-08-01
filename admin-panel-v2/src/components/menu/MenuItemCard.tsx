@@ -33,12 +33,16 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               src={item.image} 
               alt={item.name}
               className="h-24 w-24 rounded-lg object-cover flex-shrink-0"
+              onError={(e) => {
+                console.error('Image failed to load:', item.image);
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
             />
-          ) : (
-            <div className="h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <ImageIcon className="h-10 w-10 text-gray-400" />
-            </div>
-          )}
+          ) : null}
+          <div className={`h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 ${item.image ? 'hidden' : ''}`}>
+            <ImageIcon className="h-10 w-10 text-gray-400" />
+          </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
