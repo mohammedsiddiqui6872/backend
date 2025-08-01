@@ -100,11 +100,21 @@ tableSchema.pre('save', async function(next) {
   }
   
   if (!this.qrCode || !this.qrCode.code) {
-    // Generate unique QR code with tenant context
-    const code = `${this.tenantId}-${crypto.randomBytes(12).toString('hex')}`;
+    // Generate encrypted QR code
+    const { generateEncryptedQRCode } = require('../utils/tableEncryption');
+    const qrData = generateEncryptedQRCode(
+      this.tenantId, 
+      this._id.toString(), 
+      this.number,
+      0 // No expiry for permanent QR codes
+    );
+    
     this.qrCode = {
-      code: code,
-      url: `${process.env.FRONTEND_URL || 'https://app.gritservices.ae'}/table/${code}`
+      code: qrData.code,
+      url: qrData.url,
+      customization: {
+        encrypted: true
+      }
     };
   }
   

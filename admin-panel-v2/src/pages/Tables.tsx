@@ -5,6 +5,7 @@ import { tableAPI } from '../services/tableAPI';
 import TableCard from '../components/tables/TableCard';
 import TableModal from '../components/tables/TableModal';
 import TableLayoutDesigner from '../components/tables/TableLayoutDesigner';
+import TableLayoutDesignerV2 from '../components/tables/TableLayoutDesignerV2';
 import TableAnalytics from '../components/tables/TableAnalytics';
 import QRCodeManager from '../components/tables/QRCodeManager';
 import FloorManager from '../components/tables/FloorManager';
@@ -281,13 +282,20 @@ const Tables = () => {
       )}
 
       {viewMode === 'layout' && layout && (
-        <TableLayoutDesigner
+        <TableLayoutDesignerV2
           tables={tables}
           layout={layout}
           selectedFloor={selectedFloor}
           onFloorChange={setSelectedFloor}
           onTableUpdate={async (table) => {
             await tableAPI.updateTable(table._id, table);
+            await fetchData();
+          }}
+          onTablesUpdate={async (tables) => {
+            // Update multiple tables
+            await Promise.all(tables.map(table => 
+              tableAPI.updateTable(table._id, table)
+            ));
             await fetchData();
           }}
           onLayoutUpdate={async (updates) => {

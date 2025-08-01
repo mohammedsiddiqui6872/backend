@@ -160,6 +160,9 @@ app.get('/api/public/health', (req, res) => {
   });
 });
 
+// Table access route (public - for QR code scanning)
+app.use('/api/table', require('./src/routes/tableAccess'));
+
 // Super admin routes (for SaaS management - no tenant context)
 app.use('/api/super-admin', require('./src/routes/superAdmin'));
 

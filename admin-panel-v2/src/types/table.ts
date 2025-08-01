@@ -182,3 +182,14 @@ export interface QRExportOptions {
     footerText?: string;
   };
 }
+
+export interface TableSelection {
+  selectedTables: Set<string>;
+  lastSelectedTable?: string;
+  selectionBox?: {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  };
+}

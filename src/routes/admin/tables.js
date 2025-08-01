@@ -362,7 +362,7 @@ router.get('/:tableNumber/history', async (req, res) => {
   }
 });
 
-// Generate new QR code
+// Generate new QR code (single table)
 router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, res) => {
   try {
     const table = await Table.findOne({ 
@@ -373,18 +373,89 @@ router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, 
       return res.status(404).json({ error: 'Table not found' });
     }
 
-    const qrData = `${process.env.FRONTEND_URL}/table/${table.number}`;
-    const qrCode = await QRCode.toDataURL(qrData);
-    
-    table.qrCode = qrCode;
+    // Use encrypted QR code generation
+    const { generateEncryptedQRCode } = require('../../utils/tableEncryption');
+    const qrData = generateEncryptedQRCode(
+      table.tenantId,
+      table._id.toString(),
+      table.number,
+      0 // No expiry
+    );
+
+    table.qrCode = {
+      code: qrData.code,
+      url: qrData.url,
+      customization: {
+        ...table.qrCode?.customization,
+        encrypted: true
+      }
+    };
     await table.save();
+
+    // Generate visual QR code
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData.url);
 
     res.json({
       success: true,
-      qrCode,
-      message: 'QR code generated successfully'
+      qrCode: qrCodeDataUrl,
+      qrData: table.qrCode,
+      message: 'Encrypted QR code generated successfully'
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Regenerate QR codes (bulk)
+router.post('/regenerate-qr', authorize('admin'), async (req, res) => {
+  try {
+    const { tableIds, useEncryption = true } = req.body;
+    const filter = { tenantId: req.tenantId };
+    
+    // If specific tables are provided, filter by them
+    if (tableIds && tableIds.length > 0) {
+      filter._id = { $in: tableIds };
+    }
+    
+    const tables = await Table.find(filter);
+    const { generateEncryptedQRCode } = require('../../utils/tableEncryption');
+    
+    let updatedCount = 0;
+    for (let table of tables) {
+      if (useEncryption) {
+        // Generate new encrypted QR code
+        const qrData = generateEncryptedQRCode(
+          table.tenantId,
+          table._id.toString(),
+          table.number,
+          0 // No expiry
+        );
+        
+        table.qrCode = {
+          code: qrData.code,
+          url: qrData.url,
+          customization: {
+            ...table.qrCode?.customization,
+            encrypted: true
+          }
+        };
+      } else {
+        // Force regeneration with old method
+        table.qrCode = null;
+      }
+      
+      await table.save();
+      updatedCount++;
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Regenerated QR codes for ${updatedCount} tables`,
+      encrypted: useEncryption,
+      tablesUpdated: updatedCount
+    });
+  } catch (error) {
+    console.error('Error regenerating QR codes:', error);
     res.status(500).json({ error: error.message });
   }
 });
