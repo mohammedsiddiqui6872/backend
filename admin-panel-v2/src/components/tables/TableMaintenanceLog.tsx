@@ -287,10 +287,12 @@ const MaintenanceModal: React.FC<{
     priority: 'medium',
     description: '',
     scheduledDate: new Date().toISOString().split('T')[0],
+    scheduledTime: '09:00',
     scheduledDuration: 30,
     isRecurring: false,
     recurringSchedule: {
       frequency: 'weekly',
+      time: '09:00',
       endDate: ''
     }
   });
@@ -299,7 +301,23 @@ const MaintenanceModal: React.FC<{
     e.preventDefault();
     try {
       setLoading(true);
-      await api.post(`/admin/table-service-history/tables/${tableId}/maintenance`, formData);
+      
+      // Combine date and time into a single datetime
+      const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
+      
+      const payload = {
+        ...formData,
+        scheduledDate: scheduledDateTime.toISOString(),
+        recurringSchedule: formData.isRecurring ? {
+          ...formData.recurringSchedule,
+          time: formData.recurringSchedule.time
+        } : undefined
+      };
+      
+      // Remove the separate time field from payload
+      delete (payload as any).scheduledTime;
+      
+      await api.post(`/admin/table-service-history/tables/${tableId}/maintenance`, payload);
       onSave();
     } catch (error) {
       console.error('Error creating maintenance:', error);
@@ -383,17 +401,30 @@ const MaintenanceModal: React.FC<{
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duration (minutes)
+                Scheduled Time
               </label>
               <input
-                type="number"
-                value={formData.scheduledDuration}
-                onChange={(e) => setFormData({ ...formData, scheduledDuration: parseInt(e.target.value) })}
-                min="15"
+                type="time"
+                value={formData.scheduledTime}
+                onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Duration (minutes)
+            </label>
+            <input
+              type="number"
+              value={formData.scheduledDuration}
+              onChange={(e) => setFormData({ ...formData, scheduledDuration: parseInt(e.target.value) })}
+              min="15"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            />
           </div>
 
           <div>
@@ -409,30 +440,47 @@ const MaintenanceModal: React.FC<{
           </div>
 
           {formData.isRecurring && (
-            <div className="grid grid-cols-2 gap-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Frequency
-                </label>
-                <select
-                  value={formData.recurringSchedule.frequency}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    recurringSchedule: { ...formData.recurringSchedule, frequency: e.target.value }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                </select>
+            <div className="space-y-4 pl-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Frequency
+                  </label>
+                  <select
+                    value={formData.recurringSchedule.frequency}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      recurringSchedule: { ...formData.recurringSchedule, frequency: e.target.value }
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recurring Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.recurringSchedule.time}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      recurringSchedule: { ...formData.recurringSchedule, time: e.target.value }
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date
+                  End Date (Optional)
                 </label>
                 <input
                   type="date"
@@ -442,6 +490,7 @@ const MaintenanceModal: React.FC<{
                     recurringSchedule: { ...formData.recurringSchedule, endDate: e.target.value }
                   })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="Leave empty for no end date"
                 />
               </div>
             </div>

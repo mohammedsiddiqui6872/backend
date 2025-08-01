@@ -42,6 +42,7 @@ const TableModal: React.FC<TableModalProps> = ({
     isActive: true
   });
 
+  const [combinesWithText, setCombinesWithText] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const tableTypes: { value: TableType; label: string; icon: string }[] = [
@@ -100,6 +101,9 @@ const TableModal: React.FC<TableModalProps> = ({
         metadata: table.metadata || {},
         isActive: table.isActive
       });
+      
+      // Set the combinesWith text
+      setCombinesWithText(table.combinesWith?.join(', ') || '');
     }
   }, [table, floors]);
 
@@ -129,7 +133,12 @@ const TableModal: React.FC<TableModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      await onSave(formData);
+      // Parse combinesWith from text before saving
+      const updatedFormData = {
+        ...formData,
+        combinesWith: combinesWithText.split(',').map(s => s.trim()).filter(Boolean)
+      };
+      await onSave(updatedFormData);
     }
   };
 
@@ -397,11 +406,8 @@ const TableModal: React.FC<TableModalProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={formData.combinesWith?.join(', ') || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    combinesWith: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                  })}
+                  value={combinesWithText}
+                  onChange={(e) => setCombinesWithText(e.target.value)}
                   placeholder="e.g., 2, 3, 4"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
