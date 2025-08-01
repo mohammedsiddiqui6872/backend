@@ -15,7 +15,7 @@ interface Employee {
 
 interface Shift {
   _id: string;
-  employee: Employee;
+  employee?: Employee;
   date: string;
   shiftType: string;
   scheduledTimes: {
@@ -171,18 +171,27 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
           <div className="mb-6">
             <h4 className="text-sm font-medium text-gray-900 mb-3">Employee Information</h4>
             <div className="flex items-center space-x-4">
-              <img
-                className="h-12 w-12 rounded-full"
-                src={shift.employee.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(shift.employee.name)}&background=6366f1&color=fff`}
-                alt={shift.employee.name}
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{shift.employee.name}</p>
-                <p className="text-sm text-gray-500">{shift.employee.email}</p>
-                {shift.employee.phone && (
-                  <p className="text-sm text-gray-500">{shift.employee.phone}</p>
-                )}
-              </div>
+              {shift.employee ? (
+                <>
+                  <img
+                    className="h-12 w-12 rounded-full"
+                    src={shift.employee.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(shift.employee.name)}&background=6366f1&color=fff`}
+                    alt={shift.employee.name}
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{shift.employee.name}</p>
+                    <p className="text-sm text-gray-500">{shift.employee.email}</p>
+                    {shift.employee.phone && (
+                      <p className="text-sm text-gray-500">{shift.employee.phone}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Unassigned Shift</p>
+                  <p className="text-sm text-gray-400">No employee assigned</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -435,7 +444,7 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
               >
                 <option value="">Select Employee</option>
                 {employees
-                  .filter(emp => emp._id !== shift.employee._id)
+                  .filter(emp => emp._id !== shift.employee?._id)
                   .map(emp => (
                     <option key={emp._id} value={emp._id}>
                       {emp.name} - {emp.role}

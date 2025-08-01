@@ -208,8 +208,8 @@ const Shifts = () => {
       // Prepare CSV data
       const csvData = shifts.map(shift => ({
         Date: format(new Date(shift.date), 'yyyy-MM-dd'),
-        Employee: shift.employee.name,
-        'Employee Email': shift.employee.email,
+        Employee: shift.employee?.name || 'Unassigned',
+        'Employee Email': shift.employee?.email || 'N/A',
         Department: shift.department || '',
         Position: shift.position || '',
         'Shift Type': shift.shiftType,
@@ -571,14 +571,22 @@ const Shifts = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <img
-                          className="h-6 w-6 rounded-full"
-                          src={shift.employee.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(shift.employee.name)}&background=6366f1&color=fff`}
-                          alt={shift.employee.name}
-                        />
-                        <span className="text-xs font-medium truncate">
-                          {shift.employee.name}
-                        </span>
+                        {shift.employee ? (
+                          <>
+                            <img
+                              className="h-6 w-6 rounded-full"
+                              src={shift.employee.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(shift.employee.name)}&background=6366f1&color=fff`}
+                              alt={shift.employee.name}
+                            />
+                            <span className="text-xs font-medium truncate">
+                              {shift.employee.name}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs font-medium text-gray-500">
+                            Unassigned
+                          </span>
+                        )}
                       </div>
                       {getStatusIcon(shift.status)}
                     </div>
