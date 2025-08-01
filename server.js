@@ -118,6 +118,13 @@ app.use(cors({
 // Static files for uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Placeholder for missing images
+app.use('/images', (req, res, next) => {
+  console.log('Image request:', req.path);
+  // Return a placeholder image or redirect to a default image
+  res.redirect('https://via.placeholder.com/400x300?text=' + encodeURIComponent(req.path.replace('/', '').replace('.jpg', '').replace('-', ' ')));
+});
+
 // MongoDB connection - removed deprecated options
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/restaurant')
 .then(() => {
