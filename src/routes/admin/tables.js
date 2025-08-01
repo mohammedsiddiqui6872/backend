@@ -855,4 +855,80 @@ router.get('/qr/:qrCode', async (req, res) => {
   }
 });
 
+// Get maintenance logs for a table
+router.get('/:tableId/maintenance', async (req, res) => {
+  try {
+    const TableMaintenanceLog = require('../../models/TableMaintenanceLog');
+    
+    const logs = await TableMaintenanceLog.find({
+      tenantId: req.tenantId,
+      tableId: req.params.tableId,
+      isArchived: false
+    })
+    .sort('-scheduledDate')
+    .populate('assignedTo.userId', 'name')
+    .populate('performedBy.userId', 'name');
+
+    res.json({
+      success: true,
+      data: logs
+    });
+  } catch (error) {
+    console.error('Error fetching maintenance logs:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch maintenance logs' 
+    });
+  }
+});
+
+// Create maintenance log for a table
+router.post('/:tableId/maintenance', async (req, res) => {
+  try {
+    const TableMaintenanceLog = require('../../models/TableMaintenanceLog');
+    const table = await Table.findOne({
+      _id: req.params.tableId,
+      tenantId: req.tenantId
+    });
+
+    if (!table) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    const maintenanceLog = new TableMaintenanceLog({
+      tenantId: req.tenantId,
+      tableId: req.params.tableId,
+      tableNumber: table.number,
+      ...req.body,
+      createdBy: {
+        userId: req.user._id,
+        name: req.user.name,
+        role: req.user.role
+      }
+    });
+
+    await maintenanceLog.save();
+
+    // Update table metadata
+    if (req.body.type === 'cleaning') {
+      await Table.findByIdAndUpdate(req.params.tableId, {
+        'metadata.lastCleaned': new Date(),
+        'metadata.maintenanceNotes': req.body.notes || table.metadata.maintenanceNotes
+      });
+    }
+
+    res.json({
+      success: true,
+      data: maintenanceLog,
+      message: 'Maintenance log created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating maintenance log:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to create maintenance log' 
+    });
+  }
+});
+
 module.exports = router;
