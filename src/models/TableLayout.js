@@ -45,11 +45,26 @@ const tableLayoutSchema = new mongoose.Schema({
       maintenance: { type: String, default: '#6B7280' }
     },
     shapeDefaults: {
-      square: { width: 80, height: 80 },
-      rectangle: { width: 120, height: 80 },
-      round: { width: 80, height: 80 },
-      oval: { width: 120, height: 80 },
-      custom: { width: 100, height: 100 }
+      square: { 
+        width: { type: Number, default: 80 }, 
+        height: { type: Number, default: 80 } 
+      },
+      rectangle: { 
+        width: { type: Number, default: 120 }, 
+        height: { type: Number, default: 80 } 
+      },
+      round: { 
+        width: { type: Number, default: 80 }, 
+        height: { type: Number, default: 80 } 
+      },
+      oval: { 
+        width: { type: Number, default: 120 }, 
+        height: { type: Number, default: 80 } 
+      },
+      custom: { 
+        width: { type: Number, default: 100 }, 
+        height: { type: Number, default: 100 } 
+      }
     }
   },
   settings: {
