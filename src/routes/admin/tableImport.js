@@ -4,7 +4,7 @@ const multer = require('multer');
 const Table = require('../../models/Table');
 const TableCSVParser = require('../../utils/csvParser');
 const { authenticate, authorize } = require('../../middleware/auth');
-const { generateTableQRCode } = require('../../utils/qrCodeGenerator');
+const { generateEncryptedQRCode } = require('../../utils/tableEncryption');
 
 // Configure multer for file uploads
 const upload = multer({
@@ -169,13 +169,21 @@ router.post('/import', upload.single('file'), async (req, res) => {
           createdBy: req.user._id
         });
 
-        // Generate QR code
-        const qrCode = await generateTableQRCode(
+        // Generate encrypted QR code
+        const qrData = generateEncryptedQRCode(
           req.tenantId,
-          newTable._id,
-          newTable.number
+          newTable._id.toString(),
+          newTable.number,
+          0 // No expiry
         );
-        newTable.qrCode = qrCode;
+        
+        newTable.qrCode = {
+          code: qrData.code,
+          url: qrData.url,
+          customization: {
+            encrypted: true
+          }
+        };
 
         await newTable.save();
         results.created.push({
