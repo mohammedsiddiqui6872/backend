@@ -1,18 +1,6 @@
 import { useState } from 'react';
 import { Edit2, Trash2, MoreVertical, GripVertical, Image as ImageIcon } from 'lucide-react';
-
-interface Category {
-  _id: string;
-  name: string;
-  nameAr?: string;
-  slug: string;
-  icon: string;
-  image?: string;
-  displayOrder: number;
-  isActive: boolean;
-  description?: string;
-  descriptionAr?: string;
-}
+import { Category } from '../../types/menu';
 
 interface CategoryCardProps {
   category: Category;

@@ -1,31 +1,6 @@
 import { useState } from 'react';
 import { Edit2, Trash2, MoreVertical, Image as ImageIcon, DollarSign, Tag } from 'lucide-react';
-
-interface MenuItem {
-  _id: string;
-  id: number;
-  name: string;
-  nameAr?: string;
-  category: string;
-  price: number;
-  cost?: number;
-  description: string;
-  descriptionAr?: string;
-  image?: string;
-  images?: string[];
-  available: boolean;
-  inStock: boolean;
-  stockQuantity?: number;
-  allergens?: string[];
-  dietary?: string[];
-  prepTime?: number;
-  rating?: number;
-  calories?: number;
-  isSpecial?: boolean;
-  discount?: number;
-  recommended?: boolean;
-  featured?: boolean;
-}
+import { MenuItem } from '../../types/menu';
 
 interface MenuItemCardProps {
   item: MenuItem;

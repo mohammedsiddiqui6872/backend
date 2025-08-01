@@ -5,45 +5,7 @@ import CategoryCard from '../components/menu/CategoryCard';
 import CategoryModal from '../components/menu/CategoryModal';
 import MenuItemCard from '../components/menu/MenuItemCard';
 import MenuItemModal from '../components/menu/MenuItemModal';
-
-interface Category {
-  _id: string;
-  name: string;
-  nameAr?: string;
-  slug: string;
-  icon: string;
-  image?: string;
-  displayOrder: number;
-  isActive: boolean;
-  description?: string;
-  descriptionAr?: string;
-}
-
-interface MenuItem {
-  _id: string;
-  id: number;
-  name: string;
-  nameAr?: string;
-  category: string;
-  price: number;
-  cost?: number;
-  description: string;
-  descriptionAr?: string;
-  image?: string;
-  images?: string[];
-  available: boolean;
-  inStock: boolean;
-  stockQuantity?: number;
-  allergens?: string[];
-  dietary?: string[];
-  prepTime?: number;
-  rating?: number;
-  calories?: number;
-  isSpecial?: boolean;
-  discount?: number;
-  recommended?: boolean;
-  featured?: boolean;
-}
+import { Category, MenuItem, CategoryInput, MenuItemInput } from '../types/menu';
 
 const Menu = () => {
   const [activeTab, setActiveTab] = useState('items');
@@ -100,7 +62,7 @@ const Menu = () => {
     setShowCategoryModal(true);
   };
 
-  const handleSaveCategory = async (categoryData: Category) => {
+  const handleSaveCategory = async (categoryData: CategoryInput) => {
     try {
       setModalLoading(true);
       
@@ -156,7 +118,7 @@ const Menu = () => {
     setShowItemModal(true);
   };
 
-  const handleSaveItem = async (itemData: MenuItem) => {
+  const handleSaveItem = async (itemData: MenuItemInput) => {
     try {
       setModalLoading(true);
       

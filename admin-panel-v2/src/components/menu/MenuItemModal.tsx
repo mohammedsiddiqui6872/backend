@@ -1,46 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Loader2, Plus, Trash2 } from 'lucide-react';
-
-interface MenuItem {
-  _id?: string;
-  id?: number;
-  name: string;
-  nameAr?: string;
-  category: string;
-  price: number;
-  cost?: number;
-  description: string;
-  descriptionAr?: string;
-  image?: string;
-  images?: string[];
-  available: boolean;
-  inStock: boolean;
-  stockQuantity?: number;
-  allergens?: string[];
-  dietary?: string[];
-  prepTime?: number;
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fat?: number;
-  isSpecial?: boolean;
-  discount?: number;
-  recommended?: boolean;
-  featured?: boolean;
-  customizations?: any;
-  tags?: string[];
-}
-
-interface Category {
-  _id: string;
-  name: string;
-  slug: string;
-}
+import { MenuItem, MenuItemInput, Category } from '../../types/menu';
 
 interface MenuItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: MenuItem) => void;
+  onSave: (item: MenuItemInput) => Promise<void>;
   item: MenuItem | null;
   categories: Category[];
   isLoading?: boolean;
@@ -54,7 +19,7 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
   categories,
   isLoading = false
 }) => {
-  const [formData, setFormData] = useState<MenuItem>({
+  const [formData, setFormData] = useState<MenuItemInput>({
     name: '',
     nameAr: '',
     category: '',

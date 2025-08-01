@@ -1,23 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Loader2 } from 'lucide-react';
-
-interface Category {
-  _id?: string;
-  name: string;
-  nameAr?: string;
-  slug?: string;
-  icon: string;
-  image?: string;
-  displayOrder: number;
-  isActive: boolean;
-  description?: string;
-  descriptionAr?: string;
-}
+import { Category, CategoryInput } from '../../types/menu';
 
 interface CategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (category: Category) => void;
+  onSave: (category: CategoryInput) => Promise<void>;
   category: Category | null;
   isLoading?: boolean;
 }
@@ -29,9 +17,10 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   category,
   isLoading = false
 }) => {
-  const [formData, setFormData] = useState<Category>({
+  const [formData, setFormData] = useState<CategoryInput>({
     name: '',
     nameAr: '',
+    slug: '',
     icon: 'utensils',
     displayOrder: 0,
     isActive: true,
@@ -51,6 +40,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
       setFormData({
         name: '',
         nameAr: '',
+        slug: '',
         icon: 'utensils',
         displayOrder: 0,
         isActive: true,
