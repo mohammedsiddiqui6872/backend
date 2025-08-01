@@ -292,14 +292,31 @@ router.post('/', authenticate, async (req, res) => {
     if (req.tenantId) {
       tableFilter.tenantId = req.tenantId;
     }
-    await Table.findOneAndUpdate(
+    const table = await Table.findOneAndUpdate(
       tableFilter,
       { 
         status: 'occupied',
         currentOrder: order._id,
-        currentGuests: customerSession?.occupancy || 1
-      }
+        currentGuests: customerSession?.occupancy || 1,
+        sessionStartTime: new Date()
+      },
+      { new: true }
     );
+
+    // Process status rules for order placed event
+    const ruleEngine = req.app.get('ruleEngine');
+    if (ruleEngine) {
+      await ruleEngine.processEvent(
+        req.tenantId,
+        'order_placed',
+        orderData.tableNumber,
+        {
+          order_id: order._id,
+          order_amount: order.totalAmount,
+          customer_name: order.customerName
+        }
+      );
+    }
     
     // Notify the specific waiter via socket
     if (req.app.get('io')) {
@@ -833,6 +850,22 @@ router.post('/:orderId/payment', authenticate, async (req, res) => {
       await customerSession.save();
     }
     
+    // Process status rules for payment completion event
+    const ruleEngine = req.app.get('ruleEngine');
+    if (ruleEngine) {
+      await ruleEngine.processEvent(
+        req.tenantId,
+        'payment_completed',
+        order.tableNumber,
+        {
+          order_id: order._id,
+          payment_amount: order.total,
+          payment_method: paymentMethod,
+          customer_name: order.customerName
+        }
+      );
+    }
+
     // Emit socket event
     if (req.app.get('io')) {
       req.app.get('io').emit('order-paid', {

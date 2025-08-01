@@ -69,6 +69,22 @@ router.post('/process', authenticate, async (req, res) => {
       { status: 'available', currentOrder: null }
     );
 
+    // Process status rules for payment completion event
+    const ruleEngine = req.app.get('ruleEngine');
+    if (ruleEngine) {
+      await ruleEngine.processEvent(
+        req.tenantId,
+        'payment_completed',
+        order.tableNumber,
+        {
+          order_id: order._id,
+          payment_amount: amount + tip,
+          payment_method: method,
+          customer_name: order.customerName
+        }
+      );
+    }
+
     // Emit payment confirmation
     req.app.get('io').emit('payment-processed', {
       orderId: order._id,

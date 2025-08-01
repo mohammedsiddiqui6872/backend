@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Plus, Edit2, Trash2, Layers, Save, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Plus, Edit2, Trash2, Layers, Save, Loader2, Upload, Image } from 'lucide-react';
 import { TableLayout, Floor, Section } from '../../types/table';
 import { tableAPI } from '../../services/tableAPI';
 
@@ -17,6 +17,7 @@ interface FloorFormData {
     width: number;
     height: number;
   };
+  backgroundImage?: string;
 }
 
 interface SectionFormData {
@@ -36,6 +37,8 @@ const FloorManager: React.FC<FloorManagerProps> = ({
   const [editingFloor, setEditingFloor] = useState<Floor | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [floorForm, setFloorForm] = useState<FloorFormData>({
     name: '',
@@ -52,6 +55,40 @@ const FloorManager: React.FC<FloorManagerProps> = ({
     '#6B7280', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', 
     '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#84CC16'
   ];
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      alert('Image size must be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setFloorForm({ ...floorForm, backgroundImage: base64String });
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeBackgroundImage = () => {
+    setFloorForm({ ...floorForm, backgroundImage: undefined });
+  };
 
   const handleAddFloor = async () => {
     try {
@@ -79,7 +116,8 @@ const FloorManager: React.FC<FloorManagerProps> = ({
       await tableAPI.updateFloor(editingFloor.id, {
         name: floorForm.name,
         displayOrder: floorForm.displayOrder,
-        dimensions: floorForm.dimensions
+        dimensions: floorForm.dimensions,
+        backgroundImage: floorForm.backgroundImage
       });
       await onUpdate();
       setEditingFloor(null);
@@ -137,7 +175,8 @@ const FloorManager: React.FC<FloorManagerProps> = ({
     setFloorForm({
       name: floor.name,
       displayOrder: floor.displayOrder,
-      dimensions: floor.dimensions
+      dimensions: floor.dimensions,
+      backgroundImage: floor.backgroundImage
     });
   };
 
@@ -267,6 +306,53 @@ const FloorManager: React.FC<FloorManagerProps> = ({
                       />
                     </div>
                   </div>
+                  
+                  {/* Background Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Floor Plan Image
+                    </label>
+                    <div className="space-y-2">
+                      {floorForm.backgroundImage ? (
+                        <div className="relative">
+                          <img 
+                            src={floorForm.backgroundImage} 
+                            alt="Floor plan" 
+                            className="w-full h-32 object-cover rounded-md border border-gray-300"
+                          />
+                          <button
+                            onClick={removeBackgroundImage}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-gray-400"
+                        >
+                          {uploadingImage ? (
+                            <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+                          ) : (
+                            <>
+                              <Upload className="h-8 w-8 text-gray-400" />
+                              <p className="mt-2 text-sm text-gray-500">Click to upload floor plan</p>
+                              <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="flex justify-end space-x-2">
                     <button
                       onClick={() => {

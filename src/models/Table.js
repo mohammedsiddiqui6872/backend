@@ -66,6 +66,12 @@ const tableSchema = new mongoose.Schema({
     averageOccupancyTime: { type: Number, default: 0 },
     lastOccupied: Date
   },
+  
+  // Status tracking fields for rule engine
+  sessionStartTime: Date,
+  statusChangedAt: { type: Date, default: Date.now },
+  statusChangeReason: String,
+  
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

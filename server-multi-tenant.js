@@ -15,6 +15,9 @@ const { tenantContext, ensureTenantIsolation } = require('./src/middleware/tenan
 const { enterpriseTenantIsolation, strictTenantIsolation, auditTenantAccess } = require('./src/middleware/enterpriseTenantIsolation');
 const { authenticate } = require('./src/middleware/auth');
 
+// Import table status rule engine
+const TableStatusRuleEngine = require('./src/services/tableStatusRuleEngine');
+
 // Initialize Express
 const app = express();
 app.set('trust proxy', 1);
@@ -52,6 +55,14 @@ const io = socketIo(server, {
 
 // Make io accessible to routes
 app.set('io', io);
+
+// Initialize table status rule engine
+const ruleEngine = new TableStatusRuleEngine(io);
+app.set('ruleEngine', ruleEngine);
+
+// Initialize session monitor
+const SessionMonitor = require('./src/jobs/sessionMonitor');
+const sessionMonitor = new SessionMonitor(io);
 
 // Security middleware
 app.use(compression());
@@ -175,6 +186,7 @@ app.use('/api/admin/categories', ensureTenantIsolation, require('./src/routes/ad
 app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
+app.use('/api/admin/table-status-rules', ensureTenantIsolation, require('./src/routes/admin/tableStatusRules'));
 
 // Enhanced team management routes - Using enterprise isolation
 app.use('/api/admin/team', require('./src/routes/team'));
@@ -293,4 +305,20 @@ server.listen(PORT, () => {
   console.log(`Multi-tenant server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Domain: gritservices.ae`);
+  
+  // Start session monitor
+  sessionMonitor.start();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  sessionMonitor.stop();
+  server.close(() => {
+    console.log('HTTP server closed');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
 });

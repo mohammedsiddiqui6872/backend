@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Grid3X3, Download, Upload, Layers, BarChart3, Settings, Search, Filter } from 'lucide-react';
+import { Plus, Grid3X3, Download, Upload, Layers, BarChart3, Settings, Search, Filter, Zap } from 'lucide-react';
 import { Table, TableLayout, TableInput } from '../types/table';
 import { tableAPI } from '../services/tableAPI';
 import TableCard from '../components/tables/TableCard';
@@ -9,8 +9,9 @@ import TableAnalytics from '../components/tables/TableAnalytics';
 import QRCodeManager from '../components/tables/QRCodeManager';
 import FloorManager from '../components/tables/FloorManager';
 import QRCodeViewer from '../components/tables/QRCodeViewer';
+import TableStatusRules from '../components/tables/TableStatusRules';
 
-type ViewMode = 'grid' | 'layout' | 'analytics';
+type ViewMode = 'grid' | 'layout' | 'analytics' | 'rules';
 
 const Tables = () => {
   const [tables, setTables] = useState<Table[]>([]);
@@ -203,6 +204,17 @@ const Tables = () => {
             <BarChart3 className="inline-block h-4 w-4 mr-2" />
             Analytics
           </button>
+          <button
+            onClick={() => setViewMode('rules')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              viewMode === 'rules'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Zap className="inline-block h-4 w-4 mr-2" />
+            Status Rules
+          </button>
         </nav>
       </div>
 
@@ -291,6 +303,10 @@ const Tables = () => {
           selectedTable={selectedTable}
           onSelectTable={setSelectedTable}
         />
+      )}
+
+      {viewMode === 'rules' && (
+        <TableStatusRules />
       )}
 
       {/* Modals */}
