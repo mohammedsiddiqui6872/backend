@@ -280,7 +280,15 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
   console.log('Headers:', req.headers);
   console.log('Content-Type:', req.get('content-type'));
   console.log('User ID:', req.params.id);
+  console.log('User permissions:', req.user?.permissions);
   console.log('Tenant:', req.tenant?.name);
+  
+  // Check if uploads directory exists
+  const uploadsDir = path.join(__dirname, '../../../uploads/profiles');
+  if (!require('fs').existsSync(uploadsDir)) {
+    require('fs').mkdirSync(uploadsDir, { recursive: true });
+    console.log('Created uploads directory:', uploadsDir);
+  }
   
   uploadDocuments.array('documents', 5)(req, res, (err) => {
     if (err) {
@@ -368,6 +376,22 @@ router.delete('/members/:id', authenticate, authorize(['users.delete']), enterpr
     console.error('Error deleting team member:', error);
     res.status(500).json({ success: false, message: 'Error deleting team member' });
   }
+});
+
+// Debug endpoint - check permissions
+router.get('/debug/permissions', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  res.json({
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role,
+      permissions: req.user.permissions || []
+    },
+    tenant: {
+      id: req.tenant?.tenantId,
+      name: req.tenant?.name
+    }
+  });
 });
 
 // Get team stats

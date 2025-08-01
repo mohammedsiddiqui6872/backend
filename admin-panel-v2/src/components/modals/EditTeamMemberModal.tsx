@@ -253,7 +253,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center p-6 border-b">
           <h3 className="text-lg font-medium text-gray-900">Edit Team Member</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
@@ -289,7 +289,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
           </nav>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-200px)]">
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
           <div className="p-6">
             {/* Basic Information Tab */}
             {activeTab === 'basic' && (
@@ -968,7 +968,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
 
             {/* Documents Tab */}
             {activeTab === 'documents' && (
-              <div className="space-y-4">
+              <div className="space-y-4 min-h-[400px]">
                 <div className="mb-4">
                   <h3 className="text-lg font-medium text-gray-900">Documents</h3>
                   <p className="text-sm text-gray-600">Upload and manage employee documents</p>
@@ -1018,7 +1018,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium text-gray-900">Upload New Documents</h4>
                   
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <CreditCard className="inline h-4 w-4 mr-1" />
