@@ -1,4 +1,4 @@
-const csv = require('csv-parser');
+const { parse } = require('csv-parse');
 const { Readable } = require('stream');
 
 /**
@@ -24,37 +24,44 @@ class TableCSVParser {
     return new Promise((resolve, reject) => {
       const stream = Readable.from(csvData.toString());
       
-      stream
-        .pipe(csv({
-          mapHeaders: ({ header }) => header.trim().toLowerCase(),
-          strict: false,
-          skipLinesWithError: false
-        }))
-        .on('data', (row) => {
+      const parser = parse({
+        columns: (header) => header.map(col => col.trim().toLowerCase()),
+        skip_empty_lines: true,
+        trim: true
+      });
+
+      parser.on('readable', () => {
+        let record;
+        while ((record = parser.read()) !== null) {
           rowNumber++;
-          const validation = this.validateRow(row, rowNumber);
+          const validation = this.validateRow(record, rowNumber);
           
           if (validation.isValid) {
             results.push(validation.data);
           } else {
             errors.push(...validation.errors);
           }
-        })
-        .on('error', (err) => {
-          reject(new Error(`CSV parsing error: ${err.message}`));
-        })
-        .on('end', () => {
-          resolve({
-            success: errors.length === 0,
-            tables: results,
-            errors,
-            summary: {
-              total: rowNumber,
-              successful: results.length,
-              failed: errors.length
-            }
-          });
+        }
+      });
+
+      parser.on('error', (err) => {
+        reject(new Error(`CSV parsing error: ${err.message}`));
+      });
+
+      parser.on('end', () => {
+        resolve({
+          success: errors.length === 0,
+          tables: results,
+          errors,
+          summary: {
+            total: rowNumber,
+            successful: results.length,
+            failed: errors.length
+          }
         });
+      });
+
+      stream.pipe(parser);
     });
   }
 
