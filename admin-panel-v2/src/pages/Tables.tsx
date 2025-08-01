@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Grid3X3, Download, Upload, Layers, BarChart3, Settings, Search, Filter, Zap } from 'lucide-react';
+import { Plus, Grid3X3, Download, Upload, Layers, BarChart3, Settings, Search, Filter, Zap, FileUp } from 'lucide-react';
 import { Table, TableLayout, TableInput } from '../types/table';
 import { tableAPI } from '../services/tableAPI';
 import TableCard from '../components/tables/TableCard';
@@ -11,6 +11,7 @@ import QRCodeManager from '../components/tables/QRCodeManager';
 import FloorManager from '../components/tables/FloorManager';
 import QRCodeViewer from '../components/tables/QRCodeViewer';
 import TableStatusRules from '../components/tables/TableStatusRules';
+import TableImport from '../components/tables/TableImport';
 
 type ViewMode = 'grid' | 'layout' | 'analytics' | 'rules';
 
@@ -29,6 +30,7 @@ const Tables = () => {
   const [showQRViewer, setShowQRViewer] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -148,6 +150,13 @@ const Tables = () => {
           >
             <Layers className="h-4 w-4 mr-2" />
             Floors
+          </button>
+          <button
+            onClick={() => setShowImport(true)}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <FileUp className="h-4 w-4 mr-2" />
+            Import CSV
           </button>
           <button
             onClick={() => setShowQRManager(true)}
@@ -361,6 +370,16 @@ const Tables = () => {
           table={selectedTable}
           floorName={layout?.floors.find(f => f.id === selectedTable.location.floor)?.name}
           sectionName={layout?.floors.find(f => f.id === selectedTable.location.floor)?.sections.find(s => s.id === selectedTable.location.section)?.name}
+        />
+      )}
+
+      {showImport && (
+        <TableImport
+          onClose={() => setShowImport(false)}
+          onImportComplete={() => {
+            setShowImport(false);
+            fetchData();
+          }}
         />
       )}
     </div>

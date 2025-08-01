@@ -318,6 +318,17 @@ router.post('/', authenticate, async (req, res) => {
       );
     }
     
+    // Track in session metrics
+    const sessionMetricsService = req.app.get('sessionMetricsService');
+    if (sessionMetricsService) {
+      await sessionMetricsService.trackOrderPlaced(
+        req.tenantId,
+        orderData.tableNumber,
+        order,
+        tableSession.waiter._id
+      );
+    }
+    
     // Notify the specific waiter via socket
     if (req.app.get('io')) {
       const io = req.app.get('io');

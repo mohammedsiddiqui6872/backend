@@ -84,6 +84,17 @@ router.post('/process', authenticate, async (req, res) => {
         }
       );
     }
+    
+    // Track payment in session metrics
+    const sessionMetricsService = req.app.get('sessionMetricsService');
+    if (sessionMetricsService) {
+      await sessionMetricsService.trackPaymentCompleted(
+        req.tenantId,
+        order.tableNumber,
+        payment,
+        tip
+      );
+    }
 
     // Emit payment confirmation
     req.app.get('io').emit('payment-processed', {
