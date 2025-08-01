@@ -14,7 +14,8 @@ router.use(authorize('admin', 'manager'));
 // Get all categories
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find()
+    const filter = req.tenantId ? { tenantId: req.tenantId } : {};
+    const categories = await Category.find(filter)
       .sort({ displayOrder: 1, name: 1 });
     res.json(categories);
   } catch (error) {
@@ -26,6 +27,11 @@ router.get('/', async (req, res) => {
 router.post('/', cloudinaryUpload.single('image'), async (req, res) => {
   try {
     const categoryData = req.body;
+    
+    // Add tenant ID
+    if (req.tenantId) {
+      categoryData.tenantId = req.tenantId;
+    }
     
     // Handle image upload
     if (req.file) {
@@ -44,7 +50,9 @@ router.post('/', cloudinaryUpload.single('image'), async (req, res) => {
     const category = new Category(categoryData);
     await category.save();
     
-    clearCategoryCache();
+    if (typeof clearCategoryCache === 'function') {
+      clearCategoryCache();
+    }
     
     res.status(201).json(category);
   } catch (error) {
@@ -57,8 +65,12 @@ router.put('/:id', cloudinaryUpload.single('image'), async (req, res) => {
   try {
     const categoryData = req.body;
     
-    // Find existing category
-    const existingCategory = await Category.findById(req.params.id);
+    // Find existing category with tenant filter
+    const filter = { _id: req.params.id };
+    if (req.tenantId) {
+      filter.tenantId = req.tenantId;
+    }
+    const existingCategory = await Category.findOne(filter);
     if (!existingCategory) {
       return res.status(404).json({ error: 'Category not found' });
     }
@@ -88,13 +100,19 @@ router.put('/:id', cloudinaryUpload.single('image'), async (req, res) => {
       delete categoryData.uploadImage;
     }
     
-    const category = await Category.findByIdAndUpdate(
-      req.params.id,
+    const updateFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      updateFilter.tenantId = req.tenantId;
+    }
+    const category = await Category.findOneAndUpdate(
+      updateFilter,
       categoryData,
       { new: true, runValidators: true }
     );
     
-    clearCategoryCache();
+    if (typeof clearCategoryCache === 'function') {
+      clearCategoryCache();
+    }
     
     res.json(category);
   } catch (error) {
@@ -105,14 +123,22 @@ router.put('/:id', cloudinaryUpload.single('image'), async (req, res) => {
 // Delete category (with image cleanup)
 router.delete('/:id', async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const filter = { _id: req.params.id };
+    if (req.tenantId) {
+      filter.tenantId = req.tenantId;
+    }
+    const category = await Category.findOne(filter);
     
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
     }
     
     // Check if category has menu items
-    const itemCount = await MenuItem.countDocuments({ category: category.slug });
+    const itemFilter = { category: category.slug };
+    if (req.tenantId) {
+      itemFilter.tenantId = req.tenantId;
+    }
+    const itemCount = await MenuItem.countDocuments(itemFilter);
     
     if (itemCount > 0) {
       return res.status(400).json({ 
@@ -126,9 +152,15 @@ router.delete('/:id', async (req, res) => {
       await deleteImage(`restaurant/categories/${publicId}`).catch(console.error);
     }
     
-    await Category.deleteOne({ _id: req.params.id });
+    const deleteFilter = { _id: req.params.id };
+    if (req.tenantId) {
+      deleteFilter.tenantId = req.tenantId;
+    }
+    await Category.deleteOne(deleteFilter);
     
-    clearCategoryCache();
+    if (typeof clearCategoryCache === 'function') {
+      clearCategoryCache();
+    }
     
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {

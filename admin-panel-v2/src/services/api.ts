@@ -238,11 +238,35 @@ export const menuAPI = {
   getCategories: () => 
     api.get('/admin/categories'),
   
-  addCategory: (data: any) => 
-    api.post('/admin/categories', data),
+  addCategory: (data: any) => {
+    // If uploadImage is present, send as JSON (base64)
+    if (data.uploadImage) {
+      return api.post('/admin/categories', data);
+    }
+    // Otherwise, create FormData for file upload
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== null) {
+        formData.append(key, data[key]);
+      }
+    });
+    return api.post('/admin/categories', formData);
+  },
   
-  updateCategory: (id: string, data: any) => 
-    api.put(`/admin/categories/${id}`, data),
+  updateCategory: (id: string, data: any) => {
+    // If uploadImage is present, send as JSON (base64)
+    if (data.uploadImage) {
+      return api.put(`/admin/categories/${id}`, data);
+    }
+    // Otherwise, create FormData for file upload
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== null) {
+        formData.append(key, data[key]);
+      }
+    });
+    return api.put(`/admin/categories/${id}`, formData);
+  },
   
   deleteCategory: (id: string) => 
     api.delete(`/admin/categories/${id}`),
@@ -250,11 +274,45 @@ export const menuAPI = {
   getItems: () => 
     api.get('/admin/menu'),
   
-  addItem: (data: any) => 
-    api.post('/admin/menu', data),
+  addItem: (data: any) => {
+    // If uploadImage is present, send as JSON (base64)
+    if (data.uploadImage) {
+      return api.post('/admin/menu', data);
+    }
+    // Otherwise, create FormData for file upload
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== null) {
+        if (key === 'allergens' || key === 'dietary' || key === 'tags') {
+          // Convert arrays to JSON strings for FormData
+          formData.append(key, JSON.stringify(data[key]));
+        } else {
+          formData.append(key, data[key]);
+        }
+      }
+    });
+    return api.post('/admin/menu', formData);
+  },
   
-  updateItem: (id: string, data: any) => 
-    api.put(`/admin/menu/${id}`, data),
+  updateItem: (id: string, data: any) => {
+    // If uploadImage is present, send as JSON (base64)
+    if (data.uploadImage) {
+      return api.put(`/admin/menu/${id}`, data);
+    }
+    // Otherwise, create FormData for file upload
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== null) {
+        if (key === 'allergens' || key === 'dietary' || key === 'tags') {
+          // Convert arrays to JSON strings for FormData
+          formData.append(key, JSON.stringify(data[key]));
+        } else {
+          formData.append(key, data[key]);
+        }
+      }
+    });
+    return api.put(`/admin/menu/${id}`, formData);
+  },
   
   deleteItem: (id: string) => 
     api.delete(`/admin/menu/${id}`),
@@ -262,9 +320,7 @@ export const menuAPI = {
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append('image', file);
-    return api.post('/admin/menu/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return api.post('/admin/menu/upload', formData);
   },
 };
 
