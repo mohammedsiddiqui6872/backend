@@ -40,9 +40,44 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
     offsetX: 0,
     offsetY: 0
   });
+  const [localTables, setLocalTables] = useState<Table[]>([]);
+
+  useEffect(() => {
+    // Auto-arrange tables that are all at position 0,0
+    const tablesNeedArrangement = tables.filter(t => 
+      t.location.floor === selectedFloor && 
+      t.location.x === 0 && 
+      t.location.y === 0
+    ).length > 1;
+
+    if (tablesNeedArrangement) {
+      // Arrange tables in a grid if they're all at 0,0
+      const arrangedTables = tables.map((table, index) => {
+        if (table.location.floor === selectedFloor && table.location.x === 0 && table.location.y === 0) {
+          const cols = 5; // 5 tables per row
+          const spacing = 100; // pixels between tables
+          const row = Math.floor(index / cols);
+          const col = index % cols;
+          
+          return {
+            ...table,
+            location: {
+              ...table.location,
+              x: col * spacing + 50,
+              y: row * spacing + 50
+            }
+          };
+        }
+        return table;
+      });
+      setLocalTables(arrangedTables);
+    } else {
+      setLocalTables(tables);
+    }
+  }, [tables, selectedFloor]);
 
   const floor = layout.floors.find(f => f.id === selectedFloor);
-  const floorTables = tables.filter(t => t.location.floor === selectedFloor);
+  const floorTables = localTables.filter(t => t.location.floor === selectedFloor);
 
   const getStatusColor = (status: TableStatus) => {
     switch (status) {
@@ -79,7 +114,10 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
   const handleMouseDown = (e: React.MouseEvent, table: Table) => {
     if (e.button !== 0) return; // Only left click
 
-    const rect = canvasRef.current?.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
     if (!rect) return;
 
     setSelectedTable(table);
@@ -106,18 +144,19 @@ const TableLayoutDesigner: React.FC<TableLayoutDesignerProps> = ({
     const snapX = layout.snapToGrid ? Math.round(x / layout.gridSize.width) * layout.gridSize.width : x;
     const snapY = layout.snapToGrid ? Math.round(y / layout.gridSize.height) * layout.gridSize.height : y;
 
-    const table = tables.find(t => t._id === dragState.tableId);
-    if (table) {
-      // Update table position locally for smooth dragging
-      table.location.x = snapX;
-      table.location.y = snapY;
-    }
+    // Update local tables state for smooth dragging without API calls
+    setLocalTables(prev => prev.map(table => 
+      table._id === dragState.tableId 
+        ? { ...table, location: { ...table.location, x: snapX, y: snapY } }
+        : table
+    ));
   };
 
   const handleMouseUp = async () => {
     if (dragState.isDragging && dragState.tableId) {
-      const table = tables.find(t => t._id === dragState.tableId);
+      const table = localTables.find(t => t._id === dragState.tableId);
       if (table) {
+        // Only update the table position on the server when drag is complete
         await onTableUpdate(table);
       }
     }
