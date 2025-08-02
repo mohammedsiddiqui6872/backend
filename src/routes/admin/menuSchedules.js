@@ -6,8 +6,34 @@ const ModifierGroup = require('../../models/ModifierGroup');
 const { authenticate, authorize } = require('../../middleware/auth');
 const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 
+// Helper to make authorize work with both patterns
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Admin always has access
+    if (req.user.role === 'admin') {
+      return next();
+    }
+    
+    // Check if user's role is in allowed roles
+    if (roles.includes(req.user.role)) {
+      return next();
+    }
+    
+    return res.status(403).json({ error: 'Access denied' });
+  };
+};
+
+// Apply authentication and tenant isolation to all routes
+router.use(authenticate);
+router.use(authorizeRoles('admin', 'manager'));
+router.use(enterpriseTenantIsolation);
+
 // Get all menu schedules
-router.get('/', authenticate, authorize(['menu.view']), enterpriseTenantIsolation, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { isActive, channelId } = req.query;
     
@@ -48,7 +74,7 @@ router.get('/', authenticate, authorize(['menu.view']), enterpriseTenantIsolatio
 });
 
 // Get active menu for current time
-router.get('/active', authenticate, enterpriseTenantIsolation, async (req, res) => {
+router.get('/active', async (req, res) => {
   try {
     const { channelId } = req.query;
     
@@ -124,7 +150,7 @@ router.get('/active', authenticate, enterpriseTenantIsolation, async (req, res) 
 });
 
 // Get single schedule
-router.get('/:id', authenticate, authorize(['menu.view']), enterpriseTenantIsolation, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const schedule = await MenuSchedule.findOne({
       _id: req.params.id,
@@ -157,7 +183,7 @@ router.get('/:id', authenticate, authorize(['menu.view']), enterpriseTenantIsola
 });
 
 // Create new schedule
-router.post('/', authenticate, authorize(['menu.manage']), enterpriseTenantIsolation, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const scheduleData = {
       ...req.body,
@@ -188,7 +214,7 @@ router.post('/', authenticate, authorize(['menu.manage']), enterpriseTenantIsola
 });
 
 // Update schedule
-router.put('/:id', authenticate, authorize(['menu.manage']), enterpriseTenantIsolation, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const schedule = await MenuSchedule.findOneAndUpdate(
       {
@@ -228,7 +254,7 @@ router.put('/:id', authenticate, authorize(['menu.manage']), enterpriseTenantIso
 });
 
 // Delete schedule
-router.delete('/:id', authenticate, authorize(['menu.manage']), enterpriseTenantIsolation, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const schedule = await MenuSchedule.findOneAndDelete({
       _id: req.params.id,
@@ -256,7 +282,7 @@ router.delete('/:id', authenticate, authorize(['menu.manage']), enterpriseTenant
 });
 
 // Initialize default schedules
-router.post('/initialize', authenticate, authorize(['menu.manage']), enterpriseTenantIsolation, async (req, res) => {
+router.post('/initialize', async (req, res) => {
   try {
     // Check if schedules already exist
     const existingSchedules = await MenuSchedule.find({ 
@@ -298,7 +324,7 @@ router.post('/initialize', authenticate, authorize(['menu.manage']), enterpriseT
 });
 
 // Check item availability
-router.get('/check-availability/:itemId', authenticate, enterpriseTenantIsolation, async (req, res) => {
+router.get('/check-availability/:itemId', async (req, res) => {
   try {
     const { channelId } = req.query;
     const { itemId } = req.params;
