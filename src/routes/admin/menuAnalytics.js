@@ -243,8 +243,31 @@ router.get('/sales-velocity', authenticate, authorize(['analytics.view', 'menu.v
       }
     ]);
 
+    // Get daily orders for trend calculation
+    const dailyOrdersPromises = menuItems.map(item => 
+      Order.aggregate([
+        {
+          $match: {
+            tenantId: req.tenant.tenantId,
+            createdAt: { $gte: startDate },
+            status: { $in: ['completed', 'delivered'] },
+            'items.menuItem': item._id
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            quantity: { $sum: '$items.quantity' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
+    );
+
+    const allDailyOrders = await Promise.all(dailyOrdersPromises);
+
     // Process data for each menu item
-    const velocityData = menuItems.map(item => {
+    const velocityData = menuItems.map((item, index) => {
       const itemId = item._id.toString();
       const itemHourlyData = hourlyOrders.filter(h => 
         h._id.menuItem && h._id.menuItem.toString() === itemId
@@ -277,23 +300,7 @@ router.get('/sales-velocity', authenticate, authorize(['analytics.view', 'menu.v
         .sort((a, b) => b[1] - a[1])[0];
 
       // Calculate trend (simple linear regression)
-      const dailyOrders = await Order.aggregate([
-        {
-          $match: {
-            tenantId: req.tenant.tenantId,
-            createdAt: { $gte: startDate },
-            status: { $in: ['completed', 'delivered'] },
-            'items.menuItem': item._id
-          }
-        },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            quantity: { $sum: '$items.quantity' }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ]);
+      const dailyOrders = allDailyOrders[index];
 
       // Simple trend calculation
       let trend = 'stable';
