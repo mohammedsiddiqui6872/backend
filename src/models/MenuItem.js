@@ -70,7 +70,31 @@ const menuItemSchema = new mongoose.Schema({
     default: []
   },
   soldCount: { type: Number, default: 0 },
-  viewCount: { type: Number, default: 0 }
+  viewCount: { type: Number, default: 0 },
+  
+  // Modifier groups
+  modifierGroups: [{
+    group: { type: mongoose.Schema.Types.ObjectId, ref: 'ModifierGroup' },
+    displayOrder: { type: Number, default: 0 }
+  }],
+  
+  // Multi-channel support
+  channelAvailability: [{
+    channel: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuChannel' },
+    isAvailable: { type: Boolean, default: true },
+    customPrice: Number, // If null, use default price
+    minQuantity: { type: Number, default: 1 },
+    maxQuantity: Number,
+    availableFrom: Date,
+    availableUntil: Date,
+    customPrepTime: Number // Channel-specific prep time
+  }],
+  
+  // Default channel settings (when not specified per channel)
+  defaultChannelSettings: {
+    availableForAllChannels: { type: Boolean, default: true },
+    excludedChannels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'MenuChannel' }]
+  }
 }, { timestamps: true });
 
 // Virtual properties for AdminJS upload feature
@@ -136,6 +160,58 @@ menuItemSchema.pre('save', function(next) {
   
   next();
 });
+
+// Channel-specific methods
+menuItemSchema.methods.isAvailableInChannel = function(channelId) {
+  // If available for all channels and not explicitly excluded
+  if (this.defaultChannelSettings.availableForAllChannels) {
+    const isExcluded = this.defaultChannelSettings.excludedChannels
+      .some(ch => ch.toString() === channelId.toString());
+    if (!isExcluded) return true;
+  }
+  
+  // Check specific channel availability
+  const channelConfig = this.channelAvailability
+    .find(ca => ca.channel.toString() === channelId.toString());
+  
+  if (!channelConfig) return false;
+  
+  // Check if available and within time range
+  if (!channelConfig.isAvailable) return false;
+  
+  const now = new Date();
+  if (channelConfig.availableFrom && now < channelConfig.availableFrom) return false;
+  if (channelConfig.availableUntil && now > channelConfig.availableUntil) return false;
+  
+  return true;
+};
+
+menuItemSchema.methods.getPriceForChannel = function(channelId) {
+  const channelConfig = this.channelAvailability
+    .find(ca => ca.channel.toString() === channelId.toString());
+  
+  if (channelConfig && channelConfig.customPrice !== null && channelConfig.customPrice !== undefined) {
+    return channelConfig.customPrice;
+  }
+  
+  return this.price;
+};
+
+menuItemSchema.methods.getPrepTimeForChannel = function(channelId) {
+  const channelConfig = this.channelAvailability
+    .find(ca => ca.channel.toString() === channelId.toString());
+  
+  if (channelConfig && channelConfig.customPrepTime) {
+    return channelConfig.customPrepTime;
+  }
+  
+  return this.prepTime;
+};
+
+menuItemSchema.methods.getChannelConfig = function(channelId) {
+  return this.channelAvailability
+    .find(ca => ca.channel.toString() === channelId.toString());
+};
 
 // Soft delete method
 menuItemSchema.methods.softDelete = function(deletedBy = null) {

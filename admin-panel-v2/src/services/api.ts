@@ -481,6 +481,78 @@ export const combosAPI = {
     api.post('/admin/combos/bulk-create', data),
 };
 
+// Modifier Groups API
+export const modifiersAPI = {
+  getModifierGroups: (params?: any) =>
+    api.get('/admin/modifiers', { params }),
+    
+  getModifierGroup: (id: string) =>
+    api.get(`/admin/modifiers/${id}`),
+    
+  createModifierGroup: (data: any) =>
+    api.post('/admin/modifiers', data),
+    
+  updateModifierGroup: (id: string, data: any) =>
+    api.put(`/admin/modifiers/${id}`, data),
+    
+  deleteModifierGroup: (id: string) =>
+    api.delete(`/admin/modifiers/${id}`),
+    
+  addToMenuItem: (modifierId: string, menuItemId: string, displayOrder?: number) =>
+    api.post(`/admin/modifiers/${modifierId}/menu-items/${menuItemId}`, { displayOrder }),
+    
+  removeFromMenuItem: (modifierId: string, menuItemId: string) =>
+    api.delete(`/admin/modifiers/${modifierId}/menu-items/${menuItemId}`),
+    
+  getAnalytics: (id: string) =>
+    api.get(`/admin/modifiers/${id}/analytics`),
+};
+
+// Menu Analytics API
+export const menuAnalyticsAPI = {
+  getProfitability: (params?: any) =>
+    api.get('/admin/menu-analytics/profitability', { params }),
+    
+  getSalesVelocity: (params?: any) =>
+    api.get('/admin/menu-analytics/sales-velocity', { params }),
+    
+  getMenuEngineering: (params?: any) =>
+    api.get('/admin/menu-analytics/menu-engineering', { params }),
+};
+
+// Channels API
+export const channelsAPI = {
+  getChannels: () =>
+    api.get('/admin/channels'),
+    
+  getChannel: (id: string) =>
+    api.get(`/admin/channels/${id}`),
+    
+  createChannel: (data: any) =>
+    api.post('/admin/channels', data),
+    
+  updateChannel: (id: string, data: any) =>
+    api.put(`/admin/channels/${id}`, data),
+    
+  deleteChannel: (id: string) =>
+    api.delete(`/admin/channels/${id}`),
+    
+  initializeChannels: () =>
+    api.post('/admin/channels/initialize'),
+    
+  reorderChannels: (channelOrders: { id: string; displayOrder: number }[]) =>
+    api.put('/admin/channels/reorder', { channelOrders }),
+    
+  getChannelMenuItems: (channelId: string, params?: any) =>
+    api.get(`/admin/channels/${channelId}/menu-items`, { params }),
+    
+  updateChannelMenuItem: (channelId: string, itemId: string, data: any) =>
+    api.put(`/admin/channels/${channelId}/menu-items/${itemId}`, data),
+    
+  bulkUpdateChannelItems: (channelId: string, action: string, itemIds: string[], data?: any) =>
+    api.put(`/admin/channels/${channelId}/menu-items/bulk`, { action, itemIds, data }),
+};
+
 // Tables API
 export const tablesAPI = {
   getTables: () => 

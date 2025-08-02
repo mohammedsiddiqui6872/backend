@@ -1,17 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Download, Upload, Loader2, AlertCircle } from 'lucide-react';
-import { menuAPI } from '../services/api';
+import { Plus, Search, Filter, Download, Upload, Loader2, AlertCircle, Package2, Settings, BarChart3, Globe } from 'lucide-react';
+import { menuAPI, combosAPI, modifiersAPI, channelsAPI } from '../services/api';
 import CategoryCard from '../components/menu/CategoryCard';
 import CategoryModal from '../components/menu/CategoryModal';
 import MenuItemCard from '../components/menu/MenuItemCard';
 import MenuItemModal from '../components/menu/MenuItemModal';
 import ImportExportModal from '../components/menu/ImportExportModal';
+import ComboCard from '../components/combos/ComboCard';
+import ComboModal from '../components/combos/ComboModal';
+import ModifierGroupModal from '../components/modifiers/ModifierGroupModal';
+import ModifierGroupCard from '../components/modifiers/ModifierGroupCard';
+import ProfitabilityDashboard from '../components/analytics/ProfitabilityDashboard';
+import SalesVelocityTracker from '../components/analytics/SalesVelocityTracker';
+import MenuEngineeringMatrix from '../components/analytics/MenuEngineeringMatrix';
+import ChannelCard from '../components/channels/ChannelCard';
+import ChannelModal from '../components/channels/ChannelModal';
 import { Category, MenuItem, CategoryInput, MenuItemInput } from '../types/menu';
+import { Combo } from '../types/combo';
+import { ModifierGroup } from '../types/modifiers';
+import { MenuChannel } from '../types/channel';
+import toast from 'react-hot-toast';
 
 const Menu = () => {
   const [activeTab, setActiveTab] = useState('items');
+  const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<'profitability' | 'velocity' | 'matrix'>('profitability');
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [combos, setCombos] = useState<Combo[]>([]);
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
+  const [channels, setChannels] = useState<MenuChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -19,8 +36,14 @@ const Menu = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showImportExportModal, setShowImportExportModal] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false);
+  const [showModifierModal, setShowModifierModal] = useState(false);
+  const [showChannelModal, setShowChannelModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
+  const [selectedModifier, setSelectedModifier] = useState<ModifierGroup | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<MenuChannel | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   
   // Filter states
@@ -38,9 +61,12 @@ const Menu = () => {
       setLoading(true);
       setError(null);
       
-      const [categoriesRes, itemsRes] = await Promise.all([
+      const [categoriesRes, itemsRes, combosRes, modifiersRes, channelsRes] = await Promise.all([
         menuAPI.getCategories(),
-        menuAPI.getItems()
+        menuAPI.getItems(),
+        combosAPI.getCombos(),
+        modifiersAPI.getModifierGroups(),
+        channelsAPI.getChannels()
       ]);
       
       console.log('Menu API Response:', itemsRes.data);
@@ -49,6 +75,9 @@ const Menu = () => {
       
       setCategories(categoriesRes.data);
       setMenuItems(itemsRes.data.items || itemsRes.data);
+      setCombos(combosRes.data.combos || combosRes.data || []);
+      setModifierGroups(modifiersRes.data.data || modifiersRes.data || []);
+      setChannels(channelsRes.data.data || channelsRes.data || []);
     } catch (err: any) {
       console.error('Error fetching menu data:', err);
       setError(err.response?.data?.error || 'Failed to load menu data');
@@ -194,6 +223,186 @@ const Menu = () => {
     return category?.name || slug;
   };
 
+  // Combo handlers
+  const handleAddCombo = () => {
+    setSelectedCombo(null);
+    setShowComboModal(true);
+  };
+
+  const handleEditCombo = (combo: Combo) => {
+    setSelectedCombo(combo);
+    setShowComboModal(true);
+  };
+
+  const handleSaveCombo = async (comboData: any) => {
+    try {
+      setModalLoading(true);
+      
+      if (selectedCombo) {
+        await combosAPI.updateCombo(selectedCombo._id, comboData);
+        toast.success('Combo updated successfully');
+      } else {
+        await combosAPI.createCombo(comboData);
+        toast.success('Combo created successfully');
+      }
+      
+      await fetchData();
+      setShowComboModal(false);
+    } catch (err: any) {
+      console.error('Error saving combo:', err);
+      toast.error(err.response?.data?.error || 'Failed to save combo');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeleteCombo = async (combo: Combo) => {
+    if (window.confirm(`Are you sure you want to delete "${combo.name}"?`)) {
+      try {
+        await combosAPI.deleteCombo(combo._id);
+        toast.success('Combo deleted successfully');
+        await fetchData();
+      } catch (err: any) {
+        console.error('Error deleting combo:', err);
+        toast.error(err.response?.data?.error || 'Failed to delete combo');
+      }
+    }
+  };
+
+  const handleToggleComboActive = async (combo: Combo) => {
+    try {
+      await combosAPI.updateCombo(combo._id, {
+        ...combo,
+        isActive: !combo.isActive
+      });
+      toast.success(`Combo ${combo.isActive ? 'deactivated' : 'activated'} successfully`);
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error updating combo:', err);
+      toast.error('Failed to update combo status');
+    }
+  };
+
+  // Modifier handlers
+  const handleAddModifier = () => {
+    setSelectedModifier(null);
+    setShowModifierModal(true);
+  };
+
+  // Channel handlers
+  const handleAddChannel = () => {
+    setSelectedChannel(null);
+    setShowChannelModal(true);
+  };
+
+  const handleEditChannel = (channel: MenuChannel) => {
+    setSelectedChannel(channel);
+    setShowChannelModal(true);
+  };
+
+  const handleSaveChannel = async (channelData: any) => {
+    try {
+      setModalLoading(true);
+      
+      if (selectedChannel) {
+        await channelsAPI.updateChannel(selectedChannel._id, channelData);
+        toast.success('Channel updated successfully');
+      } else {
+        await channelsAPI.createChannel(channelData);
+        toast.success('Channel created successfully');
+      }
+      
+      await fetchData();
+      setShowChannelModal(false);
+    } catch (err: any) {
+      console.error('Error saving channel:', err);
+      toast.error(err.response?.data?.error || 'Failed to save channel');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeleteChannel = async (channel: MenuChannel) => {
+    if (window.confirm(`Are you sure you want to delete "${channel.displayName}"?`)) {
+      try {
+        await channelsAPI.deleteChannel(channel._id);
+        toast.success('Channel deleted successfully');
+        await fetchData();
+      } catch (err: any) {
+        console.error('Error deleting channel:', err);
+        toast.error(err.response?.data?.error || 'Failed to delete channel');
+      }
+    }
+  };
+
+  const handleToggleChannelActive = async (channel: MenuChannel) => {
+    try {
+      await channelsAPI.updateChannel(channel._id, {
+        ...channel,
+        isActive: !channel.isActive
+      });
+      toast.success(`Channel ${channel.isActive ? 'deactivated' : 'activated'} successfully`);
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error updating channel:', err);
+      toast.error('Failed to update channel status');
+    }
+  };
+
+  const handleEditModifier = (modifier: ModifierGroup) => {
+    setSelectedModifier(modifier);
+    setShowModifierModal(true);
+  };
+
+  const handleSaveModifier = async (modifierData: Partial<ModifierGroup>) => {
+    try {
+      setModalLoading(true);
+      
+      if (selectedModifier) {
+        await modifiersAPI.updateModifierGroup(selectedModifier._id, modifierData);
+        toast.success('Modifier group updated successfully');
+      } else {
+        await modifiersAPI.createModifierGroup(modifierData);
+        toast.success('Modifier group created successfully');
+      }
+      
+      await fetchData();
+      setShowModifierModal(false);
+    } catch (err: any) {
+      console.error('Error saving modifier group:', err);
+      toast.error(err.response?.data?.error || 'Failed to save modifier group');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeleteModifier = async (modifier: ModifierGroup) => {
+    if (window.confirm(`Are you sure you want to delete "${modifier.name}"?`)) {
+      try {
+        await modifiersAPI.deleteModifierGroup(modifier._id);
+        toast.success('Modifier group deleted successfully');
+        await fetchData();
+      } catch (err: any) {
+        console.error('Error deleting modifier group:', err);
+        toast.error(err.response?.data?.error || 'Failed to delete modifier group');
+      }
+    }
+  };
+
+  const handleToggleModifierActive = async (modifier: ModifierGroup) => {
+    try {
+      await modifiersAPI.updateModifierGroup(modifier._id, {
+        ...modifier,
+        isActive: !modifier.isActive
+      });
+      toast.success(`Modifier group ${modifier.isActive ? 'deactivated' : 'activated'} successfully`);
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error updating modifier group:', err);
+      toast.error('Failed to update modifier group status');
+    }
+  };
+
   // Import/Export handlers
   const handleImport = async (data: any, type: 'categories' | 'items', format: 'csv' | 'json' | 'zip') => {
     try {
@@ -292,13 +501,21 @@ const Menu = () => {
             <Upload className="h-4 w-4 mr-2" />
             Import/Export
           </button>
-          <button 
-            onClick={activeTab === 'items' ? handleAddItem : handleAddCategory}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {activeTab === 'items' ? 'Item' : 'Category'}
-          </button>
+          {activeTab !== 'analytics' && (
+            <button 
+              onClick={() => {
+                if (activeTab === 'items') handleAddItem();
+                else if (activeTab === 'categories') handleAddCategory();
+                else if (activeTab === 'combos') handleAddCombo();
+                else if (activeTab === 'modifiers') handleAddModifier();
+                else if (activeTab === 'channels') handleAddChannel();
+              }}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add {activeTab === 'items' ? 'Item' : activeTab === 'categories' ? 'Category' : activeTab === 'combos' ? 'Combo' : activeTab === 'modifiers' ? 'Modifier Group' : 'Channel'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -324,6 +541,48 @@ const Menu = () => {
             }`}
           >
             Categories ({categories.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('combos')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'combos'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Combos ({combos.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('modifiers')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'modifiers'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Modifiers
+          </button>
+          <button
+            onClick={() => setActiveTab('channels')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === 'channels'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Globe className="h-4 w-4 mr-1" />
+            Channels ({channels.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === 'analytics'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Analytics
           </button>
         </nav>
       </div>
@@ -400,8 +659,8 @@ const Menu = () => {
             </div>
           </div>
 
-          {/* Items List */}
-          <div className="space-y-4">
+          {/* Items Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedItems.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                 <p className="text-gray-500">No menu items found</p>
@@ -460,6 +719,276 @@ const Menu = () => {
         </div>
       )}
 
+      {/* Combos Tab */}
+      {activeTab === 'combos' && (
+        <div className="space-y-4">
+          {/* Search and Filter for Combos */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Combos
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search combos..."
+                    className="pl-3 pr-10 w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Availability
+                </label>
+                <select
+                  value={availabilityFilter}
+                  onChange={(e) => setAvailabilityFilter(e.target.value)}
+                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="all">All Combos</option>
+                  <option value="available">Active</option>
+                  <option value="unavailable">Inactive</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sort by
+                </label>
+                <select
+                  value={priceSort}
+                  onChange={(e) => setPriceSort(e.target.value)}
+                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Default</option>
+                  <option value="asc">Price: Low to High</option>
+                  <option value="desc">Price: High to Low</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Combos Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {combos.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-white rounded-lg border border-gray-200">
+                <Package2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">No combos found</p>
+                <button
+                  onClick={handleAddCombo}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Combo
+                </button>
+              </div>
+            ) : (
+              combos
+                .filter(combo => {
+                  const matchesSearch = combo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                       combo.description?.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesAvailability = availabilityFilter === 'all' ||
+                                             (availabilityFilter === 'available' && combo.isActive) ||
+                                             (availabilityFilter === 'unavailable' && !combo.isActive);
+                  return matchesSearch && matchesAvailability;
+                })
+                .sort((a, b) => {
+                  if (priceSort === 'asc') return a.price - b.price;
+                  if (priceSort === 'desc') return b.price - a.price;
+                  return 0;
+                })
+                .map((combo) => (
+                  <ComboCard
+                    key={combo._id}
+                    combo={combo}
+                    onEdit={handleEditCombo}
+                    onDelete={handleDeleteCombo}
+                    onToggleActive={handleToggleComboActive}
+                  />
+                ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modifiers Tab */}
+      {activeTab === 'modifiers' && (
+        <div className="space-y-4">
+          {/* Search and Filter for Modifiers */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Modifiers
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search modifier groups..."
+                    className="pl-3 pr-10 w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type
+                </label>
+                <select
+                  value={availabilityFilter}
+                  onChange={(e) => setAvailabilityFilter(e.target.value)}
+                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="single">Single Selection</option>
+                  <option value="multiple">Multiple Selection</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={priceSort}
+                  onChange={(e) => setPriceSort(e.target.value)}
+                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Modifiers Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modifierGroups.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-white rounded-lg border border-gray-200">
+                <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">No modifier groups found</p>
+                <button
+                  onClick={handleAddModifier}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Modifier Group
+                </button>
+              </div>
+            ) : (
+              modifierGroups
+                .filter(modifier => {
+                  const matchesSearch = modifier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                       modifier.description?.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesType = availabilityFilter === 'all' || modifier.type === availabilityFilter;
+                  const matchesStatus = priceSort === '' || 
+                                       (priceSort === 'active' && modifier.isActive) ||
+                                       (priceSort === 'inactive' && !modifier.isActive);
+                  return matchesSearch && matchesType && matchesStatus;
+                })
+                .sort((a, b) => a.displayOrder - b.displayOrder)
+                .map((modifier) => (
+                  <ModifierGroupCard
+                    key={modifier._id}
+                    modifierGroup={modifier}
+                    onEdit={handleEditModifier}
+                    onDelete={handleDeleteModifier}
+                    onToggleActive={handleToggleModifierActive}
+                  />
+                ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Channels Tab */}
+      {activeTab === 'channels' && (
+        <div className="space-y-4">
+          {channels.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-white rounded-lg border border-gray-200">
+              <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 mb-4">No channels configured</p>
+              <button
+                onClick={handleAddChannel}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Channel
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {channels
+                .sort((a, b) => a.displayOrder - b.displayOrder)
+                .map((channel) => (
+                  <ChannelCard
+                    key={channel._id}
+                    channel={channel}
+                    onEdit={handleEditChannel}
+                    onDelete={handleDeleteChannel}
+                    onToggleActive={handleToggleChannelActive}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Analytics Tab */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          {/* Analytics Sub-tabs */}
+          <div className="bg-white rounded-lg shadow p-1">
+            <nav className="flex space-x-1">
+              <button
+                onClick={() => setActiveAnalyticsTab('profitability')}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                  activeAnalyticsTab === 'profitability'
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Profitability Analysis
+              </button>
+              <button
+                onClick={() => setActiveAnalyticsTab('velocity')}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                  activeAnalyticsTab === 'velocity'
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Sales Velocity
+              </button>
+              <button
+                onClick={() => setActiveAnalyticsTab('matrix')}
+                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                  activeAnalyticsTab === 'matrix'
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Menu Engineering
+              </button>
+            </nav>
+          </div>
+
+          {/* Analytics Content */}
+          {activeAnalyticsTab === 'profitability' && <ProfitabilityDashboard />}
+          {activeAnalyticsTab === 'velocity' && <SalesVelocityTracker />}
+          {activeAnalyticsTab === 'matrix' && <MenuEngineeringMatrix />}
+        </div>
+      )}
+
       {/* Modals */}
       <CategoryModal
         isOpen={showCategoryModal}
@@ -485,6 +1014,43 @@ const Menu = () => {
         onExport={handleExport}
         type={activeTab === 'items' ? 'items' : 'categories'}
       />
+
+      {showComboModal && (
+        <ComboModal
+          isOpen={showComboModal}
+          onClose={() => {
+            setShowComboModal(false);
+            setSelectedCombo(null);
+          }}
+          combo={selectedCombo}
+          menuItems={menuItems}
+          onSave={handleSaveCombo}
+        />
+      )}
+
+      {showModifierModal && (
+        <ModifierGroupModal
+          isOpen={showModifierModal}
+          onClose={() => {
+            setShowModifierModal(false);
+            setSelectedModifier(null);
+          }}
+          modifierGroup={selectedModifier}
+          onSave={handleSaveModifier}
+        />
+      )}
+
+      {showChannelModal && (
+        <ChannelModal
+          isOpen={showChannelModal}
+          onClose={() => {
+            setShowChannelModal(false);
+            setSelectedChannel(null);
+          }}
+          channel={selectedChannel}
+          onSave={handleSaveChannel}
+        />
+      )}
     </div>
   );
 };

@@ -10,7 +10,8 @@ import {
   LogOut,
   ChefHat,
   Clock,
-  Package2
+  Package2,
+  PieChart
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
@@ -54,7 +55,6 @@ const Layout = () => {
     { path: '/team', icon: Users, label: 'Team' },
     { path: '/shifts', icon: Clock, label: 'Shifts' },
     { path: '/menu', icon: MenuSquare, label: 'Menu' },
-    { path: '/combos', icon: Package2, label: 'Combos' },
     { path: '/tables', icon: Grid3X3, label: 'Tables' },
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },

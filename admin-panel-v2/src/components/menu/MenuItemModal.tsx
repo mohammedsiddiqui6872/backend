@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Upload, Loader2, Plus, Trash2 } from 'lucide-react';
 import { MenuItem, MenuItemInput, Category } from '../../types/menu';
 import { compressImage } from '../../utils/imageUtils';
+import MenuItemModifiers from './MenuItemModifiers';
 
 interface MenuItemModalProps {
   isOpen: boolean;
@@ -38,7 +39,8 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
     discount: 0,
     allergens: [],
     dietary: [],
-    tags: []
+    tags: [],
+    modifierGroups: []
   });
   
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -232,6 +234,16 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
               }`}
             >
               Media
+            </button>
+            <button
+              onClick={() => setActiveTab('modifiers')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'modifiers'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Modifiers
             </button>
           </nav>
         </div>
@@ -712,6 +724,17 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                   Additional image gallery functionality coming soon. You'll be able to upload multiple images for each menu item.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Modifiers Tab */}
+          {activeTab === 'modifiers' && (
+            <div className="space-y-4">
+              <MenuItemModifiers
+                menuItemId={item?._id}
+                modifierGroups={formData.modifierGroups || []}
+                onChange={(modifiers) => setFormData({ ...formData, modifierGroups: modifiers })}
+              />
             </div>
           )}
 

@@ -250,7 +250,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ isOpen, onClose, menuItem, on
       {/* Modal */}
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl">
+          <div className="relative w-full max-w-3xl bg-white rounded-lg shadow-xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div className="flex items-center space-x-2">
@@ -266,7 +266,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ isOpen, onClose, menuItem, on
             </div>
 
             {/* Content */}
-            <div className="max-h-[calc(100vh-200px)] overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="space-y-6">
         {loading ? (
           <div className="flex items-center justify-center py-8">

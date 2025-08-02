@@ -47,6 +47,10 @@ export interface MenuItem {
   customizations?: any;
   tags?: string[];
   tenantId?: string;
+  modifierGroups?: Array<{
+    group: string;
+    displayOrder: number;
+  }>;
 }
 
 // For creating new items where _id doesn't exist yet
