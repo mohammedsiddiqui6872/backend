@@ -15,11 +15,13 @@ import SalesVelocityTracker from '../components/analytics/SalesVelocityTracker';
 import MenuEngineeringMatrix from '../components/analytics/MenuEngineeringMatrix';
 import ChannelCard from '../components/channels/ChannelCard';
 import ChannelModal from '../components/channels/ChannelModal';
+import SchedulesTab from '../components/menu/SchedulesTab';
 import { Category, MenuItem, CategoryInput, MenuItemInput } from '../types/menu';
 import { Combo } from '../types/combo';
 import { ModifierGroup } from '../types/modifiers';
 import { MenuChannel } from '../types/channel';
 import toast from 'react-hot-toast';
+import { Calendar } from 'lucide-react';
 
 const Menu = () => {
   const [activeTab, setActiveTab] = useState('items');
@@ -501,7 +503,7 @@ const Menu = () => {
             <Upload className="h-4 w-4 mr-2" />
             Import/Export
           </button>
-          {activeTab !== 'analytics' && (
+          {activeTab !== 'analytics' && activeTab !== 'schedules' && (
             <button 
               onClick={() => {
                 if (activeTab === 'items') handleAddItem();
@@ -509,11 +511,12 @@ const Menu = () => {
                 else if (activeTab === 'combos') handleAddCombo();
                 else if (activeTab === 'modifiers') handleAddModifier();
                 else if (activeTab === 'channels') handleAddChannel();
+                else if (activeTab === 'schedules') toast('Use the Add Schedule button in the Schedules tab', { icon: 'ℹ️' });
               }}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add {activeTab === 'items' ? 'Item' : activeTab === 'categories' ? 'Category' : activeTab === 'combos' ? 'Combo' : activeTab === 'modifiers' ? 'Modifier Group' : 'Channel'}
+              Add {activeTab === 'items' ? 'Item' : activeTab === 'categories' ? 'Category' : activeTab === 'combos' ? 'Combo' : activeTab === 'modifiers' ? 'Modifier Group' : activeTab === 'channels' ? 'Channel' : 'Schedule'}
             </button>
           )}
         </div>
@@ -572,6 +575,17 @@ const Menu = () => {
           >
             <Globe className="h-4 w-4 mr-1" />
             Channels ({channels.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('schedules')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === 'schedules'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Calendar className="h-4 w-4 mr-1" />
+            Schedules
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -941,6 +955,14 @@ const Menu = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Schedules Tab */}
+      {activeTab === 'schedules' && (
+        <SchedulesTab 
+          menuItems={menuItems}
+          modifierGroups={modifierGroups}
+        />
       )}
 
       {/* Analytics Tab */}

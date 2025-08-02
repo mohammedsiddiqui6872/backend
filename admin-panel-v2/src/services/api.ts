@@ -553,6 +553,33 @@ export const channelsAPI = {
     api.put(`/admin/channels/${channelId}/menu-items/bulk`, { action, itemIds, data }),
 };
 
+// Menu Schedules API
+export const menuSchedulesAPI = {
+  getSchedules: (params?: any) =>
+    api.get('/admin/menu-schedules', { params }),
+    
+  getSchedule: (id: string) =>
+    api.get(`/admin/menu-schedules/${id}`),
+    
+  getActiveMenu: (channelId?: string) =>
+    api.get('/admin/menu-schedules/active', { params: { channelId } }),
+    
+  createSchedule: (data: any) =>
+    api.post('/admin/menu-schedules', data),
+    
+  updateSchedule: (id: string, data: any) =>
+    api.put(`/admin/menu-schedules/${id}`, data),
+    
+  deleteSchedule: (id: string) =>
+    api.delete(`/admin/menu-schedules/${id}`),
+    
+  initializeDefaults: () =>
+    api.post('/admin/menu-schedules/initialize'),
+    
+  checkItemAvailability: (itemId: string, channelId?: string) =>
+    api.get(`/admin/menu-schedules/check-availability/${itemId}`, { params: { channelId } }),
+};
+
 // Tables API
 export const tablesAPI = {
   getTables: () => 

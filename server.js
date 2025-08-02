@@ -297,6 +297,14 @@ app.use('/api/admin/tables', require('./src/routes/admin/tables'));
 app.use('/api/admin/table-status-rules', require('./src/routes/admin/tableStatusRules'));
 app.use('/api/admin/table-service-history', require('./src/routes/admin/tableServiceHistory'));
 app.use('/api/admin/categories', require('./src/routes/admin/categories'));
+app.use('/api/admin/ingredients', require('./src/routes/admin/ingredients'));
+app.use('/api/admin/recipes', require('./src/routes/admin/recipes'));
+app.use('/api/admin/combos', require('./src/routes/admin/combos'));
+app.use('/api/admin/pricing-rules', require('./src/routes/admin/pricingRules'));
+app.use('/api/admin/stock', require('./src/routes/admin/stock'));
+app.use('/api/admin/menu-analytics', require('./src/routes/admin/menuAnalytics'));
+app.use('/api/admin/channels', require('./src/routes/admin/channels'));
+app.use('/api/admin/menu-schedules', require('./src/routes/admin/menuSchedules'));
 
 // Enhanced team management routes (replacing the users route functionality)
 app.use('/api/admin/team', require('./src/routes/team'));
