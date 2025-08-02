@@ -105,10 +105,30 @@ router.post('/', cloudinaryUpload.single('image'), menuItemValidation, validate,
   try {
     const itemData = req.body;
     
+    // Log to debug
+    console.log('Create menu item request:', {
+      hasFile: !!req.file,
+      hasUploadImage: !!itemData.uploadImage,
+      uploadImageLength: itemData.uploadImage ? itemData.uploadImage.length : 0,
+      bodyKeys: Object.keys(itemData)
+    });
+    
     // Handle customizations (convert JSON string to object if needed)
     if (typeof itemData.customizations === 'string') {
       itemData.customizations = JSON.parse(itemData.customizations);
     }
+    
+    // Handle arrays that might come as JSON strings from FormData
+    ['allergens', 'dietary', 'tags'].forEach(field => {
+      if (typeof itemData[field] === 'string') {
+        try {
+          itemData[field] = JSON.parse(itemData[field]);
+        } catch (e) {
+          // If it's not valid JSON, treat it as a single item array
+          itemData[field] = [itemData[field]];
+        }
+      }
+    });
 
     // Handle image upload - check for Cloudinary URL
     console.log('Image upload debug:', {
@@ -123,10 +143,21 @@ router.post('/', cloudinaryUpload.single('image'), menuItemValidation, validate,
     } else if (itemData.uploadImage) {
       // Handle base64 image from custom upload component
       try {
-        const result = await uploadBase64Image(itemData.uploadImage);
+        // Add data URI prefix if not present
+        let base64Data = itemData.uploadImage;
+        if (!base64Data.startsWith('data:')) {
+          base64Data = `data:image/png;base64,${base64Data}`;
+        }
+        
+        console.log('Uploading base64 image to Cloudinary...');
+        const result = await uploadBase64Image(base64Data);
         itemData.image = result.secure_url;
+        console.log('Cloudinary upload successful:', result.secure_url);
       } catch (uploadError) {
         console.error('Error uploading to Cloudinary:', uploadError);
+        console.error('Error details:', uploadError.message);
+        // Don't fail the entire request, just log the error
+        // The item will be created without an image
       }
       delete itemData.uploadImage; // Remove base64 data from item data
     }
@@ -186,6 +217,18 @@ router.put('/:id', cloudinaryUpload.single('image'), menuItemValidation, validat
     if (typeof itemData.customizations === 'string') {
       itemData.customizations = JSON.parse(itemData.customizations);
     }
+    
+    // Handle arrays that might come as JSON strings from FormData
+    ['allergens', 'dietary', 'tags'].forEach(field => {
+      if (typeof itemData[field] === 'string') {
+        try {
+          itemData[field] = JSON.parse(itemData[field]);
+        } catch (e) {
+          // If it's not valid JSON, treat it as a single item array
+          itemData[field] = [itemData[field]];
+        }
+      }
+    });
 
     // Find existing item with tenant filter
     const itemFilter = { _id: req.params.id };
@@ -214,10 +257,20 @@ router.put('/:id', cloudinaryUpload.single('image'), menuItemValidation, validat
           await deleteImage(`restaurant/menu/${publicId}`).catch(console.error);
         }
         
-        const result = await uploadBase64Image(itemData.uploadImage);
+        // Add data URI prefix if not present
+        let base64Data = itemData.uploadImage;
+        if (!base64Data.startsWith('data:')) {
+          base64Data = `data:image/png;base64,${base64Data}`;
+        }
+        
+        console.log('Updating image - uploading to Cloudinary...');
+        const result = await uploadBase64Image(base64Data);
         itemData.image = result.secure_url;
+        console.log('Cloudinary upload successful:', result.secure_url);
       } catch (uploadError) {
         console.error('Error uploading to Cloudinary:', uploadError);
+        console.error('Error details:', uploadError.message);
+        // Don't fail the entire request, just log the error
       }
       delete itemData.uploadImage; // Remove base64 data from item data
     }

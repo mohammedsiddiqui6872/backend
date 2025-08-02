@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { Edit2, Trash2, MoreVertical, Image as ImageIcon, DollarSign, Tag } from 'lucide-react';
+import { Edit2, Trash2, MoreVertical, Image as ImageIcon, DollarSign, Tag, Package, AlertTriangle, ChefHat } from 'lucide-react';
 import { MenuItem } from '../../types/menu';
+import StockManagementModal from './StockManagementModal';
+import RecipeModal from './RecipeModal';
+import PricingRulesModal from './PricingRulesModal';
 
 interface MenuItemCardProps {
   item: MenuItem;
   onEdit: (item: MenuItem) => void;
   onDelete: (item: MenuItem) => void;
   onToggleAvailable: (item: MenuItem) => void;
+  onUpdate?: () => void;
   categoryName?: string;
 }
 
@@ -15,9 +19,13 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onEdit,
   onDelete,
   onToggleAvailable,
+  onUpdate,
   categoryName
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
 
   const profit = item.cost ? item.price - item.cost : null;
   const profitMargin = item.cost ? ((profit! / item.price) * 100).toFixed(1) : null;
@@ -107,6 +115,41 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                         Mark as {item.available ? 'Unavailable' : 'Available'}
                       </button>
                       
+                      {item.stockQuantity !== -1 && (
+                        <button
+                          onClick={() => {
+                            setShowStockModal(true);
+                            setShowMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          Manage Stock
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          setShowRecipeModal(true);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      >
+                        <ChefHat className="h-4 w-4 mr-2" />
+                        Manage Recipe
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setShowPricingModal(true);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        Pricing Rules
+                      </button>
+                      
                       <hr className="my-1" />
                       
                       <button
@@ -149,14 +192,31 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               </div>
               
               <div className="flex items-center space-x-2">
+                {/* Stock Status */}
+                {item.stockQuantity !== -1 && (
+                  <div className="flex items-center space-x-1">
+                    {item.stockQuantity === 0 ? (
+                      <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full flex items-center">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Out of Stock
+                      </span>
+                    ) : item.stockQuantity <= (item.lowStockThreshold || 10) ? (
+                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full flex items-center">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Low Stock ({item.stockQuantity})
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full flex items-center">
+                        <Package className="h-3 w-3 mr-1" />
+                        In Stock ({item.stockQuantity})
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 {!item.available && (
                   <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
                     Unavailable
-                  </span>
-                )}
-                {!item.inStock && (
-                  <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                    Out of Stock
                   </span>
                 )}
                 {item.featured && (
@@ -184,6 +244,45 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Stock Management Modal */}
+      {showStockModal && (
+        <StockManagementModal
+          isOpen={showStockModal}
+          onClose={() => setShowStockModal(false)}
+          menuItem={item}
+          onUpdate={() => {
+            setShowStockModal(false);
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
+      
+      {/* Recipe Management Modal */}
+      {showRecipeModal && (
+        <RecipeModal
+          isOpen={showRecipeModal}
+          onClose={() => setShowRecipeModal(false)}
+          menuItem={item}
+          onUpdate={() => {
+            setShowRecipeModal(false);
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
+      
+      {/* Pricing Rules Modal */}
+      {showPricingModal && (
+        <PricingRulesModal
+          isOpen={showPricingModal}
+          onClose={() => setShowPricingModal(false)}
+          menuItem={item}
+          onUpdate={() => {
+            setShowPricingModal(false);
+            if (onUpdate) onUpdate();
+          }}
+        />
+      )}
     </div>
   );
 };

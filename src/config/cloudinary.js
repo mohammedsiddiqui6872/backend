@@ -51,13 +51,28 @@ const deleteImage = async (publicId) => {
 // Utility function to upload base64 image
 const uploadBase64Image = async (base64String, folder = 'restaurant/menu') => {
   try {
+    // Ensure we have valid Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error('Cloudinary environment variables are not properly configured');
+    }
+    
     const result = await cloudinary.uploader.upload(base64String, {
       folder: folder,
-      resource_type: 'auto'
+      resource_type: 'auto',
+      transformation: [
+        { width: 800, height: 800, crop: 'limit' },
+        { quality: 'auto' },
+        { fetch_format: 'auto' }
+      ]
     });
     return result;
   } catch (error) {
     console.error('Error uploading to Cloudinary:', error);
+    console.error('Cloudinary config status:', {
+      hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      hasApiSecret: !!process.env.CLOUDINARY_API_SECRET
+    });
     throw error;
   }
 };

@@ -31,6 +31,9 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
     available: true,
     inStock: true,
     stockQuantity: -1,
+    lowStockThreshold: 10,
+    reorderPoint: 20,
+    reorderQuantity: 50,
     prepTime: 15,
     discount: 0,
     allergens: [],
@@ -63,6 +66,9 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
         available: true,
         inStock: true,
         stockQuantity: -1,
+        lowStockThreshold: 10,
+        reorderPoint: 20,
+        reorderQuantity: 50,
         prepTime: 15,
         discount: 0,
         allergens: [],
@@ -105,9 +111,13 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
     
     const dataToSave = {
       ...formData,
-      uploadImage: imagePreview && !imageFile ? imagePreview.split(',')[1] : 
-                   imageFile ? imagePreview.split(',')[1] : undefined
+      uploadImage: imagePreview && imagePreview !== item?.image ? imagePreview : undefined
     };
+    
+    // Remove uploadImage if it's the same as the existing image
+    if (item?.image && imagePreview === item.image) {
+      delete dataToSave.uploadImage;
+    }
     
     onSave(dataToSave);
   };
@@ -418,6 +428,49 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                 />
                 <p className="mt-1 text-sm text-gray-500">Set to -1 for unlimited stock</p>
               </div>
+
+              {formData.stockQuantity !== -1 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Low Stock Alert
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.lowStockThreshold || 10}
+                      onChange={(e) => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) })}
+                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Point
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.reorderPoint || 20}
+                      onChange={(e) => setFormData({ ...formData, reorderPoint: parseInt(e.target.value) })}
+                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Quantity
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.reorderQuantity || 50}
+                      onChange={(e) => setFormData({ ...formData, reorderQuantity: parseInt(e.target.value) })}
+                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                      min="1"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <div className="flex items-center">

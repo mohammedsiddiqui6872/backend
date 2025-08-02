@@ -15,6 +15,24 @@ const orderItemSchema = new mongoose.Schema({
       message: 'Menu item does not exist or has been deleted'
     }
   },
+  // For combo orders
+  combo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Combo'
+  },
+  comboItems: [{
+    menuItem: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MenuItem'
+    },
+    quantity: Number,
+    name: String,
+    price: Number
+  }],
+  isCombo: {
+    type: Boolean,
+    default: false
+  },
   name: {
     type: String,
     required: true // Always require name for order history
@@ -24,6 +42,8 @@ const orderItemSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  originalPrice: Number, // For showing discounts
+  discount: Number, // Applied discount amount
   quantity: {
     type: Number,
     required: true,

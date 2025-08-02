@@ -340,6 +340,147 @@ export const menuAPI = {
     api.get(`/admin/menu/export?format=${format}`),
 };
 
+// Stock API
+export const stockAPI = {
+  getStockLevels: (params?: any) =>
+    api.get('/admin/stock/levels', { params }),
+    
+  getValueReport: () =>
+    api.get('/admin/stock/value-report'),
+    
+  getTransactions: (params?: any) =>
+    api.get('/admin/stock/transactions', { params }),
+    
+  getTransactionSummary: (params?: any) =>
+    api.get('/admin/stock/transactions/summary', { params }),
+    
+  adjustStock: (data: any) =>
+    api.post('/admin/stock/adjust', data),
+    
+  recordWaste: (data: any) =>
+    api.post('/admin/stock/waste', data),
+    
+  updateSettings: (menuItemId: string, data: any) =>
+    api.put(`/admin/stock/settings/${menuItemId}`, data),
+    
+  getLowStockItems: (threshold?: number) =>
+    api.get('/admin/stock/low-stock', { params: { threshold } }),
+    
+  batchUpdate: (data: any) =>
+    api.post('/admin/stock/batch-update', data),
+};
+
+// Ingredients API
+export const ingredientsAPI = {
+  getIngredients: (params?: any) =>
+    api.get('/admin/ingredients', { params }),
+    
+  getIngredient: (id: string) =>
+    api.get(`/admin/ingredients/${id}`),
+    
+  createIngredient: (data: any) =>
+    api.post('/admin/ingredients', data),
+    
+  updateIngredient: (id: string, data: any) =>
+    api.put(`/admin/ingredients/${id}`, data),
+    
+  deleteIngredient: (id: string) =>
+    api.delete(`/admin/ingredients/${id}`),
+    
+  purchaseIngredient: (id: string, data: any) =>
+    api.post(`/admin/ingredients/${id}/purchase`, data),
+    
+  getTransactions: (id: string, params?: any) =>
+    api.get(`/admin/ingredients/${id}/transactions`, { params }),
+    
+  getBatches: (id: string, params?: any) =>
+    api.get(`/admin/ingredients/${id}/batches`, { params }),
+    
+  getExpiringIngredients: (days?: number) =>
+    api.get('/admin/ingredients/expiring/list', { params: { days } }),
+    
+  bulkImport: (data: any) =>
+    api.post('/admin/ingredients/bulk-import', data),
+};
+
+// Recipes API  
+export const recipesAPI = {
+  getRecipes: () =>
+    api.get('/admin/recipes'),
+    
+  getRecipeByMenuItem: (menuItemId: string) =>
+    api.get(`/admin/recipes/menu-item/${menuItemId}`),
+    
+  createOrUpdateRecipe: (data: any) =>
+    api.post('/admin/recipes', data),
+    
+  deleteRecipe: (id: string) =>
+    api.delete(`/admin/recipes/${id}`),
+    
+  checkAvailability: (id: string) =>
+    api.get(`/admin/recipes/${id}/availability`),
+    
+  calculateNutrition: (id: string) =>
+    api.get(`/admin/recipes/${id}/nutrition`),
+    
+  bulkCreate: (data: any) =>
+    api.post('/admin/recipes/bulk-create', data),
+};
+
+// Pricing Rules API
+export const pricingRulesAPI = {
+  getRules: (params?: any) =>
+    api.get('/admin/pricing-rules', { params }),
+    
+  getMenuItemRules: (menuItemId: string) =>
+    api.get(`/admin/pricing-rules/menu-item/${menuItemId}`),
+    
+  calculatePrice: (data: any) =>
+    api.post('/admin/pricing-rules/calculate-price', data),
+    
+  createRule: (data: any) =>
+    api.post('/admin/pricing-rules', data),
+    
+  updateRule: (id: string, data: any) =>
+    api.put(`/admin/pricing-rules/${id}`, data),
+    
+  deleteRule: (id: string) =>
+    api.delete(`/admin/pricing-rules/${id}`),
+    
+  toggleActive: (id: string) =>
+    api.patch(`/admin/pricing-rules/${id}/toggle-active`),
+    
+  bulkCreate: (data: any) =>
+    api.post('/admin/pricing-rules/bulk-create', data),
+};
+
+// Combos API
+export const combosAPI = {
+  getCombos: (params?: any) =>
+    api.get('/admin/combos', { params }),
+    
+  getCombo: (id: string) =>
+    api.get(`/admin/combos/${id}`),
+    
+  createCombo: (data: any) =>
+    api.post('/admin/combos', data),
+    
+  updateCombo: (id: string, data: any) =>
+    api.put(`/admin/combos/${id}`, data),
+    
+  deleteCombo: (id: string) =>
+    api.delete(`/admin/combos/${id}`),
+    
+  toggleActive: (id: string) =>
+    api.patch(`/admin/combos/${id}/toggle-active`),
+    
+  checkAvailability: (id: string) =>
+    api.get(`/admin/combos/${id}/availability`),
+    
+  bulkCreate: (data: any) =>
+    api.post('/admin/combos/bulk-create', data),
+};
+
 // Tables API
 export const tablesAPI = {
   getTables: () => 

@@ -263,13 +263,13 @@ router.post('/', authenticate, async (req, res) => {
     
     console.log('Order created:', order.orderNumber, 'assigned to waiter:', tableSession.waiter.name);
     
-    // Try to deduct inventory (but don't fail the order if inventory tracking is not set up)
+    // Try to deduct stock (but don't fail the order if stock tracking is not set up)
     try {
-      const inventoryService = require('../services/inventoryService');
-      await inventoryService.deductForOrder(order._id, order.items, tableSession.waiter._id);
-      console.log('Inventory deducted for order:', order.orderNumber);
-    } catch (inventoryError) {
-      console.warn('Inventory deduction failed:', inventoryError.message);
+      const StockService = require('../services/stockService');
+      await StockService.deductStockForOrder(order._id, order.items, tableSession.waiter._id, req.tenantId);
+      console.log('Stock deducted for order:', order.orderNumber);
+    } catch (stockError) {
+      console.warn('Stock deduction failed:', stockError.message);
       // Don't fail the order, just log the warning
       // In production, you might want to send an alert to admin
     }

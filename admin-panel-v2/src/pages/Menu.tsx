@@ -421,6 +421,7 @@ const Menu = () => {
                   onEdit={handleEditItem}
                   onDelete={handleDeleteItem}
                   onToggleAvailable={handleToggleItemAvailable}
+                  onUpdate={fetchData}
                   categoryName={getCategoryName(item.category)}
                 />
               ))

@@ -50,7 +50,18 @@ exports.menuItemValidation = [
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('description').notEmpty().trim().withMessage('Description is required'),
   body('prepTime').optional().isInt({ min: 1 }).withMessage('Prep time must be a positive integer'),
-  body('discount').optional().isFloat({ min: 0, max: 100 }).withMessage('Discount must be between 0 and 100')
+  body('discount').optional().isFloat({ min: 0, max: 100 }).withMessage('Discount must be between 0 and 100'),
+  body('stockQuantity').optional().isInt({ min: -1 }).withMessage('Stock quantity must be -1 (unlimited) or a positive number'),
+  body('cost').optional().isFloat({ min: 0 }).withMessage('Cost must be a positive number'),
+  body('available').optional().isBoolean().withMessage('Available must be a boolean'),
+  body('inStock').optional().isBoolean().withMessage('In stock must be a boolean'),
+  body('calories').optional().isInt({ min: 0 }).withMessage('Calories must be a positive integer'),
+  body('protein').optional().isFloat({ min: 0 }).withMessage('Protein must be a positive number'),
+  body('carbs').optional().isFloat({ min: 0 }).withMessage('Carbs must be a positive number'),
+  body('fat').optional().isFloat({ min: 0 }).withMessage('Fat must be a positive number'),
+  body('featured').optional().isBoolean().withMessage('Featured must be a boolean'),
+  body('isSpecial').optional().isBoolean().withMessage('Special must be a boolean'),
+  body('recommended').optional().isBoolean().withMessage('Recommended must be a boolean')
 ];
 
 // Order validations

@@ -28,7 +28,10 @@ export interface MenuItem {
   images?: string[];
   available: boolean;
   inStock: boolean;
-  stockQuantity?: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  reorderPoint: number;
+  reorderQuantity: number;
   allergens?: string[];
   dietary?: string[];
   prepTime?: number;

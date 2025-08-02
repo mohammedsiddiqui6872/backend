@@ -25,6 +25,9 @@ const menuItemSchema = new mongoose.Schema({
   available: { type: Boolean, default: true },
   inStock: { type: Boolean, default: true },
   stockQuantity: { type: Number, default: -1 }, // -1 means unlimited
+  lowStockThreshold: { type: Number, default: 10 }, // Alert when stock falls below this
+  reorderPoint: { type: Number, default: 20 }, // Automatic reorder suggestion point
+  reorderQuantity: { type: Number, default: 50 }, // Suggested reorder quantity
   
   // Soft delete fields
   isDeleted: { type: Boolean, default: false },

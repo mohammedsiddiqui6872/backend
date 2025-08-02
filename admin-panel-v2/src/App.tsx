@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
 import Shifts from './pages/Shifts';
 import Menu from './pages/Menu';
+import Combos from './pages/Combos';
 import Tables from './pages/Tables';
 import Orders from './pages/Orders';
 import Analytics from './pages/Analytics';
@@ -115,6 +116,7 @@ function App() {
           <Route path="team" element={<Team />} />
           <Route path="shifts" element={<Shifts />} />
           <Route path="menu" element={<Menu />} />
+          <Route path="combos" element={<Combos />} />
           <Route path="tables" element={<Tables />} />
           <Route path="tables/:tableId/history" element={<TableServiceHistory />} />
           <Route path="orders" element={<Orders />} />

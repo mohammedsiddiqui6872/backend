@@ -53,8 +53,9 @@ const io = socketIo(server, {
   }
 });
 
-// Make io accessible to routes
+// Make io accessible to routes and globally for services
 app.set('io', io);
+global.io = io;
 
 // Initialize table status rule engine
 const ruleEngine = new TableStatusRuleEngine(io);
@@ -186,6 +187,7 @@ app.use('/api', createTenantRateLimiter(15 * 60 * 1000, 500)); // 500 requests p
 app.use('/api/auth', ensureTenantIsolation, require('./src/routes/auth'));
 app.use('/api/menu', ensureTenantIsolation, require('./src/routes/menu'));
 app.use('/api/categories', ensureTenantIsolation, require('./src/routes/categories'));
+app.use('/api/combos', ensureTenantIsolation, require('./src/routes/combos'));
 app.use('/api/orders', ensureTenantIsolation, require('./src/routes/orders'));
 app.use('/api/tables', ensureTenantIsolation, require('./src/routes/tables'));
 app.use('/api/payments', ensureTenantIsolation, require('./src/routes/payments'));
@@ -196,6 +198,11 @@ app.use('/api/customer-sessions', ensureTenantIsolation, require('./src/routes/c
 app.use('/api/admin/users', ensureTenantIsolation, require('./src/routes/admin/users'));
 app.use('/api/admin/menu', ensureTenantIsolation, require('./src/routes/admin/menu'));
 app.use('/api/admin/categories', ensureTenantIsolation, require('./src/routes/admin/categories'));
+app.use('/api/admin/stock', ensureTenantIsolation, require('./src/routes/admin/stock'));
+app.use('/api/admin/ingredients', ensureTenantIsolation, require('./src/routes/admin/ingredients'));
+app.use('/api/admin/recipes', ensureTenantIsolation, require('./src/routes/admin/recipes'));
+app.use('/api/admin/pricing-rules', ensureTenantIsolation, require('./src/routes/admin/pricingRules'));
+app.use('/api/admin/combos', ensureTenantIsolation, require('./src/routes/admin/combos'));
 app.use('/api/admin/tables/import', ensureTenantIsolation, require('./src/routes/admin/tableImport'));
 app.use('/api/admin/tables/combination', ensureTenantIsolation, require('./src/routes/admin/tableCombination'));
 app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));

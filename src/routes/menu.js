@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const MenuItem = require('../models/MenuItem');
 const Category = require('../models/Category');
+const PricingRule = require('../models/PricingRule');
 
 // Get all menu items grouped by category
 router.get('/', async (req, res) => {
@@ -15,26 +16,51 @@ router.get('/', async (req, res) => {
     
     const menuItems = await MenuItem.find(filter);
     
-    // Group items by category and ensure consistent data structure
+    // Apply pricing rules to each item
+    const itemsWithPricing = await Promise.all(
+      menuItems.map(async (item) => {
+        const basePrice = item.price;
+        
+        // Get pricing context from request
+        const context = {
+          channel: req.query.channel || 'dine-in',
+          tableNumber: req.query.table,
+          customerType: req.query.customerType || 'regular'
+        };
+        
+        // Calculate best price with rules
+        const pricing = await PricingRule.getBestPrice(
+          req.tenantId,
+          item._id,
+          basePrice,
+          1,
+          context
+        );
+        
+        const menuItem = item.toObject();
+        
+        return {
+          ...menuItem,
+          _id: menuItem._id.toString(),
+          mongoId: menuItem._id.toString(),
+          numericId: menuItem.id,
+          originalPrice: basePrice,
+          price: pricing.finalPrice,
+          hasDiscount: pricing.appliedRule !== null,
+          discount: pricing.discount,
+          appliedRule: pricing.appliedRule
+        };
+      })
+    );
+    
+    // Group items by category
     const groupedItems = {};
-    menuItems.forEach(item => {
+    itemsWithPricing.forEach(item => {
       const category = item.category || 'uncategorized';
       if (!groupedItems[category]) {
         groupedItems[category] = [];
       }
-      
-      // Transform item to ensure consistent structure
-      const menuItem = item.toObject();
-      
-      // Ensure _id is included as a string for frontend
-      const transformedItem = {
-        ...menuItem,
-        _id: menuItem._id.toString(), // Convert ObjectId to string
-        mongoId: menuItem._id.toString(), // Backup field
-        numericId: menuItem.id // Keep numeric ID for backward compatibility
-      };
-      
-      groupedItems[category].push(transformedItem);
+      groupedItems[category].push(item);
     });
     
     res.json(groupedItems);
