@@ -739,6 +739,22 @@ export const analyticsAPI = {
   
   getFinancialSummary: (params?: any) =>
     api.get('/admin/analytics/financial-summary', { params }),
+    
+  // Employee Performance Analytics
+  getEmployeePerformance: (params?: any) => 
+    api.get('/admin/analytics/employee-performance', { params }),
+  
+  getTeamPerformance: (params?: any) => 
+    api.get('/admin/analytics/team-performance', { params }),
+  
+  getPerformanceLeaderboard: (params?: any) => 
+    api.get('/admin/analytics/performance-leaderboard', { params }),
+  
+  getEmployeeGameStats: (employeeId: string) => 
+    api.get(`/admin/analytics/employee/${employeeId}/game-stats`),
+  
+  updateEmployeeAchievement: (employeeId: string, achievementId: string, data: any) => 
+    api.put(`/admin/analytics/employee/${employeeId}/achievement/${achievementId}`, data),
 };
 
 // Helper to clear tenant data when switching restaurants

@@ -6,7 +6,8 @@ import RealTimePerformance from '../components/analytics/RealTimePerformance';
 import CustomerBehaviorAnalytics from '../components/analytics/CustomerBehaviorAnalytics';
 import CompetitiveIntelligence from '../components/analytics/CompetitiveIntelligence';
 import FinancialDeepDive from '../components/analytics/FinancialDeepDive';
-import { BarChart3, Activity, Brain, Zap, Users, Target } from 'lucide-react';
+import EmployeePerformanceMatrix from '../components/analytics/EmployeePerformanceMatrix';
+import { BarChart3, Activity, Brain, Zap, Users, Target, Trophy } from 'lucide-react';
 
 const Analytics = () => {
   const [activeTab, setActiveTab] = useState('real-time');
@@ -21,7 +22,7 @@ const Analytics = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 max-w-5xl">
+        <TabsList className="grid w-full grid-cols-7 max-w-6xl">
           <TabsTrigger value="real-time" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Real-Time
@@ -45,6 +46,10 @@ const Analytics = () => {
           <TabsTrigger value="general" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Financial
+          </TabsTrigger>
+          <TabsTrigger value="employees" className="flex items-center gap-2">
+            <Trophy className="h-4 w-4" />
+            Employees
           </TabsTrigger>
         </TabsList>
 
@@ -70,6 +75,10 @@ const Analytics = () => {
 
         <TabsContent value="general" className="mt-6">
           <FinancialDeepDive />
+        </TabsContent>
+
+        <TabsContent value="employees" className="mt-6">
+          <EmployeePerformanceMatrix />
         </TabsContent>
       </Tabs>
     </div>

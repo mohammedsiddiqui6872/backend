@@ -216,6 +216,7 @@ app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/adm
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/customerAnalytics'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/competitiveAnalytics'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/financialAnalytics'));
+app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/employeePerformance'));
 app.use('/api/admin/stations', ensureTenantIsolation, require('./src/routes/admin/stations'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 app.use('/api/admin/table-status-rules', ensureTenantIsolation, require('./src/routes/admin/tableStatusRules'));
