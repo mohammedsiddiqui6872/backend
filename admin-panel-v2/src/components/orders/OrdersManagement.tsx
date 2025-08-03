@@ -3,7 +3,7 @@ import {
   Search, Filter, RefreshCw, Clock, CheckCircle, XCircle,
   AlertCircle, DollarSign, User, Users, MapPin, ShoppingBag,
   ChevronRight, Eye, Edit, Trash2, Plus, CreditCard,
-  Loader2, Calendar, TrendingUp, ArrowUpDown
+  Loader2, Calendar, TrendingUp, ArrowUpDown, ArrowRight, Activity, ChefHat, BarChart3
 } from 'lucide-react';
 import { ordersAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -13,6 +13,12 @@ import PaymentModal from './PaymentModal';
 import CreateOrderModal from './CreateOrderModal';
 import EditOrderModal from './EditOrderModal';
 import SplitBillModal from './SplitBillModal';
+import MergeOrdersModal from './MergeOrdersModal';
+import TransferOrderModal from './TransferOrderModal';
+import OrderFlowPipeline from './OrderFlowPipeline';
+import ChefPerformance from './ChefPerformance';
+import OrderHeatMap from './OrderHeatMap';
+import OrderTrends from './OrderTrends';
 import { useSocketConnection } from '../../hooks/useSocketConnection';
 
 interface OrderItem {
@@ -83,7 +89,10 @@ const OrdersManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
+  const [showMergeOrdersModal, setShowMergeOrdersModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState('admin'); // For demo, in production get from auth
+  const [activeTab, setActiveTab] = useState<'orders' | 'flow' | 'performance' | 'heatmap' | 'trends'>('orders');
 
   // Socket connection for real-time updates
   const socket = useSocketConnection();
@@ -263,6 +272,11 @@ const OrdersManagement = () => {
     setShowSplitBillModal(true);
   };
 
+  const handleTransferOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setShowTransferModal(true);
+  };
+
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
     setShowDetailsModal(true);
@@ -333,8 +347,84 @@ const OrdersManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Tab Navigation */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'orders'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <ShoppingBag className="h-5 w-5 mr-2" />
+                Order Management
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('flow')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'flow'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Order Flow Pipeline
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'performance'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <ChefHat className="h-5 w-5 mr-2" />
+                Chef Performance
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('heatmap')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'heatmap'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2" />
+                Heat Maps
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('trends')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'trends'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Trends
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'orders' && (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -482,6 +572,17 @@ const OrdersManagement = () => {
             Create Order
           </button>
 
+          {/* Merge Orders Button */}
+          <button
+            onClick={() => setShowMergeOrdersModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+            Merge Orders
+          </button>
+
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
@@ -579,6 +680,17 @@ const OrdersManagement = () => {
                           >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
+                          </button>
+                        )}
+
+                        {/* Transfer Button */}
+                        {!['paid', 'cancelled'].includes(order.status) && (
+                          <button
+                            onClick={() => handleTransferOrder(order)}
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            <ArrowRight className="h-4 w-4 mr-1" />
+                            Transfer
                           </button>
                         )}
 
@@ -705,6 +817,56 @@ const OrdersManagement = () => {
             fetchOrders();
           }}
         />
+      )}
+
+      {/* Merge Orders Modal */}
+      <MergeOrdersModal
+        isOpen={showMergeOrdersModal}
+        onClose={() => setShowMergeOrdersModal(false)}
+        onMergeComplete={() => {
+          setShowMergeOrdersModal(false);
+          fetchOrders();
+        }}
+        currentOrder={selectedOrder || undefined}
+      />
+
+      {/* Transfer Order Modal */}
+      {showTransferModal && selectedOrder && (
+        <TransferOrderModal
+          order={selectedOrder}
+          isOpen={showTransferModal}
+          onClose={() => {
+            setShowTransferModal(false);
+            setSelectedOrder(null);
+          }}
+          onTransferComplete={() => {
+            setShowTransferModal(false);
+            setSelectedOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+        </>
+      )}
+
+      {/* Order Flow Pipeline Tab */}
+      {activeTab === 'flow' && (
+        <OrderFlowPipeline />
+      )}
+
+      {/* Chef Performance Tab */}
+      {activeTab === 'performance' && (
+        <ChefPerformance />
+      )}
+
+      {/* Heat Map Tab */}
+      {activeTab === 'heatmap' && (
+        <OrderHeatMap />
+      )}
+
+      {/* Trends Tab */}
+      {activeTab === 'trends' && (
+        <OrderTrends />
       )}
     </div>
   );

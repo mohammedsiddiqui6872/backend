@@ -3,9 +3,9 @@ import {
   Clock, ChefHat, AlertTriangle, CheckCircle, Timer,
   Flame, Salad, IceCream, Coffee, Package,
   RefreshCw, Filter, Eye, Loader2, TrendingUp,
-  AlertCircle, User, MapPin, MessageSquare
+  AlertCircle, User, MapPin, MessageSquare, PackageX, X
 } from 'lucide-react';
-import { ordersAPI } from '../../services/api';
+import { ordersAPI, stockAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { format, differenceInMinutes } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -62,6 +62,20 @@ interface ChefMetrics {
   efficiency: number;
 }
 
+interface LowStockItem {
+  menuItemId: string;
+  menuItemName: string;
+  currentStock: number;
+  minStock: number;
+  unit: string;
+  percentageRemaining: number;
+  ingredientsLow: Array<{
+    name: string;
+    currentStock: number;
+    unit: string;
+  }>;
+}
+
 const KitchenDisplay = () => {
   const [stations, setStations] = useState<Station[]>([
     { id: 'grill', name: 'Grill Station', icon: Flame, color: 'orange', orders: [] },
@@ -80,6 +94,8 @@ const KitchenDisplay = () => {
     efficiency: 95
   });
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [showLowStockAlert, setShowLowStockAlert] = useState(false);
   const timersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Socket connection for real-time updates
@@ -87,10 +103,14 @@ const KitchenDisplay = () => {
 
   useEffect(() => {
     fetchOrders();
+    fetchLowStockItems();
     setupSocketListeners();
     
     // Refresh every 30 seconds
-    const interval = setInterval(fetchOrders, 30000);
+    const interval = setInterval(() => {
+      fetchOrders();
+      fetchLowStockItems();
+    }, 30000);
 
     return () => {
       clearInterval(interval);
@@ -153,6 +173,44 @@ const KitchenDisplay = () => {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLowStockItems = async () => {
+    try {
+      const response = await stockAPI.getLowStockItems(20); // Items below 20% stock
+      const lowStock = response.data || [];
+      
+      // Process low stock items to include ingredient details
+      const processedItems: LowStockItem[] = lowStock.map((item: any) => ({
+        menuItemId: item.menuItem?._id || item._id,
+        menuItemName: item.menuItem?.name || item.name,
+        currentStock: item.currentStock,
+        minStock: item.minStock,
+        unit: item.unit,
+        percentageRemaining: (item.currentStock / item.minStock) * 100,
+        ingredientsLow: item.ingredients?.filter((ing: any) => 
+          ing.currentStock < ing.minStock
+        ).map((ing: any) => ({
+          name: ing.name,
+          currentStock: ing.currentStock,
+          unit: ing.unit
+        })) || []
+      }));
+      
+      setLowStockItems(processedItems);
+      
+      // Show alert if critical items (below 10%)
+      const criticalItems = processedItems.filter((item: LowStockItem) => item.percentageRemaining < 10);
+      if (criticalItems.length > 0 && !showLowStockAlert) {
+        setShowLowStockAlert(true);
+        toast.error(`${criticalItems.length} items critically low on stock!`, {
+          duration: 5000,
+          icon: '⚠️'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch low stock items:', error);
     }
   };
 
@@ -249,8 +307,27 @@ const KitchenDisplay = () => {
     }
   };
 
+  const checkItemStock = (menuItemId?: string) => {
+    if (!menuItemId) return null;
+    return lowStockItems.find(item => item.menuItemId === menuItemId);
+  };
+
   const handleItemStatusUpdate = async (orderId: string, itemId: string, newStatus: string) => {
     try {
+      // Check stock before marking as preparing
+      if (newStatus === 'preparing') {
+        const order = allOrders.find(o => o._id === orderId);
+        const item = order?.items.find(i => i._id === itemId);
+        const stockStatus = checkItemStock(item?.menuItem);
+        
+        if (stockStatus && stockStatus.percentageRemaining < 10) {
+          const confirm = window.confirm(
+            `Warning: ${stockStatus.menuItemName} is critically low on stock (${stockStatus.percentageRemaining.toFixed(0)}% remaining). Continue anyway?`
+          );
+          if (!confirm) return;
+        }
+      }
+
       await ordersAPI.updateItemStatus(orderId, itemId, newStatus);
       
       // Update local state
@@ -269,6 +346,11 @@ const KitchenDisplay = () => {
       );
 
       toast.success(`Item marked as ${newStatus}`);
+      
+      // Refresh stock levels after preparing
+      if (newStatus === 'preparing') {
+        setTimeout(fetchLowStockItems, 2000);
+      }
     } catch (error) {
       toast.error('Failed to update item status');
     }
@@ -384,6 +466,44 @@ const KitchenDisplay = () => {
           </div>
         </div>
       </div>
+
+      {/* Low Stock Alert */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <PackageX className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800">Low Stock Alert</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p className="mb-2">{lowStockItems.length} items running low:</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {lowStockItems.slice(0, 8).map(item => (
+                    <div key={item.menuItemId} className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        item.percentageRemaining < 10 ? 'bg-red-500' :
+                        item.percentageRemaining < 20 ? 'bg-orange-500' :
+                        'bg-yellow-500'
+                      }`} />
+                      <span className="truncate">
+                        {item.menuItemName} ({Math.round(item.percentageRemaining)}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {lowStockItems.length > 8 && (
+                  <p className="mt-2 text-xs">+{lowStockItems.length - 8} more items</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLowStockAlert(!showLowStockAlert)}
+              className="ml-3 text-red-600 hover:text-red-800"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
@@ -516,9 +636,27 @@ const KitchenDisplay = () => {
                                       >
                                         <div className="flex items-start justify-between">
                                           <div className="flex-1">
-                                            <p className="text-sm font-medium">
-                                              {item.quantity}x {item.name}
-                                            </p>
+                                            <div className="flex items-start justify-between">
+                                              <p className="text-sm font-medium">
+                                                {item.quantity}x {item.name}
+                                              </p>
+                                              {(() => {
+                                                const stockStatus = checkItemStock(item.menuItem);
+                                                if (stockStatus && stockStatus.percentageRemaining < 20) {
+                                                  return (
+                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                                                      stockStatus.percentageRemaining < 10 
+                                                        ? 'bg-red-100 text-red-700' 
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                      <PackageX className="h-3 w-3 mr-0.5" />
+                                                      {Math.round(stockStatus.percentageRemaining)}%
+                                                    </span>
+                                                  );
+                                                }
+                                                return null;
+                                              })()}
+                                            </div>
                                             {item.modifiers && item.modifiers.length > 0 && (
                                               <p className="text-xs text-gray-600">
                                                 {item.modifiers.map(m => m.name).join(', ')}

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import {
   X, Plus, Minus, Search, User, MapPin, Phone, ShoppingCart,
   AlertCircle, Tag, Info, ChefHat, Flame, Salad, IceCream,
-  Coffee, AlertTriangle, CheckCircle
+  Coffee, AlertTriangle, CheckCircle, Package
 } from 'lucide-react';
 import { menuAPI, tablesAPI, ordersAPI } from '../../services/api';
+import ComboItemModal from './ComboItemModal';
 import toast from 'react-hot-toast';
 
 interface MenuItem {
@@ -48,6 +49,8 @@ interface CartItem {
   selectedModifiers: Modifier[];
   specialRequests?: string;
   totalPrice: number;
+  isCombo?: boolean;
+  comboDetails?: any;
 }
 
 interface Table {
@@ -80,6 +83,7 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
   const [showModifierModal, setShowModifierModal] = useState(false);
   const [tempModifiers, setTempModifiers] = useState<Modifier[]>([]);
   const [tempSpecialRequest, setTempSpecialRequest] = useState('');
+  const [showComboModal, setShowComboModal] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -129,6 +133,32 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
     } else {
       addItemToCart(item, [], '');
     }
+  };
+
+  const handleComboSelected = (comboData: any) => {
+    // Add combo as a special cart item
+    const comboItem: CartItem = {
+      menuItem: {
+        _id: `combo-${Date.now()}`,
+        name: comboData.combo.name,
+        nameAr: comboData.combo.name,
+        description: comboData.combo.description || '',
+        price: comboData.combo.price,
+        category: { _id: 'combo', name: 'Combo' },
+        isAvailable: true
+      },
+      quantity: 1,
+      selectedModifiers: [],
+      specialRequests: `Combo Items: ${comboData.items.map((cat: any) => 
+        `${cat.category}: ${cat.items.map((i: any) => i.name).join(', ')}`
+      ).join(' | ')}`,
+      totalPrice: comboData.combo.price,
+      isCombo: true,
+      comboDetails: comboData
+    };
+    
+    setCart([...cart, comboItem]);
+    toast.success(`${comboData.combo.name} added to cart`);
   };
 
   const addItemToCart = (item: MenuItem, modifiers: Modifier[], specialRequest: string) => {
@@ -412,6 +442,13 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                   >
                     All Items
                   </button>
+                  <button
+                    onClick={() => setShowComboModal(true)}
+                    className="w-full text-left px-3 py-2 rounded-md mb-2 bg-green-600 text-white hover:bg-green-700 flex items-center"
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Combos
+                  </button>
                   {categories.map(category => (
                     <button
                       key={category._id}
@@ -688,6 +725,13 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
             </div>
           </div>
         )}
+
+        {/* Combo Modal */}
+        <ComboItemModal
+          isOpen={showComboModal}
+          onClose={() => setShowComboModal(false)}
+          onComboSelected={handleComboSelected}
+        />
       </div>
     </div>
   );

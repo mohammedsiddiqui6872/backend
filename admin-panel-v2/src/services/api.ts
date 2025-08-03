@@ -596,6 +596,9 @@ export const tablesAPI = {
   
   generateQR: (tableNumber: string) => 
     api.get(`/admin/tables/${tableNumber}/qr`),
+  
+  updateTableStatus: (tableNumber: string, status: string) =>
+    api.patch(`/admin/tables/${tableNumber}/status`, { status }),
 };
 
 // Orders API
@@ -629,6 +632,12 @@ export const ordersAPI = {
   
   createOrder: (data: any) =>
     api.post('/orders', data),
+  
+  updateOrder: (id: string, data: any) =>
+    api.put(`/orders/${id}`, data),
+  
+  getChefPerformance: (params?: any) =>
+    api.get('/admin/analytics/chef-performance', { params }),
 };
 
 // Analytics API
@@ -644,6 +653,12 @@ export const analyticsAPI = {
   
   getRevenue: (period: string) => 
     api.get(`/admin/analytics/revenue?period=${period}`),
+  
+  getHeatMapData: (params?: any) =>
+    api.get('/admin/analytics/heat-map', { params }),
+  
+  getTrendAnalysis: (params?: any) =>
+    api.get('/admin/analytics/trends', { params }),
 };
 
 // Helper to clear tenant data when switching restaurants
