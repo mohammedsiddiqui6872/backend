@@ -234,6 +234,30 @@ export const shiftsAPI = {
     api.put(`/admin/shifts/${shiftId}/swap-request`, { status }),
 };
 
+// Shift Templates API
+export const shiftTemplatesAPI = {
+  getTemplates: (params?: any) =>
+    api.get('/admin/shift-templates', { params }),
+  
+  getTemplate: (id: string) =>
+    api.get(`/admin/shift-templates/${id}`),
+  
+  createTemplate: (data: any) =>
+    api.post('/admin/shift-templates', data),
+  
+  updateTemplate: (id: string, data: any) =>
+    api.put(`/admin/shift-templates/${id}`, data),
+  
+  deleteTemplate: (id: string) =>
+    api.delete(`/admin/shift-templates/${id}`),
+  
+  applyTemplate: (id: string, data: { startDate: string; employees?: string[] }) =>
+    api.post(`/admin/shift-templates/${id}/apply`, data),
+  
+  getPopularTemplates: () =>
+    api.get('/admin/shift-templates/stats/popular'),
+};
+
 export const menuAPI = {
   getCategories: () => 
     api.get('/admin/categories'),

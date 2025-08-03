@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, Clock, Users, Plus, ChevronLeft, 
   ChevronRight, Filter, Download, Upload, AlertCircle, CheckCircle,
-  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye
+  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye, Copy, FileText
 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
-import { shiftsAPI } from '../../services/api';
+import { shiftsAPI, shiftTemplatesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import AddShiftModal from '../modals/AddShiftModal';
 import EditShiftModal from '../modals/EditShiftModal';
 import ShiftDetailsModal from '../modals/ShiftDetailsModal';
 import TimeTrackingModal from '../modals/TimeTrackingModal';
+import ShiftTemplateModal from '../modals/ShiftTemplateModal';
+import ShiftTemplatesListModal from '../modals/ShiftTemplatesListModal';
 
 interface Employee {
   _id: string;
@@ -83,10 +85,13 @@ const ShiftManagement = () => {
   const [showTimeTrackingModal, setShowTimeTrackingModal] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showTemplatesListModal, setShowTemplatesListModal] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const [isCopyingLastWeek, setIsCopyingLastWeek] = useState(false);
 
   useEffect(() => {
     fetchShifts();
@@ -200,6 +205,78 @@ const ShiftManagement = () => {
         return <AlertCircle className="h-4 w-4 text-orange-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const copyLastWeekShifts = async () => {
+    setIsCopyingLastWeek(true);
+    try {
+      // Calculate last week's date range
+      const lastWeekStart = startOfWeek(subWeeks(currentWeek, 1), { weekStartsOn: 1 });
+      const lastWeekEnd = endOfWeek(subWeeks(currentWeek, 1), { weekStartsOn: 1 });
+      
+      // Fetch last week's shifts
+      const response = await shiftsAPI.getShifts({
+        startDate: lastWeekStart.toISOString(),
+        endDate: lastWeekEnd.toISOString(),
+        department: filterDepartment,
+        employee: filterEmployee
+      });
+      
+      const lastWeekShifts = response.data.data;
+      
+      if (lastWeekShifts.length === 0) {
+        toast.error('No shifts found in the previous week to copy');
+        return;
+      }
+      
+      // Copy each shift to current week
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const shift of lastWeekShifts) {
+        try {
+          // Calculate the new date (add 7 days)
+          const originalDate = new Date(shift.date);
+          const newDate = new Date(originalDate);
+          newDate.setDate(originalDate.getDate() + 7);
+          
+          // Only copy if the shift is scheduled (not completed, cancelled, etc.)
+          if (shift.status === 'scheduled') {
+            await shiftsAPI.createShift({
+              employee: shift.employee?._id,
+              date: newDate.toISOString(),
+              shiftType: shift.shiftType,
+              scheduledTimes: {
+                start: shift.scheduledTimes.start,
+                end: shift.scheduledTimes.end
+              },
+              department: shift.department,
+              position: shift.position,
+              notes: shift.notes ? `${shift.notes} (Copied from last week)` : 'Copied from last week'
+            });
+            successCount++;
+          }
+        } catch (error) {
+          console.error('Error copying shift:', error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Successfully copied ${successCount} shift${successCount > 1 ? 's' : ''} from last week`);
+        fetchShifts();
+        fetchStats();
+      }
+      
+      if (errorCount > 0) {
+        toast.error(`Failed to copy ${errorCount} shift${errorCount > 1 ? 's' : ''}`);
+      }
+    } catch (error) {
+      console.error('Error copying last week shifts:', error);
+      toast.error('Failed to copy shifts from last week');
+    } finally {
+      setIsCopyingLastWeek(false);
     }
   };
 
@@ -329,6 +406,21 @@ const ShiftManagement = () => {
     <div className="space-y-6">
       {/* Action Buttons */}
       <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => setShowTemplatesListModal(true)}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Templates
+        </button>
+        <button
+          onClick={copyLastWeekShifts}
+          disabled={isCopyingLastWeek}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Copy className="h-4 w-4 mr-2" />
+          {isCopyingLastWeek ? 'Copying...' : 'Copy Last Week'}
+        </button>
         <button
           onClick={() => setShowTimeTrackingModal(true)}
           className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -664,6 +756,17 @@ const ShiftManagement = () => {
           onClose={() => setShowTimeTrackingModal(false)}
           employees={employees}
           onRefresh={() => {
+            fetchShifts();
+            fetchStats();
+          }}
+        />
+      )}
+
+      {showTemplatesListModal && (
+        <ShiftTemplatesListModal
+          isOpen={showTemplatesListModal}
+          onClose={() => setShowTemplatesListModal(false)}
+          onApplyTemplate={() => {
             fetchShifts();
             fetchStats();
           }}

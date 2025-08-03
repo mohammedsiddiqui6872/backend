@@ -226,6 +226,7 @@ app.use('/api/admin/table-service-history', ensureTenantIsolation, require('./sr
 // Enhanced team management routes - Using enterprise isolation
 app.use('/api/admin/team', require('./src/routes/team'));
 app.use('/api/admin/shifts', require('./src/routes/shifts'));
+app.use('/api/admin/shift-templates', require('./src/routes/shiftTemplates'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
 
 // Test routes removed for production

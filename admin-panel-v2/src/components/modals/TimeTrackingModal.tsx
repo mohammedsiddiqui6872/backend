@@ -48,11 +48,18 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
   const [pin, setPin] = useState('');
 
   useEffect(() => {
+    // Only set up timer when modal is open
+    if (!isOpen) return;
+    
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    
+    // Cleanup timer when modal closes or component unmounts
+    return () => {
+      clearInterval(timer);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (selectedEmployee) {
