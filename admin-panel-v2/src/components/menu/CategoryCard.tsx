@@ -56,11 +56,6 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 )}
               </div>
               
-              {category.nameAr && (
-                <p className="text-sm text-gray-600 mt-1" dir="rtl">
-                  {category.nameAr}
-                </p>
-              )}
               
               {category.description && (
                 <p className="text-sm text-gray-500 mt-2">

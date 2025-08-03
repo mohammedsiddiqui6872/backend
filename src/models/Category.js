@@ -12,11 +12,6 @@ const categorySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  nameAr: {
-    type: String,
-    required: false,
-    default: ''
-  },
   slug: {
     type: String,
     required: true,
@@ -39,7 +34,6 @@ const categorySchema = new mongoose.Schema({
     default: true
   },
   description: String,
-  descriptionAr: String,
   createdAt: {
     type: Date,
     default: Date.now

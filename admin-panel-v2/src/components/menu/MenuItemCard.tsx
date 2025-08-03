@@ -62,11 +62,6 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   <span className="text-sm text-gray-500">#{item.id}</span>
                 </div>
                 
-                {item.nameAr && (
-                  <p className="text-sm text-gray-600 mt-1" dir="rtl">
-                    {item.nameAr}
-                  </p>
-                )}
                 
                 <p className="text-sm text-gray-500 mt-1">
                   {categoryName || item.category}

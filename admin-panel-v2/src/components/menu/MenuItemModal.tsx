@@ -23,12 +23,10 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<MenuItemInput>({
     name: '',
-    nameAr: '',
     category: '',
     price: 0,
     cost: 0,
     description: '',
-    descriptionAr: '',
     available: true,
     inStock: true,
     stockQuantity: -1,
@@ -49,6 +47,7 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
   const [newAllergen, setNewAllergen] = useState('');
   const [newDietaryTag, setNewDietaryTag] = useState('');
   const [newTag, setNewTag] = useState('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (item) {
@@ -57,14 +56,14 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
         setImagePreview(item.image);
       }
     } else {
+      // Set default category if categories are available
+      const defaultCategory = categories.length > 0 ? categories[0].slug : '';
       setFormData({
         name: '',
-        nameAr: '',
-        category: categories[0]?.slug || '',
+        category: defaultCategory,
         price: 0,
         cost: 0,
         description: '',
-        descriptionAr: '',
         available: true,
         inStock: true,
         stockQuantity: -1,
@@ -80,7 +79,8 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
       setImagePreview('');
     }
     setImageFile(null);
-  }, [item, categories]);
+    setValidationErrors({});
+  }, [item, categories, isOpen]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,20 +108,75 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
     
-    const dataToSave = {
-      ...formData,
-      uploadImage: imagePreview && imagePreview !== item?.image ? imagePreview : undefined
-    };
-    
-    // Remove uploadImage if it's the same as the existing image
-    if (item?.image && imagePreview === item.image) {
-      delete dataToSave.uploadImage;
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
     }
     
-    onSave(dataToSave);
+    if (!formData.category) {
+      errors.category = 'Category is required';
+    } else if (!categories.find(cat => cat.slug === formData.category)) {
+      errors.category = 'Invalid category selected';
+    }
+    
+    if (formData.price < 0) {
+      errors.price = 'Price must be a positive number';
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      // Show first error tab
+      if (validationErrors.name || validationErrors.category || validationErrors.description) {
+        setActiveTab('basic');
+      } else if (validationErrors.price) {
+        setActiveTab('pricing');
+      }
+      return;
+    }
+    
+    try {
+      const dataToSave = {
+        ...formData,
+        uploadImage: imagePreview && imagePreview !== item?.image ? imagePreview : undefined
+      };
+      
+      // Remove uploadImage if it's the same as the existing image
+      if (item?.image && imagePreview === item.image) {
+        delete dataToSave.uploadImage;
+      }
+      
+      await onSave(dataToSave);
+    } catch (error: any) {
+      console.error('Error saving menu item:', error);
+      // Check if it's a validation error from the server
+      if (error.response?.data?.errors) {
+        const serverErrors: Record<string, string> = {};
+        error.response.data.errors.forEach((err: any) => {
+          if (err.param) {
+            serverErrors[err.param] = err.msg;
+          }
+        });
+        setValidationErrors(serverErrors);
+        
+        // Show appropriate tab based on error
+        if (serverErrors.category) {
+          setActiveTab('basic');
+          alert(`Category error: ${serverErrors.category}. Please select a valid category.`);
+        }
+      }
+    }
   };
 
   const addAllergen = () => {
@@ -252,32 +307,27 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name (English) *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name (Arabic)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.nameAr || ''}
-                    onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
-                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                    dir="rtl"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (validationErrors.name) {
+                      setValidationErrors({ ...validationErrors, name: '' });
+                    }
+                  }}
+                  className={`w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 ${
+                    validationErrors.name ? 'border-red-500' : ''
+                  }`}
+                  required
+                />
+                {validationErrors.name && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -286,8 +336,15 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                 </label>
                 <select
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  onChange={(e) => {
+                    setFormData({ ...formData, category: e.target.value });
+                    if (validationErrors.category) {
+                      setValidationErrors({ ...validationErrors, category: '' });
+                    }
+                  }}
+                  className={`w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 ${
+                    validationErrors.category ? 'border-red-500' : ''
+                  }`}
                   required
                 >
                   <option value="">Select a category</option>
@@ -297,32 +354,37 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                     </option>
                   ))}
                 </select>
+                {validationErrors.category && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.category}</p>
+                )}
+                {categories.length === 0 && (
+                  <p className="mt-1 text-sm text-yellow-600">
+                    No categories available. Please create a category first.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (English) *
+                  Description *
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (validationErrors.description) {
+                      setValidationErrors({ ...validationErrors, description: '' });
+                    }
+                  }}
                   rows={3}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                  className={`w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 ${
+                    validationErrors.description ? 'border-red-500' : ''
+                  }`}
                   required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (Arabic)
-                </label>
-                <textarea
-                  value={formData.descriptionAr || ''}
-                  onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
-                  rows={3}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                  dir="rtl"
-                />
+                {validationErrors.description && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.description}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -390,12 +452,22 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                   <input
                     type="number"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                    onChange={(e) => {
+                      setFormData({ ...formData, price: parseFloat(e.target.value) });
+                      if (validationErrors.price) {
+                        setValidationErrors({ ...validationErrors, price: '' });
+                      }
+                    }}
+                    className={`w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 ${
+                      validationErrors.price ? 'border-red-500' : ''
+                    }`}
                     min="0"
                     step="0.01"
                     required
                   />
+                  {validationErrors.price && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.price}</p>
+                  )}
                 </div>
 
                 <div>
@@ -716,13 +788,33 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
                       className="hidden"
                     />
                   </label>
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImagePreview('');
+                        setImageFile(null);
+                      }}
+                      className="inline-flex items-center px-3 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </button>
+                  )}
                 </div>
+                <p className="mt-2 text-sm text-gray-500">
+                  Upload a high-quality image of the menu item. Maximum file size: 5MB.
+                </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">
-                  Additional image gallery functionality coming soon. You'll be able to upload multiple images for each menu item.
-                </p>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Image Upload Tips:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Use high-quality images with good lighting</li>
+                  <li>• Square images (1:1 ratio) work best</li>
+                  <li>• Images larger than 5MB will be automatically compressed</li>
+                  <li>• Supported formats: JPG, PNG, GIF, WebP</li>
+                </ul>
               </div>
             </div>
           )}
@@ -748,7 +840,7 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || categories.length === 0}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
             >
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

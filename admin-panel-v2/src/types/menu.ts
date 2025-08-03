@@ -3,14 +3,12 @@
 export interface Category {
   _id: string;
   name: string;
-  nameAr?: string;
   slug: string;
   icon: string;
   image?: string;
   displayOrder: number;
   isActive: boolean;
   description?: string;
-  descriptionAr?: string;
   tenantId?: string;
 }
 
@@ -18,12 +16,10 @@ export interface MenuItem {
   _id: string;
   id: number;
   name: string;
-  nameAr?: string;
   category: string;
   price: number;
   cost?: number;
   description: string;
-  descriptionAr?: string;
   image?: string;
   images?: string[];
   available: boolean;

@@ -20,12 +20,10 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<CategoryInput>({
     name: '',
-    nameAr: '',
     icon: 'utensils',
     displayOrder: 0,
     isActive: true,
-    description: '',
-    descriptionAr: ''
+    description: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -39,12 +37,10 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
     } else {
       setFormData({
         name: '',
-        nameAr: '',
         icon: 'utensils',
         displayOrder: 0,
         isActive: true,
-        description: '',
-        descriptionAr: ''
+        description: ''
       });
       setImagePreview('');
     }
@@ -107,56 +103,28 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name (English) *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name (Arabic)
-              </label>
-              <input
-                type="text"
-                value={formData.nameAr || ''}
-                onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                dir="rtl"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+              required
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (English)
+              Description
             </label>
             <textarea
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Arabic)
-            </label>
-            <textarea
-              value={formData.descriptionAr || ''}
-              onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
-              rows={3}
-              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-              dir="rtl"
             />
           </div>
 

@@ -5,7 +5,6 @@ const menuItemSchema = new mongoose.Schema({
   tenantId: { type: String, required: true, index: true },
   id: { type: Number, required: true },
   name: { type: String, required: true },
-  nameAr: String, // Arabic name
   category: {
     type: String,
     required:true,
@@ -13,7 +12,6 @@ const menuItemSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   cost: { type: Number, min: 0 }, // Cost price for profit calculation
   description: { type: String, required: true },
-  descriptionAr: String,
   image: String,
   images: {
     type: [{
