@@ -316,8 +316,8 @@ export const menuAPI = {
   deleteCategory: (id: string) => 
     api.delete(`/admin/categories/${id}`),
   
-  getItems: () => 
-    api.get('/admin/menu'),
+  getItems: (params?: { all?: boolean; limit?: number }) => 
+    api.get('/admin/menu', { params: { ...params, all: true } }),
   
   addItem: (data: any) => {
     // If uploadImage is present, send as JSON (base64)
