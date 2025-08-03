@@ -80,6 +80,107 @@ interface MarketTrend {
 }
 
 const CompetitiveIntelligence: React.FC = () => {
+  const handleExportReport = () => {
+    try {
+      const csvData = [];
+      
+      // Header
+      csvData.push(['Competitive Intelligence Report']);
+      csvData.push(['Generated on:', new Date().toLocaleDateString()]);
+      csvData.push(['Period:', dateRange]);
+      csvData.push(['']);
+      
+      // Market Position
+      csvData.push(['Market Position Analysis']);
+      csvData.push(['Dimension', 'Our Score', 'Market Average', 'Top Performer', 'Percentile']);
+      marketPosition.forEach(pos => {
+        csvData.push([
+          pos.dimension,
+          pos.ourScore,
+          pos.marketAverage,
+          pos.topPerformer,
+          `${pos.percentile}%`
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Competitors
+      csvData.push(['Competitor Analysis']);
+      csvData.push(['Name', 'Type', 'Distance', 'Rating', 'Price Range', 'Market Share', 'Strengths']);
+      competitors.forEach(comp => {
+        csvData.push([
+          comp.name,
+          comp.type,
+          `${comp.distance} km`,
+          comp.rating,
+          comp.priceRange,
+          `${comp.marketShare}%`,
+          comp.strengths.join('; ')
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Pricing Opportunities
+      csvData.push(['Pricing Opportunities']);
+      csvData.push(['Item', 'Current Price', 'Market Avg', 'Suggested Price', 'Potential Revenue', 'Reasoning']);
+      pricingOpportunities.forEach(opp => {
+        csvData.push([
+          opp.itemName,
+          `AED ${opp.currentPrice}`,
+          `AED ${opp.marketAverage}`,
+          `AED ${opp.suggestedPrice}`,
+          `AED ${opp.potentialRevenue}`,
+          opp.reasoning
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Market Trends
+      csvData.push(['Market Trends']);
+      csvData.push(['Trend', 'Impact', 'Direction', 'Relevance', 'Description']);
+      marketTrends.forEach(trend => {
+        csvData.push([
+          trend.name,
+          trend.impact,
+          trend.direction,
+          `${trend.relevance}%`,
+          trend.description
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Benchmark Data
+      csvData.push(['Performance Benchmarks']);
+      csvData.push(['Category', 'Us', 'Market Leader', 'Market Average']);
+      benchmarkData.forEach(bench => {
+        csvData.push([
+          bench.category,
+          `${bench.us.toFixed(1)}%`,
+          `${bench.marketLeader.toFixed(1)}%`,
+          `${bench.marketAverage.toFixed(1)}%`
+        ]);
+      });
+      
+      // Convert to CSV
+      const csv = csvData.map(row => row.join(',')).join('\n');
+      
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `competitive-intelligence-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('30d');
@@ -391,7 +492,10 @@ const CompetitiveIntelligence: React.FC = () => {
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button 
+            onClick={handleExportReport}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             <Download className="w-4 h-4" />
             Export Report
           </button>

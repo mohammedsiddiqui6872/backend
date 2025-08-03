@@ -82,6 +82,92 @@ interface FinancialRatio {
 }
 
 const FinancialDeepDive: React.FC = () => {
+  const handleExportReport = () => {
+    try {
+      // Prepare data for export
+      const exportData = [];
+      
+      // Add summary section
+      exportData.push(['Financial Summary Report']);
+      exportData.push(['Generated on:', new Date().toLocaleDateString()]);
+      exportData.push(['Period:', dateRange]);
+      exportData.push(['']);
+      
+      // Add summary metrics
+      if (summaryMetrics) {
+        exportData.push(['Summary Metrics']);
+        exportData.push(['Revenue:', formatCurrency(summaryMetrics.revenue)]);
+        exportData.push(['Gross Margin:', `${summaryMetrics.grossMargin}%`]);
+        exportData.push(['Net Profit:', formatCurrency(summaryMetrics.netProfit)]);
+        exportData.push(['Net Margin:', `${summaryMetrics.netMargin}%`]);
+        exportData.push(['Cash on Hand:', formatCurrency(summaryMetrics.cashOnHand)]);
+        exportData.push(['Cash Runway:', summaryMetrics.runway]);
+        exportData.push(['']);
+      }
+      
+      // Add P&L Statement
+      exportData.push(['Profit & Loss Statement']);
+      exportData.push(['Category', 'Amount', '% of Revenue']);
+      plStatement.forEach(category => {
+        exportData.push([category.category, formatCurrency(category.total), `${category.percentageOfRevenue}%`]);
+        if (viewMode === 'detailed') {
+          category.subcategories.forEach(sub => {
+            exportData.push([`  ${sub.name}`, formatCurrency(sub.amount), `${sub.percentage}%`]);
+          });
+        }
+      });
+      exportData.push(['']);
+      
+      // Add Cost Breakdown
+      exportData.push(['Cost Breakdown']);
+      exportData.push(['Category', 'Amount', 'Percentage']);
+      costBreakdown.forEach(cost => {
+        exportData.push([cost.category, formatCurrency(cost.amount), `${cost.percentage}%`]);
+      });
+      exportData.push(['']);
+      
+      // Add ROI Metrics
+      exportData.push(['ROI Metrics']);
+      exportData.push(['Initiative', 'Investment', 'Returns', 'ROI', 'Payback Period', 'Status']);
+      roiMetrics.forEach(metric => {
+        exportData.push([
+          metric.name,
+          formatCurrency(metric.investment),
+          formatCurrency(metric.returns),
+          `${metric.roi}%`,
+          metric.paybackPeriod,
+          metric.status
+        ]);
+      });
+      exportData.push(['']);
+      
+      // Add Financial Ratios
+      exportData.push(['Financial Ratios']);
+      exportData.push(['Ratio', 'Value', 'Benchmark', 'Status']);
+      financialRatios.forEach(ratio => {
+        exportData.push([ratio.name, `${ratio.value}%`, `${ratio.benchmark}%`, ratio.status]);
+      });
+      
+      // Convert to CSV
+      const csv = exportData.map(row => row.join(',')).join('\n');
+      
+      // Create blob and download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `financial-report-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('30d');
   const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
@@ -440,7 +526,10 @@ const FinancialDeepDive: React.FC = () => {
               Detailed
             </button>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button 
+            onClick={handleExportReport}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             <Download className="w-4 h-4" />
             Export Report
           </button>

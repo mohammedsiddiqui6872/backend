@@ -86,6 +86,95 @@ interface SentimentData {
 }
 
 const CustomerBehaviorAnalytics: React.FC = () => {
+  const handleExportReport = () => {
+    try {
+      // Prepare CSV data
+      const csvData = [];
+      
+      // Header
+      csvData.push(['Customer Behavior Analytics Report']);
+      csvData.push(['Generated on:', new Date().toLocaleDateString()]);
+      csvData.push(['Period:', dateRange]);
+      csvData.push(['']);
+      
+      // Customer Segments
+      csvData.push(['Customer Segments']);
+      csvData.push(['Segment', 'Customers', 'Percentage', 'Avg Order Value', 'Frequency/Month', 'Lifetime Value', 'Churn Risk']);
+      segments.forEach(segment => {
+        csvData.push([
+          segment.name,
+          segment.count,
+          `${segment.percentage}%`,
+          `AED ${segment.avgOrderValue}`,
+          segment.frequency,
+          `AED ${segment.lifetimeValue}`,
+          segment.churnRisk
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Journey Stages
+      csvData.push(['Customer Journey Funnel']);
+      csvData.push(['Stage', 'Customers', 'Conversion Rate', 'Avg Time']);
+      journeyData.forEach(stage => {
+        csvData.push([
+          stage.stage,
+          stage.customers,
+          `${stage.conversionRate}%`,
+          stage.avgTime || 'N/A'
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Loyalty Metrics
+      csvData.push(['Loyalty Metrics']);
+      csvData.push(['Metric', 'Value']);
+      csvData.push(['Active Members', loyaltyMetrics?.activeMembers || 0]);
+      csvData.push(['Average Points Per Customer', loyaltyMetrics?.avgPointsPerCustomer || 0]);
+      csvData.push(['Points Redeemed', loyaltyMetrics?.pointsRedeemed || 0]);
+      csvData.push(['Redemption Rate', `${loyaltyMetrics?.redemptionRate || 0}%`]);
+      csvData.push(['']);
+      
+      // Sentiment Analysis
+      csvData.push(['Sentiment Analysis']);
+      csvData.push(['Sentiment', 'Percentage']);
+      csvData.push(['Positive', `${sentimentData?.positive || 0}%`]);
+      csvData.push(['Neutral', `${sentimentData?.neutral || 0}%`]);
+      csvData.push(['Negative', `${sentimentData?.negative || 0}%`]);
+      csvData.push(['']);
+      
+      // Behavior Patterns
+      csvData.push(['Behavior Patterns']);
+      csvData.push(['Pattern', 'Frequency', 'Description', 'Impact']);
+      behaviorPatterns.forEach(pattern => {
+        csvData.push([
+          pattern.pattern,
+          `${pattern.frequency}%`,
+          pattern.description,
+          pattern.impact
+        ]);
+      });
+      
+      // Convert to CSV string
+      const csv = csvData.map(row => row.join(',')).join('\n');
+      
+      // Create blob and download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `customer-behavior-analytics-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('30d');
   const [segments, setSegments] = useState<CustomerSegment[]>([]);
@@ -346,7 +435,10 @@ const CustomerBehaviorAnalytics: React.FC = () => {
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button 
+            onClick={handleExportReport}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             <Download className="w-4 h-4" />
             Export Report
           </button>

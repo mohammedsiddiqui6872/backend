@@ -103,6 +103,102 @@ interface Leaderboard {
 }
 
 const EmployeePerformanceMatrix: React.FC = () => {
+  const handleExport = () => {
+    try {
+      const csvData = [];
+      
+      // Header
+      csvData.push(['Employee Performance Matrix Report']);
+      csvData.push(['Generated on:', new Date().toLocaleDateString()]);
+      csvData.push(['Period:', dateRange]);
+      csvData.push(['']);
+      
+      // Team Performance Summary
+      csvData.push(['Team Performance Summary']);
+      csvData.push(['Department', 'Average Score', 'Improvement', 'Top Performer']);
+      teamPerformance.forEach(team => {
+        csvData.push([
+          team.department,
+          `${team.averageScore}%`,
+          `${team.improvement > 0 ? '+' : ''}${team.improvement}%`,
+          team.topPerformer
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Individual Employee Performance
+      csvData.push(['Employee Performance Details']);
+      csvData.push([
+        'Name', 'Role', 'Department', 'Overall Score', 'Orders Served', 
+        'Customer Rating', 'Punctuality', 'Team Collaboration', 'Efficiency',
+        'Level', 'XP', 'Streak', 'Badges'
+      ]);
+      
+      employees.forEach(emp => {
+        const overallScore = getOverallScore(emp.metrics);
+        csvData.push([
+          emp.name,
+          emp.role,
+          emp.department,
+          `${Math.round(overallScore)}%`,
+          emp.performance.ordersServed,
+          emp.performance.customerRating.toFixed(1),
+          `${emp.metrics.punctuality}%`,
+          `${emp.metrics.teamwork}%`,
+          `${emp.performance.efficiency}%`,
+          emp.gamification.level,
+          `${emp.gamification.xp}/${emp.gamification.nextLevelXp}`,
+          emp.gamification.streak,
+          emp.gamification.badges.map(b => b.name).join('; ')
+        ]);
+      });
+      csvData.push(['']);
+      
+      // Leaderboard
+      if (leaderboard && leaderboard.daily) {
+        csvData.push(['Daily Leaderboard']);
+        csvData.push(['Rank', 'Name', 'Department']);
+        leaderboard.daily.slice(0, 10).forEach((entry, index) => {
+          csvData.push([
+            index + 1,
+            entry.name,
+            entry.department
+          ]);
+        });
+      }
+      csvData.push(['']);
+      
+      // Gamification Summary
+      csvData.push(['']);
+      csvData.push(['Gamification Summary']);
+      csvData.push(['Metric', 'Value']);
+      const totalBadges = employees.reduce((sum, emp) => sum + emp.gamification.badges.length, 0);
+      const avgLevel = employees.reduce((sum, emp) => sum + emp.gamification.level, 0) / employees.length;
+      const maxStreak = Math.max(...employees.map(emp => emp.gamification.streak));
+      csvData.push(['Total Badges Earned', totalBadges]);
+      csvData.push(['Average Level', avgLevel.toFixed(1)]);
+      csvData.push(['Highest Streak', maxStreak]);
+      
+      // Convert to CSV
+      const csv = csvData.map(row => row.join(',')).join('\n');
+      
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `employee-performance-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Performance report exported successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('30d');
@@ -346,7 +442,10 @@ const EmployeePerformanceMatrix: React.FC = () => {
               Compare
             </button>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             <Download className="w-4 h-4" />
             Export
           </button>
