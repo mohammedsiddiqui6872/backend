@@ -2,31 +2,22 @@ import { useState, useEffect } from 'react';
 import { X, Calendar, Clock, User } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  profile?: {
-    department?: string;
-    position?: string;
-  };
-}
+import { validateShiftTimes, getShiftTypeDefaults } from '../../utils/shiftUtils';
+import { Employee, ShiftFormData, ShiftType } from '../../types/shift';
 
 interface AddShiftModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (data: any) => void;
+  onAdd: (data: ShiftFormData) => void;
   employees: Employee[];
   selectedDate?: Date | null;
 }
 
 const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddShiftModalProps) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ShiftFormData>({
     employee: '',
     date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-    shiftType: 'morning',
+    shiftType: 'morning' as ShiftType,
     scheduledTimes: {
       start: '09:00',
       end: '17:00'
@@ -36,20 +27,14 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
     notes: ''
   });
 
-  const shiftTimePresets = {
-    morning: { start: '06:00', end: '14:00' },
-    afternoon: { start: '14:00', end: '22:00' },
-    evening: { start: '16:00', end: '00:00' },
-    night: { start: '22:00', end: '06:00' },
-    custom: { start: '09:00', end: '17:00' }
-  };
 
   useEffect(() => {
     // Update times when shift type changes
     if (formData.shiftType !== 'custom') {
+      const defaults = getShiftTypeDefaults(formData.shiftType);
       setFormData(prev => ({
         ...prev,
-        scheduledTimes: shiftTimePresets[formData.shiftType as keyof typeof shiftTimePresets]
+        scheduledTimes: defaults
       }));
     }
   }, [formData.shiftType]);
@@ -77,11 +62,14 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
     }
 
     // Validate times
-    const startTime = new Date(`2000-01-01T${formData.scheduledTimes.start}`);
-    const endTime = new Date(`2000-01-01T${formData.scheduledTimes.end}`);
+    const validation = validateShiftTimes(
+      formData.scheduledTimes.start,
+      formData.scheduledTimes.end,
+      formData.shiftType
+    );
     
-    if (formData.shiftType !== 'night' && startTime >= endTime) {
-      toast.error('End time must be after start time');
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid shift times');
       return;
     }
 
@@ -142,7 +130,7 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
             </label>
             <select
               value={formData.shiftType}
-              onChange={(e) => setFormData({ ...formData, shiftType: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, shiftType: e.target.value as ShiftType })}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             >
               <option value="morning">Morning (6 AM - 2 PM)</option>

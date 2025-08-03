@@ -7,66 +7,11 @@ import {
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
 import { shiftsAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { Employee, Shift, ShiftStats, ShiftFormData, ShiftUpdateData } from '../types/shift';
 import AddShiftModal from '../components/modals/AddShiftModal';
 import EditShiftModal from '../components/modals/EditShiftModal';
 import ShiftDetailsModal from '../components/modals/ShiftDetailsModal';
 import TimeTrackingModal from '../components/modals/TimeTrackingModal';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-  profile?: {
-    department?: string;
-    position?: string;
-  };
-}
-
-interface ShiftTime {
-  start: string;
-  end: string;
-}
-
-interface ActualTimes {
-  clockIn?: string;
-  clockOut?: string;
-  breaks: Array<{
-    start: string;
-    end?: string;
-    type: 'short' | 'meal';
-  }>;
-}
-
-interface Shift {
-  _id: string;
-  employee: Employee;
-  date: string;
-  shiftType: 'morning' | 'afternoon' | 'evening' | 'night' | 'custom';
-  scheduledTimes: ShiftTime;
-  actualTimes?: ActualTimes;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  department?: string;
-  position?: string;
-  notes?: string;
-  overtime?: {
-    hours: number;
-    approved: boolean;
-  };
-}
-
-interface ShiftStats {
-  totalShifts: number;
-  completedShifts: number;
-  cancelledShifts: number;
-  noShowShifts: number;
-  completionRate: number;
-  totalHoursScheduled: number;
-  totalHoursWorked: number;
-  overtimeHours: number;
-  pendingSwapRequests: number;
-}
 
 const Shifts = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -131,7 +76,7 @@ const Shifts = () => {
     }
   };
 
-  const handleAddShift = async (data: any) => {
+  const handleAddShift = async (data: ShiftFormData) => {
     try {
       await shiftsAPI.createShift(data);
       toast.success('Shift created successfully');
@@ -139,12 +84,15 @@ const Shifts = () => {
       setSelectedDate(null);
       fetchShifts();
       fetchStats();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create shift');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to create shift';
+      toast.error(errorMessage);
     }
   };
 
-  const handleEditShift = async (data: any) => {
+  const handleEditShift = async (data: ShiftUpdateData) => {
     if (!selectedShift) return;
     
     try {
@@ -153,8 +101,11 @@ const Shifts = () => {
       setShowEditModal(false);
       setSelectedShift(null);
       fetchShifts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update shift');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to update shift';
+      toast.error(errorMessage);
     }
   };
 

@@ -9,10 +9,10 @@ interface ShiftTemplate {
   _id: string;
   name: string;
   description?: string;
-  pattern: string;
+  pattern: 'weekly' | 'biweekly' | 'monthly' | 'custom';
   shifts: Array<{
     dayOfWeek: number;
-    shiftType: string;
+    shiftType: 'morning' | 'afternoon' | 'evening' | 'night' | 'custom';
     scheduledTimes: {
       start: string;
       end: string;

@@ -7,68 +7,14 @@ import {
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
 import { shiftsAPI, shiftTemplatesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { getShiftTypeColor } from '../../utils/shiftUtils';
+import { Employee, Shift, ShiftStats, ShiftFormData, ShiftUpdateData, ShiftType } from '../../types/shift';
 import AddShiftModal from '../modals/AddShiftModal';
 import EditShiftModal from '../modals/EditShiftModal';
 import ShiftDetailsModal from '../modals/ShiftDetailsModal';
 import TimeTrackingModal from '../modals/TimeTrackingModal';
 import ShiftTemplateModal from '../modals/ShiftTemplateModal';
 import ShiftTemplatesListModal from '../modals/ShiftTemplatesListModal';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-  profile?: {
-    department?: string;
-    position?: string;
-  };
-}
-
-interface ShiftTime {
-  start: string;
-  end: string;
-}
-
-interface ActualTimes {
-  clockIn?: string;
-  clockOut?: string;
-  breaks: Array<{
-    start: string;
-    end?: string;
-    type: 'short' | 'meal';
-  }>;
-}
-
-interface Shift {
-  _id: string;
-  employee: Employee;
-  date: string;
-  shiftType: 'morning' | 'afternoon' | 'evening' | 'night' | 'custom';
-  scheduledTimes: ShiftTime;
-  actualTimes?: ActualTimes;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
-  department?: string;
-  position?: string;
-  notes?: string;
-  overtime?: {
-    hours: number;
-    approved: boolean;
-  };
-}
-
-interface ShiftStats {
-  totalShifts: number;
-  completedShifts: number;
-  cancelledShifts: number;
-  noShowShifts: number;
-  completionRate: number;
-  totalHoursScheduled: number;
-  totalHoursWorked: number;
-  overtimeHours: number;
-  pendingSwapRequests: number;
-}
 
 const ShiftManagement = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -136,7 +82,7 @@ const ShiftManagement = () => {
     }
   };
 
-  const handleAddShift = async (data: any) => {
+  const handleAddShift = async (data: ShiftFormData) => {
     try {
       await shiftsAPI.createShift(data);
       toast.success('Shift created successfully');
@@ -144,12 +90,15 @@ const ShiftManagement = () => {
       setSelectedDate(null);
       fetchShifts();
       fetchStats();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create shift');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to create shift';
+      toast.error(errorMessage);
     }
   };
 
-  const handleEditShift = async (data: any) => {
+  const handleEditShift = async (data: ShiftUpdateData) => {
     if (!selectedShift) return;
     
     try {
@@ -158,8 +107,11 @@ const ShiftManagement = () => {
       setShowEditModal(false);
       setSelectedShift(null);
       fetchShifts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update shift');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to update shift';
+      toast.error(errorMessage);
     }
   };
 
@@ -182,16 +134,6 @@ const ShiftManagement = () => {
     return shifts.filter(shift => isSameDay(new Date(shift.date), date));
   };
 
-  const getShiftColor = (shiftType: string) => {
-    const colors: Record<string, string> = {
-      morning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      afternoon: 'bg-blue-100 text-blue-800 border-blue-200',
-      evening: 'bg-purple-100 text-purple-800 border-purple-200',
-      night: 'bg-gray-100 text-gray-800 border-gray-200',
-      custom: 'bg-green-100 text-green-800 border-green-200'
-    };
-    return colors[shiftType] || 'bg-gray-100 text-gray-800 border-gray-200';
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -343,7 +285,7 @@ const ShiftManagement = () => {
         
         const shifts = lines.slice(1).filter(line => line.trim()).map(line => {
           const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-          const shift: any = {};
+          const shift: Record<string, string> = {};
           headers.forEach((header, index) => {
             shift[header] = values[index];
           });
@@ -366,7 +308,7 @@ const ShiftManagement = () => {
             await handleAddShift({
               employee: employee._id,
               date: shiftData.Date,
-              shiftType: shiftData['Shift Type'].toLowerCase(),
+              shiftType: shiftData['Shift Type'].toLowerCase() as ShiftType,
               scheduledTimes: {
                 start: shiftData['Start Time'],
                 end: shiftData['End Time']
@@ -650,7 +592,7 @@ const ShiftManagement = () => {
                       setShowDetailsModal(true);
                     }}
                     className={`p-2 rounded-md border cursor-pointer hover:shadow-md transition-shadow ${
-                      getShiftColor(shift.shiftType)
+                      getShiftTypeColor(shift.shiftType)
                     }`}
                   >
                     <div className="flex items-center justify-between">

@@ -2,42 +2,35 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface Shift {
-  _id: string;
-  employee: Employee;
-  date: string;
-  shiftType: string;
-  scheduledTimes: {
-    start: string;
-    end: string;
-  };
-  department?: string;
-  position?: string;
-  notes?: string;
-  status: string;
-}
+import { Employee, Shift, ShiftUpdateData, ShiftType, ShiftStatus } from '../../types/shift';
 
 interface EditShiftModalProps {
   isOpen: boolean;
   shift: Shift;
   onClose: () => void;
-  onEdit: (data: any) => void;
+  onEdit: (data: ShiftUpdateData) => void;
   employees: Employee[];
 }
 
+interface EditShiftFormData {
+  employee: string;
+  date: string;
+  shiftType: ShiftType;
+  scheduledTimes: {
+    start: string;
+    end: string;
+  };
+  department: string;
+  position: string;
+  notes: string;
+  status: ShiftStatus;
+}
+
 const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShiftModalProps) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EditShiftFormData>({
     employee: '',
     date: '',
-    shiftType: 'morning',
+    shiftType: 'morning' as ShiftType,
     scheduledTimes: {
       start: '09:00',
       end: '17:00'
@@ -45,7 +38,7 @@ const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShift
     department: '',
     position: '',
     notes: '',
-    status: 'scheduled'
+    status: 'scheduled' as ShiftStatus
   });
 
   const shiftTimePresets = {
@@ -59,7 +52,7 @@ const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShift
   useEffect(() => {
     if (shift) {
       setFormData({
-        employee: shift.employee._id,
+        employee: shift.employee?._id || '',
         date: format(new Date(shift.date), 'yyyy-MM-dd'),
         shiftType: shift.shiftType,
         scheduledTimes: shift.scheduledTimes,
@@ -95,7 +88,17 @@ const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShift
       return;
     }
 
-    onEdit(formData);
+    // Create update data with only the fields that can be updated
+    const updateData: ShiftUpdateData = {
+      shiftType: formData.shiftType,
+      scheduledTimes: formData.scheduledTimes,
+      department: formData.department || undefined,
+      position: formData.position || undefined,
+      notes: formData.notes || undefined,
+      status: formData.status
+    };
+
+    onEdit(updateData);
   };
 
   if (!isOpen) return null;
@@ -164,7 +167,7 @@ const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShift
             </label>
             <select
               value={formData.shiftType}
-              onChange={(e) => setFormData({ ...formData, shiftType: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, shiftType: e.target.value as ShiftType })}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               disabled={!canEdit}
             >
@@ -218,7 +221,7 @@ const EditShiftModal = ({ isOpen, shift, onClose, onEdit, employees }: EditShift
             </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as ShiftStatus })}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               disabled={!canEdit}
             >

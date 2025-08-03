@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getShiftTypeColor } from '../../utils/shiftUtils';
 
 interface ShiftTime {
   dayOfWeek: number;
@@ -119,16 +120,6 @@ const ShiftTemplateModal = ({ isOpen, onClose, onSave, template }: ShiftTemplate
     onSave(formData);
   };
 
-  const getShiftTypeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      morning: 'bg-yellow-100 text-yellow-800',
-      afternoon: 'bg-blue-100 text-blue-800',
-      evening: 'bg-purple-100 text-purple-800',
-      night: 'bg-gray-100 text-gray-800',
-      custom: 'bg-green-100 text-green-800'
-    };
-    return colors[type] || 'bg-gray-100 text-gray-800';
-  };
 
   if (!isOpen) return null;
 

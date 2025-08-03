@@ -3,53 +3,8 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { shiftsAPI } from '../../services/api';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-  phone?: string;
-}
-
-interface Shift {
-  _id: string;
-  employee?: Employee;
-  date: string;
-  shiftType: string;
-  scheduledTimes: {
-    start: string;
-    end: string;
-  };
-  actualTimes?: {
-    clockIn?: string;
-    clockOut?: string;
-    breaks?: Array<{
-      start: string;
-      end?: string;
-      type: 'short' | 'meal';
-    }>;
-  };
-  status: string;
-  department?: string;
-  position?: string;
-  notes?: string;
-  payroll?: {
-    totalHours?: number;
-    regularHours?: number;
-    overtimeHours?: number;
-    hourlyRate?: number;
-    totalPay?: number;
-  };
-  swapRequest?: {
-    requestedBy: Employee;
-    requestedWith: Employee;
-    reason: string;
-    status: 'pending' | 'approved' | 'rejected';
-    requestDate: string;
-  };
-}
+import { calculateShiftDuration, formatDuration } from '../../utils/shiftUtils';
+import { Employee, Shift, SwapRequestData } from '../../types/shift';
 
 interface ShiftDetailsModalProps {
   isOpen: boolean;
@@ -85,12 +40,8 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
   };
 
   const calculateDuration = (start: string, end: string) => {
-    const startTime = new Date(`2000-01-01T${start}`);
-    const endTime = new Date(`2000-01-01T${end}`);
-    const diff = endTime.getTime() - startTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
+    const duration = calculateShiftDuration(start, end);
+    return formatDuration(duration);
   };
 
   const calculateActualDuration = () => {
@@ -133,10 +84,11 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
 
     setIsSwapping(true);
     try {
-      await shiftsAPI.requestSwap(shift._id, {
+      const swapData: SwapRequestData = {
         requestedWithId: swapWithEmployee,
         reason: swapReason
-      });
+      };
+      await shiftsAPI.requestSwap(shift._id, swapData);
       toast.success('Swap request submitted successfully');
       setShowSwapModal(false);
       setSwapWithEmployee('');

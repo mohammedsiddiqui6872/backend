@@ -3,35 +3,7 @@ import { X, LogIn, LogOut, Coffee, Clock, User, Calendar, AlertCircle } from 'lu
 import { format } from 'date-fns';
 import { shiftsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-
-interface Employee {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-}
-
-interface ActiveShift {
-  _id: string;
-  employee: Employee;
-  date: string;
-  shiftType: string;
-  scheduledTimes: {
-    start: string;
-    end: string;
-  };
-  actualTimes: {
-    clockIn?: string;
-    clockOut?: string;
-    breaks: Array<{
-      start: string;
-      end?: string;
-      type: 'short' | 'meal';
-    }>;
-  };
-  status: string;
-}
+import { Employee, Shift } from '../../types/shift';
 
 interface TimeTrackingModalProps {
   isOpen: boolean;
@@ -42,7 +14,7 @@ interface TimeTrackingModalProps {
 
 const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTrackingModalProps) => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [activeShift, setActiveShift] = useState<ActiveShift | null>(null);
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pin, setPin] = useState('');
@@ -93,8 +65,11 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       toast.success('Clocked in successfully');
       fetchActiveShift();
       onRefresh();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to clock in');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to clock in';
+      toast.error(errorMessage);
     }
   };
 
@@ -107,8 +82,11 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       setSelectedEmployee('');
       setActiveShift(null);
       onRefresh();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to clock out');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to clock out';
+      toast.error(errorMessage);
     }
   };
 
@@ -119,8 +97,11 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       await shiftsAPI.startBreak(activeShift._id, type);
       toast.success(`${type === 'short' ? 'Short' : 'Meal'} break started`);
       fetchActiveShift();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to start break');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to start break';
+      toast.error(errorMessage);
     }
   };
 
@@ -131,8 +112,11 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       await shiftsAPI.endBreak(activeShift._id);
       toast.success('Break ended');
       fetchActiveShift();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to end break');
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any).response?.data?.message || 'Failed to end break';
+      toast.error(errorMessage);
     }
   };
 
@@ -268,7 +252,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
                         {format(new Date(`2000-01-01T${activeShift.scheduledTimes.end}`), 'h:mm a')}
                       </span>
                     </div>
-                    {activeShift.actualTimes.clockIn && (
+                    {activeShift.actualTimes?.clockIn && (
                       <div className="flex justify-between mb-1">
                         <span>Clocked In:</span>
                         <span className="font-medium">
@@ -276,7 +260,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
                         </span>
                       </div>
                     )}
-                    {activeShift.actualTimes.clockIn && (
+                    {activeShift.actualTimes?.clockIn && (
                       <div className="flex justify-between">
                         <span>Hours Worked:</span>
                         <span className="font-medium">{calculateHoursWorked()}</span>
@@ -302,7 +286,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
-                  {!activeShift.actualTimes.clockIn ? (
+                  {!activeShift.actualTimes?.clockIn ? (
                     <button
                       onClick={handleClockIn}
                       className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
@@ -310,7 +294,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
                       <LogIn className="h-5 w-5 mr-2" />
                       Clock In
                     </button>
-                  ) : !activeShift.actualTimes.clockOut ? (
+                  ) : !activeShift.actualTimes?.clockOut ? (
                     <>
                       {isOnBreak() ? (
                         <button
