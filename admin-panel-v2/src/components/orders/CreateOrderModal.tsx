@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   X, Plus, Minus, Search, User, MapPin, Phone, ShoppingCart,
   AlertCircle, Tag, Info, ChefHat, Flame, Salad, IceCream,
-  Coffee, AlertTriangle, CheckCircle, Package
+  Coffee, AlertTriangle, CheckCircle, Package, Clock
 } from 'lucide-react';
 import { menuAPI, tablesAPI, ordersAPI } from '../../services/api';
 import ComboItemModal from './ComboItemModal';
+import RecipeCustomization from './RecipeCustomization';
+import PrepTimePrediction from './PrepTimePrediction';
 import toast from 'react-hot-toast';
 
 interface MenuItem {
@@ -51,6 +53,7 @@ interface CartItem {
   totalPrice: number;
   isCombo?: boolean;
   comboDetails?: any;
+  recipeCustomizations?: any[];
 }
 
 interface Table {
@@ -84,6 +87,9 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
   const [tempModifiers, setTempModifiers] = useState<Modifier[]>([]);
   const [tempSpecialRequest, setTempSpecialRequest] = useState('');
   const [showComboModal, setShowComboModal] = useState(false);
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [selectedItemForRecipe, setSelectedItemForRecipe] = useState<MenuItem | null>(null);
+  const [estimatedPrepTime, setEstimatedPrepTime] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -133,6 +139,33 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
     } else {
       addItemToCart(item, [], '');
     }
+  };
+
+  const handlePrepTimePrediction = (predictions: any[]) => {
+    if (predictions && predictions.length > 0) {
+      const totalTime = predictions.reduce((sum, pred) => sum + pred.predictedTime, 0);
+      setEstimatedPrepTime(totalTime);
+    }
+  };
+
+  const handleRecipeCustomization = (customizations: any[]) => {
+    if (!selectedItemForRecipe) return;
+    
+    // Find the cart item and update its customizations
+    const updatedCart = cart.map(item => {
+      if (item.menuItem._id === selectedItemForRecipe._id) {
+        return {
+          ...item,
+          recipeCustomizations: customizations,
+          specialRequests: item.specialRequests + 
+            (customizations.find(c => c.customizationId === 'special-instructions')?.optionLabel || '')
+        };
+      }
+      return item;
+    });
+    
+    setCart(updatedCart);
+    toast.success('Recipe customizations applied');
   };
 
   const handleComboSelected = (comboData: any) => {
@@ -577,23 +610,43 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                                   Note: {item.specialRequests}
                                 </p>
                               )}
+
+                              {item.recipeCustomizations && item.recipeCustomizations.length > 0 && (
+                                <p className="text-sm text-blue-600">
+                                  Customized: {item.recipeCustomizations.map(c => c.optionLabel).join(', ')}
+                                </p>
+                              )}
                               
-                              <div className="flex items-center mt-2">
-                                <button
-                                  onClick={() => updateQuantity(index, -1)}
-                                  className="p-1 rounded-md hover:bg-gray-200"
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </button>
-                                <span className="mx-3 font-medium">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  onClick={() => updateQuantity(index, 1)}
-                                  className="p-1 rounded-md hover:bg-gray-200"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </button>
+                              <div className="flex items-center mt-2 space-x-2">
+                                {!item.isCombo && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedItemForRecipe(item.menuItem);
+                                      setShowRecipeModal(true);
+                                    }}
+                                    className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center"
+                                  >
+                                    <ChefHat className="h-4 w-4 mr-1" />
+                                    Customize
+                                  </button>
+                                )}
+                                <div className="flex items-center">
+                                  <button
+                                    onClick={() => updateQuantity(index, -1)}
+                                    className="p-1 rounded-md hover:bg-gray-200"
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </button>
+                                  <span className="mx-3 font-medium">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() => updateQuantity(index, 1)}
+                                    className="p-1 rounded-md hover:bg-gray-200"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                             
@@ -628,6 +681,17 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                           <span>Total</span>
                           <span>AED {calculateTotals().total.toFixed(2)}</span>
                         </div>
+                        {estimatedPrepTime > 0 && (
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="flex items-center text-gray-600">
+                              <Clock className="h-4 w-4 mr-1" />
+                              Estimated Prep Time
+                            </span>
+                            <span className="font-medium text-primary-600">
+                              {estimatedPrepTime < 60 ? `${estimatedPrepTime}m` : `${Math.floor(estimatedPrepTime/60)}h ${estimatedPrepTime%60}m`}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
                       <button
@@ -638,6 +702,20 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                         {loading ? 'Creating Order...' : 'Create Order'}
                       </button>
                     </div>
+
+                    {/* Prep Time Predictions */}
+                    {cart.length > 0 && (
+                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <PrepTimePrediction
+                          orderItems={cart.map(item => ({
+                            menuItemId: item.menuItem._id,
+                            quantity: item.quantity,
+                            customizations: item.recipeCustomizations
+                          }))}
+                          onPredictionComplete={handlePrepTimePrediction}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -732,6 +810,22 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
           onClose={() => setShowComboModal(false)}
           onComboSelected={handleComboSelected}
         />
+
+        {/* Recipe Customization Modal */}
+        {selectedItemForRecipe && (
+          <RecipeCustomization
+            menuItemId={selectedItemForRecipe._id}
+            isOpen={showRecipeModal}
+            onClose={() => {
+              setShowRecipeModal(false);
+              setSelectedItemForRecipe(null);
+            }}
+            onCustomizationSelected={handleRecipeCustomization}
+            existingCustomizations={
+              cart.find(item => item.menuItem._id === selectedItemForRecipe._id)?.recipeCustomizations || []
+            }
+          />
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { format, differenceInMinutes } from 'date-fns';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useSocketConnection } from '../../hooks/useSocketConnection';
+import RecipeDisplay from './RecipeDisplay';
 
 interface OrderItem {
   _id: string;
@@ -96,6 +97,7 @@ const KitchenDisplay = () => {
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [showLowStockAlert, setShowLowStockAlert] = useState(false);
+  const [showRecipeDisplay, setShowRecipeDisplay] = useState(false);
   const timersRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Socket connection for real-time updates
@@ -534,6 +536,13 @@ const KitchenDisplay = () => {
           </div>
 
           <button
+            onClick={() => setShowRecipeDisplay(!showRecipeDisplay)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <ChefHat className="h-4 w-4 mr-2" />
+            {showRecipeDisplay ? 'Hide' : 'Show'} Recipes
+          </button>
+          <button
             onClick={fetchOrders}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
@@ -724,6 +733,32 @@ const KitchenDisplay = () => {
             })}
         </div>
       </DragDropContext>
+
+      {/* Recipe Display Modal */}
+      {showRecipeDisplay && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowRecipeDisplay(false)} />
+            
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[90vh] overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold">Recipe Reference</h2>
+                  <button
+                    onClick={() => setShowRecipeDisplay(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+                  <RecipeDisplay />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

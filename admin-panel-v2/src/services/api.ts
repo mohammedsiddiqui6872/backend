@@ -659,6 +659,18 @@ export const analyticsAPI = {
   
   getTrendAnalysis: (params?: any) =>
     api.get('/admin/analytics/trends', { params }),
+  
+  getPrepTimePredictions: (data: any) =>
+    api.post('/admin/analytics/prep-time-predictions', data),
+  
+  getStationLoadData: () =>
+    api.get('/admin/stations/load-data'),
+  
+  reassignStationItem: (data: any) =>
+    api.post('/admin/stations/reassign-item', data),
+  
+  batchReassignItems: (reassignments: any[]) =>
+    api.post('/admin/stations/batch-reassign', { reassignments }),
 };
 
 // Helper to clear tenant data when switching restaurants

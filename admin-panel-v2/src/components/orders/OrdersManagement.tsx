@@ -20,6 +20,8 @@ import ChefPerformance from './ChefPerformance';
 import OrderHeatMap from './OrderHeatMap';
 import OrderTrends from './OrderTrends';
 import { useSocketConnection } from '../../hooks/useSocketConnection';
+import StationLoadBalancer from './StationLoadBalancer';
+import MultiKitchenDisplay from './MultiKitchenDisplay';
 
 interface OrderItem {
   _id: string;
@@ -92,7 +94,7 @@ const OrdersManagement = () => {
   const [showMergeOrdersModal, setShowMergeOrdersModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState('admin'); // For demo, in production get from auth
-  const [activeTab, setActiveTab] = useState<'orders' | 'flow' | 'performance' | 'heatmap' | 'trends'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'flow' | 'performance' | 'heatmap' | 'trends' | 'loadbalancer' | 'multikitchen'>('orders');
 
   // Socket connection for real-time updates
   const socket = useSocketConnection();
@@ -414,6 +416,32 @@ const OrdersManagement = () => {
               <div className="flex items-center">
                 <TrendingUp className="h-5 w-5 mr-2" />
                 Trends
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('loadbalancer')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'loadbalancer'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Station Load Balancer
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('multikitchen')}
+              className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                activeTab === 'multikitchen'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <ChefHat className="h-5 w-5 mr-2" />
+                Multi-Kitchen
               </div>
             </button>
           </nav>
@@ -867,6 +895,16 @@ const OrdersManagement = () => {
       {/* Trends Tab */}
       {activeTab === 'trends' && (
         <OrderTrends />
+      )}
+
+      {/* Station Load Balancer Tab */}
+      {activeTab === 'loadbalancer' && (
+        <StationLoadBalancer />
+      )}
+
+      {/* Multi-Kitchen Display Tab */}
+      {activeTab === 'multikitchen' && (
+        <MultiKitchenDisplay />
       )}
     </div>
   );
