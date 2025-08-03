@@ -206,6 +206,7 @@ app.use('/api/admin/combos', ensureTenantIsolation, require('./src/routes/admin/
 app.use('/api/admin/modifiers', ensureTenantIsolation, require('./src/routes/modifiers'));
 app.use('/api/admin/menu-analytics', ensureTenantIsolation, require('./src/routes/admin/menuAnalytics'));
 app.use('/api/admin/channels', ensureTenantIsolation, require('./src/routes/admin/channels'));
+app.use('/api/admin/menu-schedules', ensureTenantIsolation, require('./src/routes/admin/menuSchedules'));
 app.use('/api/admin/tables/import', ensureTenantIsolation, require('./src/routes/admin/tableImport'));
 app.use('/api/admin/tables/combination', ensureTenantIsolation, require('./src/routes/admin/tableCombination'));
 app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
