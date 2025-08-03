@@ -671,6 +671,39 @@ export const analyticsAPI = {
   
   batchReassignItems: (reassignments: any[]) =>
     api.post('/admin/stations/batch-reassign', { reassignments }),
+  
+  // AI Predictive Analytics
+  getRevenuePredictions: (params?: any) =>
+    api.get('/admin/analytics/revenue-predictions', { params }),
+  
+  getDemandForecasts: (params?: any) =>
+    api.get('/admin/analytics/demand-forecasts', { params }),
+  
+  getAnomalies: (params?: any) =>
+    api.get('/admin/analytics/anomalies', { params }),
+  
+  getAIInsights: (params?: any) =>
+    api.get('/admin/analytics/ai-insights', { params }),
+  
+  // Real-Time Performance
+  getRealTimeMetrics: () =>
+    api.get('/admin/analytics/real-time-metrics'),
+  
+  // Customer Behavior Analytics
+  getCustomerSegments: (params?: any) =>
+    api.get('/admin/analytics/customer-segments', { params }),
+  
+  getCustomerJourney: (params?: any) =>
+    api.get('/admin/analytics/customer-journey', { params }),
+  
+  getLoyaltyMetrics: (params?: any) =>
+    api.get('/admin/analytics/loyalty-metrics', { params }),
+  
+  getSentimentAnalysis: (params?: any) =>
+    api.get('/admin/analytics/sentiment-analysis', { params }),
+  
+  getBehaviorPatterns: (params?: any) =>
+    api.get('/admin/analytics/behavior-patterns', { params }),
 };
 
 // Helper to clear tenant data when switching restaurants

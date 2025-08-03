@@ -212,6 +212,8 @@ app.use('/api/admin/tables/combination', ensureTenantIsolation, require('./src/r
 app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
 app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/orderAnalytics'));
+app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/predictiveAnalytics'));
+app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/customerAnalytics'));
 app.use('/api/admin/stations', ensureTenantIsolation, require('./src/routes/admin/stations'));
 app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
 app.use('/api/admin/table-status-rules', ensureTenantIsolation, require('./src/routes/admin/tableStatusRules'));

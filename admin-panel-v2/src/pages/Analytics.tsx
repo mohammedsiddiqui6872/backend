@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import SessionAnalytics from '../components/analytics/SessionAnalytics';
-import { BarChart3, Activity } from 'lucide-react';
+import PredictiveAnalytics from '../components/analytics/PredictiveAnalytics';
+import RealTimePerformance from '../components/analytics/RealTimePerformance';
+import CustomerBehaviorAnalytics from '../components/analytics/CustomerBehaviorAnalytics';
+import { BarChart3, Activity, Brain, Zap, Users } from 'lucide-react';
 
 const Analytics = () => {
-  const [activeTab, setActiveTab] = useState('sessions');
+  const [activeTab, setActiveTab] = useState('real-time');
 
   return (
     <div className="space-y-6">
@@ -16,19 +19,43 @@ const Analytics = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-5 max-w-4xl">
+          <TabsTrigger value="real-time" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Real-Time
+          </TabsTrigger>
+          <TabsTrigger value="customers" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Customers
+          </TabsTrigger>
           <TabsTrigger value="sessions" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
-            Session Analytics
+            Sessions
+          </TabsTrigger>
+          <TabsTrigger value="predictive" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            AI Predictions
           </TabsTrigger>
           <TabsTrigger value="general" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            General Analytics
+            General
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="real-time" className="mt-6">
+          <RealTimePerformance />
+        </TabsContent>
+
+        <TabsContent value="customers" className="mt-6">
+          <CustomerBehaviorAnalytics />
+        </TabsContent>
+
         <TabsContent value="sessions" className="mt-6">
           <SessionAnalytics />
+        </TabsContent>
+
+        <TabsContent value="predictive" className="mt-6">
+          <PredictiveAnalytics />
         </TabsContent>
 
         <TabsContent value="general" className="mt-6">
