@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 import storageManager from '../utils/storageManager';
 
-export const useSocketConnection = () => {
+// For backward compatibility, the default export returns just the socket
+export const useSocketConnection = (namespace?: string) => {
+  const { socket } = useSocketConnectionWithStatus(namespace);
+  return socket;
+};
+
+// New export that returns both socket and connection status
+export const useSocketConnectionWithStatus = (namespace?: string) => {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     // Get subdomain and token for authentication
@@ -18,8 +26,9 @@ export const useSocketConnection = () => {
     // Connect to backend socket server
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const socketUrl = baseUrl.replace('/api', '');
+    const socketPath = namespace ? `${socketUrl}${namespace}` : socketUrl;
     
-    const newSocket = io(socketUrl, {
+    const newSocket = io(socketPath, {
       auth: {
         token,
         subdomain
@@ -32,12 +41,14 @@ export const useSocketConnection = () => {
 
     newSocket.on('connect', () => {
       console.log('Socket connected');
+      setConnected(true);
       // Join tenant-specific room
       newSocket.emit('join-tenant', { subdomain });
     });
 
     newSocket.on('disconnect', () => {
       console.log('Socket disconnected');
+      setConnected(false);
     });
 
     newSocket.on('error', (error) => {
@@ -52,5 +63,5 @@ export const useSocketConnection = () => {
     };
   }, []);
 
-  return socket;
+  return { socket, connected };
 };

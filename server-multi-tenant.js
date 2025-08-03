@@ -75,6 +75,11 @@ const TableServiceHistoryService = require('./src/services/tableServiceHistorySe
 const tableServiceHistoryService = new TableServiceHistoryService(io);
 app.set('tableServiceHistoryService', tableServiceHistoryService);
 
+// Initialize shift notification service
+const shiftNotificationService = require('./src/services/shiftNotificationService');
+shiftNotificationService.initialize();
+app.set('shiftNotificationService', shiftNotificationService);
+
 // Security middleware
 app.use(compression());
 app.use(helmet({

@@ -212,20 +212,41 @@ export const shiftsAPI = {
   getEmployees: () =>
     api.get('/admin/team/members', { params: { isActive: true } }),
   
+  // Clock in/out
+  clockIn: (shiftId: string, data?: any) =>
+    api.post(`/admin/shifts/${shiftId}/clock-in`, data),
+  
+  clockOut: (shiftId: string, data?: any) =>
+    api.post(`/admin/shifts/${shiftId}/clock-out`, data),
+  
+  startBreak: (shiftId: string, data?: any) =>
+    api.post(`/admin/shifts/${shiftId}/break/start`, data),
+  
+  endBreak: (shiftId: string, data?: any) =>
+    api.post(`/admin/shifts/${shiftId}/break/end`, data),
+  
+  // Swap requests
+  createSwapRequest: (shiftId: string, data: { requestedWith: string; reason: string }) =>
+    api.post(`/admin/shifts/${shiftId}/swap-request`, data),
+  
+  respondToSwapRequest: (shiftId: string, data: { status: 'approved' | 'rejected' }) =>
+    api.put(`/admin/shifts/${shiftId}/swap-request`, data),
+  
+  // Notifications
+  getNotifications: (params?: any) =>
+    api.get('/admin/shifts/notifications', { params }),
+  
+  markNotificationAsRead: (notificationId: string) =>
+    api.put(`/admin/shifts/notifications/${notificationId}/read`),
+  
+  getNotificationPreferences: () =>
+    api.get('/admin/shifts/notifications/preferences'),
+  
+  updateNotificationPreferences: (data: any) =>
+    api.put('/admin/shifts/notifications/preferences', data),
+  
   getActiveShift: (employeeId: string) =>
     api.get('/admin/shifts/active', { params: { employee: employeeId, date: new Date().toISOString().split('T')[0] } }),
-  
-  clockIn: (shiftId: string) =>
-    api.post(`/admin/shifts/${shiftId}/clock-in`),
-  
-  clockOut: (shiftId: string) =>
-    api.post(`/admin/shifts/${shiftId}/clock-out`),
-  
-  startBreak: (shiftId: string, type: 'short' | 'meal') =>
-    api.post(`/admin/shifts/${shiftId}/break/start`, { type }),
-  
-  endBreak: (shiftId: string) =>
-    api.post(`/admin/shifts/${shiftId}/break/end`),
   
   requestSwap: (shiftId: string, data: any) =>
     api.post(`/admin/shifts/${shiftId}/swap-request`, data),

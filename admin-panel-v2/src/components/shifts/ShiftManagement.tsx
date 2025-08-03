@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, Clock, Users, Plus, ChevronLeft, 
   ChevronRight, Filter, Download, Upload, AlertCircle, CheckCircle,
-  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye, Copy, FileText, Edit3
+  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye, Copy, FileText, Edit3, Bell
 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
 import { shiftsAPI, shiftTemplatesAPI } from '../../services/api';
@@ -24,6 +24,7 @@ import BulkShiftOperationsModal from '../modals/BulkShiftOperationsModal';
 import QuickStatsWidget from './QuickStatsWidget';
 import MonthViewCalendar from './MonthViewCalendar';
 import ConflictDetectionWidget from './ConflictDetectionWidget';
+import ShiftNotifications from './ShiftNotifications';
 
 const ShiftManagement = () => {
   const { settings } = useAccessibility();
@@ -47,6 +48,8 @@ const ShiftManagement = () => {
   const [showBulkOperationsModal, setShowBulkOperationsModal] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showQuickStats, setShowQuickStats] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -57,7 +60,17 @@ const ShiftManagement = () => {
     fetchShifts();
     fetchEmployees();
     fetchStats();
+    checkUnreadNotifications();
   }, [currentWeek, filterDepartment, filterEmployee]);
+
+  const checkUnreadNotifications = async () => {
+    try {
+      const response = await shiftsAPI.getNotifications({ status: 'delivered' });
+      setUnreadNotifications(response.data.data.length);
+    } catch (error) {
+      console.error('Failed to check notifications:', error);
+    }
+  };
 
   const fetchShifts = async () => {
     try {
@@ -365,6 +378,19 @@ const ShiftManagement = () => {
         <SkipLink target="shift-actions">Skip to actions</SkipLink>
       {/* Action Buttons */}
       <div id="shift-actions" className="flex justify-end space-x-3" role="toolbar" aria-label="Shift management actions">
+        <button
+          onClick={() => setShowNotifications(true)}
+          className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          aria-label="View notifications"
+        >
+          <Bell className="h-4 w-4 mr-2" />
+          Notifications
+          {unreadNotifications > 0 && (
+            <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              {unreadNotifications}
+            </span>
+          )}
+        </button>
         {isSelectionMode && (
           <>
             <span className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700">
@@ -883,6 +909,17 @@ const ShiftManagement = () => {
             setIsSelectionMode(false);
           }}
         />
+      )}
+
+      {showNotifications && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <ShiftNotifications
+            onClose={() => {
+              setShowNotifications(false);
+              checkUnreadNotifications();
+            }}
+          />
+        </div>
       )}
       </div>
     </ErrorBoundary>

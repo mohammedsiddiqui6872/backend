@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Shift = require('../models/Shift');
 const User = require('../models/User');
+const ShiftNotification = require('../models/ShiftNotification');
+const shiftNotificationService = require('../services/shiftNotificationService');
 const { authenticate, authorize } = require('../middleware/auth');
 const { enterpriseTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 const mongoose = require('mongoose');
@@ -169,6 +171,10 @@ router.post('/', authenticate, authorize(['shifts.manage']), enterpriseTenantIso
     await shift.save();
     await shift.populate('employee', 'name email avatar role');
 
+    // Create shift notifications
+    await shiftNotificationService.createShiftAssignmentNotification(shift);
+    await shiftNotificationService.createShiftReminders(shift);
+
     res.status(201).json({ 
       success: true, 
       message: 'Shift created successfully',
@@ -183,9 +189,36 @@ router.post('/', authenticate, authorize(['shifts.manage']), enterpriseTenantIso
 // Update shift
 router.put('/:id', authenticate, authorize(['shifts.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
+    const originalShift = await Shift.findOne({ 
+      _id: req.params.id, 
+      tenantId: req.tenant.tenantId 
+    });
+
+    if (!originalShift) {
+      return res.status(404).json({ success: false, message: 'Shift not found' });
+    }
+
     const updates = { ...req.body };
     delete updates.tenantId;
     delete updates.actualTimes; // These should be updated through clock in/out
+
+    // Track what changed for notifications
+    const changes = {};
+    if (updates.scheduledTimes && (
+      updates.scheduledTimes.start !== originalShift.scheduledTimes.start ||
+      updates.scheduledTimes.end !== originalShift.scheduledTimes.end
+    )) {
+      changes.scheduledTimes = updates.scheduledTimes;
+    }
+    if (updates.date && new Date(updates.date).getTime() !== originalShift.date.getTime()) {
+      changes.date = updates.date;
+    }
+    if (updates.department && updates.department !== originalShift.department) {
+      changes.department = updates.department;
+    }
+    if (updates.position && updates.position !== originalShift.position) {
+      changes.position = updates.position;
+    }
 
     const shift = await Shift.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.tenant.tenantId },
@@ -193,8 +226,9 @@ router.put('/:id', authenticate, authorize(['shifts.manage']), enterpriseTenantI
       { new: true, runValidators: true }
     ).populate('employee', 'name email avatar role');
 
-    if (!shift) {
-      return res.status(404).json({ success: false, message: 'Shift not found' });
+    // Send update notification if significant changes were made
+    if (Object.keys(changes).length > 0) {
+      await shiftNotificationService.createShiftUpdateNotification(shift, changes);
     }
 
     res.json({ 
@@ -486,6 +520,14 @@ router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ent
     await shift.populate('employee', 'name email');
     await shift.populate('swapRequest.requestedWith', 'name email');
 
+    // Send notification about swap decision
+    await shiftNotificationService.createSwapResponseNotification(
+      shift, 
+      shift.swapRequest.requestedBy, 
+      status === 'approved',
+      req.user.id
+    );
+
     res.json({ 
       success: true, 
       message: `Swap request ${status}`,
@@ -619,6 +661,185 @@ router.get('/stats/overview', authenticate, authorize(['shifts.reports']), enter
   } catch (error) {
     console.error('Error fetching shift stats:', error);
     res.status(500).json({ success: false, message: 'Error fetching shift statistics' });
+  }
+});
+
+// Get notifications for current user
+router.get('/notifications', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { status, type, page = 1, limit = 20 } = req.query;
+    
+    const query = {
+      tenantId: req.tenant.tenantId,
+      employee: req.user.id
+    };
+    
+    if (status) query.status = status;
+    if (type) query.type = type;
+    
+    const skip = (page - 1) * limit;
+    
+    const [notifications, total] = await Promise.all([
+      ShiftNotification.find(query)
+        .populate('shift', 'date shiftType scheduledTimes')
+        .populate('data.otherEmployee', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      ShiftNotification.countDocuments(query)
+    ]);
+    
+    res.json({
+      success: true,
+      data: notifications,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        current: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ success: false, message: 'Error fetching notifications' });
+  }
+});
+
+// Mark notification as read
+router.put('/notifications/:id/read', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const notification = await ShiftNotification.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId,
+      employee: req.user.id
+    });
+    
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+    
+    await notification.markAsRead();
+    
+    res.json({ 
+      success: true, 
+      message: 'Notification marked as read' 
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ success: false, message: 'Error marking notification as read' });
+  }
+});
+
+// Get notification preferences
+router.get('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const preferences = await shiftNotificationService.getNotificationPreferences(req.user.id);
+    
+    res.json({
+      success: true,
+      data: preferences
+    });
+  } catch (error) {
+    console.error('Error fetching preferences:', error);
+    res.status(500).json({ success: false, message: 'Error fetching preferences' });
+  }
+});
+
+// Update notification preferences
+router.put('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { push, email, sms, inApp, reminderTimes } = req.body;
+    
+    const preferences = {
+      push: push !== undefined ? push : true,
+      email: email !== undefined ? email : true,
+      sms: sms !== undefined ? sms : false,
+      inApp: inApp !== undefined ? inApp : true,
+      reminderTimes: reminderTimes || [60, 30, 15]
+    };
+    
+    await shiftNotificationService.updateNotificationPreferences(req.user.id, preferences);
+    
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: preferences
+    });
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    res.status(500).json({ success: false, message: 'Error updating preferences' });
+  }
+});
+
+// Create a swap request
+router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { requestedWith, reason } = req.body;
+    
+    const shift = await Shift.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId,
+      employee: req.user.id,
+      status: 'scheduled'
+    });
+    
+    if (!shift) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Shift not found or not authorized' 
+      });
+    }
+    
+    // Check if already has a pending swap request
+    if (shift.swapRequest?.status === 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This shift already has a pending swap request'
+      });
+    }
+    
+    // Validate requested employee
+    const targetEmployee = await User.findOne({
+      _id: requestedWith,
+      tenantId: req.tenant.tenantId,
+      isActive: true
+    });
+    
+    if (!targetEmployee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Target employee not found or inactive'
+      });
+    }
+    
+    // Create swap request
+    shift.swapRequest = {
+      requestedBy: req.user.id,
+      requestedWith,
+      reason,
+      status: 'pending',
+      requestDate: new Date()
+    };
+    
+    await shift.save();
+    
+    // Send notification to target employee
+    await shiftNotificationService.createSwapRequestNotification(
+      shift,
+      req.user.id,
+      requestedWith,
+      reason
+    );
+    
+    res.json({
+      success: true,
+      message: 'Swap request created successfully',
+      data: shift
+    });
+  } catch (error) {
+    console.error('Error creating swap request:', error);
+    res.status(500).json({ success: false, message: 'Error creating swap request' });
   }
 });
 
