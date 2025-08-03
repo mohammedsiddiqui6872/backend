@@ -352,17 +352,17 @@ router.post('/prep-time-predictions', async (req, res) => {
       isActive: true
     });
 
+    // Base prep times by station (in minutes)
+    const basePrepTimes = {
+      grill: 15,
+      salad: 5,
+      dessert: 10,
+      beverage: 3,
+      main: 20
+    };
+
     // Simulate predictions
     const predictions = items.map(item => {
-      // Base prep times by station (in minutes)
-      const basePrepTimes = {
-        grill: 15,
-        salad: 5,
-        dessert: 10,
-        beverage: 3,
-        main: 20
-      };
-      
       const baseTime = basePrepTimes[item.station || 'main'] || 10;
       
       // Factors affecting prep time

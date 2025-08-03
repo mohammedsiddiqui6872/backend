@@ -324,7 +324,7 @@ const KitchenDisplay = () => {
         
         if (stockStatus && stockStatus.percentageRemaining < 10) {
           const confirm = window.confirm(
-            `Warning: ${stockStatus.menuItemName} is critically low on stock (${stockStatus.percentageRemaining.toFixed(0)}% remaining). Continue anyway?`
+            `Warning: ${stockStatus.menuItemName} is critically low on stock (${(stockStatus.percentageRemaining || 0).toFixed(0)}% remaining). Continue anyway?`
           );
           if (!confirm) return;
         }

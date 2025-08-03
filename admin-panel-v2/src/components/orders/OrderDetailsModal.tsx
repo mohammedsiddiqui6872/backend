@@ -228,7 +228,7 @@ const OrderDetailsModal: React.FC<Props> = ({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-gray-900">
-                              AED {(item.price * item.quantity).toFixed(2)}
+                              AED {((item.price || 0) * (item.quantity || 0)).toFixed(2)}
                             </td>
                             {userRole === 'chef' && item.status !== 'served' && item.status !== 'cancelled' && (
                               <td className="px-4 py-3 text-center">
@@ -304,28 +304,28 @@ const OrderDetailsModal: React.FC<Props> = ({
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-medium">AED {order.subtotal.toFixed(2)}</span>
+                      <span className="font-medium">AED {(order.subtotal || 0).toFixed(2)}</span>
                     </div>
                     {order.discount && order.discount > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Discount:</span>
-                        <span className="font-medium text-red-600">-AED {order.discount.toFixed(2)}</span>
+                        <span className="font-medium text-red-600">-AED {(order.discount || 0).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Tax:</span>
-                      <span className="font-medium">AED {order.tax.toFixed(2)}</span>
+                      <span className="font-medium">AED {(order.tax || 0).toFixed(2)}</span>
                     </div>
                     {order.tip && order.tip > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Tip:</span>
-                        <span className="font-medium text-green-600">+AED {order.tip.toFixed(2)}</span>
+                        <span className="font-medium text-green-600">+AED {(order.tip || 0).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="pt-2 border-t border-gray-200">
                       <div className="flex justify-between">
                         <span className="text-base font-medium text-gray-900">Total:</span>
-                        <span className="text-base font-semibold text-gray-900">AED {order.total.toFixed(2)}</span>
+                        <span className="text-base font-semibold text-gray-900">AED {(order.total || 0).toFixed(2)}</span>
                       </div>
                     </div>
                     {order.paymentStatus === 'paid' && (

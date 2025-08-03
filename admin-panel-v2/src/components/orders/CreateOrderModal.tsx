@@ -560,7 +560,7 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                         
                         <div className="flex items-center justify-between">
                           <span className="text-lg font-semibold text-primary-600">
-                            AED {item.price.toFixed(2)}
+                            AED {(item.price || 0).toFixed(2)}
                           </span>
                           <button className="px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700">
                             <Plus className="h-4 w-4" />
@@ -652,7 +652,7 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                             
                             <div className="text-right">
                               <p className="font-medium">
-                                AED {item.totalPrice.toFixed(2)}
+                                AED {(item.totalPrice || 0).toFixed(2)}
                               </p>
                               <button
                                 onClick={() => removeFromCart(index)}
@@ -671,15 +671,15 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span>Subtotal</span>
-                          <span>AED {calculateTotals().subtotal.toFixed(2)}</span>
+                          <span>AED {(calculateTotals().subtotal || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Tax (5%)</span>
-                          <span>AED {calculateTotals().tax.toFixed(2)}</span>
+                          <span>AED {(calculateTotals().tax || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-lg font-medium">
                           <span>Total</span>
-                          <span>AED {calculateTotals().total.toFixed(2)}</span>
+                          <span>AED {(calculateTotals().total || 0).toFixed(2)}</span>
                         </div>
                         {estimatedPrepTime > 0 && (
                           <div className="flex justify-between text-sm mt-2">
@@ -763,7 +763,7 @@ const CreateOrderModal: React.FC<Props> = ({ isOpen, onClose, onOrderCreated }) 
                           </div>
                           {modifier.price > 0 && (
                             <span className="text-sm text-gray-600">
-                              +AED {modifier.price.toFixed(2)}
+                              +AED {(modifier.price || 0).toFixed(2)}
                             </span>
                           )}
                         </label>

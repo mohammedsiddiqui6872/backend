@@ -404,7 +404,7 @@ const MergeOrdersModal: React.FC<Props> = ({ isOpen, onClose, onMergeComplete, c
                         </div>
                         
                         <div className="text-right">
-                          <p className="font-medium">AED {order.total.toFixed(2)}</p>
+                          <p className="font-medium">AED {(order.total || 0).toFixed(2)}</p>
                           <p className="text-sm text-gray-600">{order.items.length} items</p>
                         </div>
                       </div>
@@ -427,11 +427,11 @@ const MergeOrdersModal: React.FC<Props> = ({ isOpen, onClose, onMergeComplete, c
                       </div>
                       <div>
                         <p className="text-gray-600">Subtotal</p>
-                        <p className="font-medium">AED {subtotal.toFixed(2)}</p>
+                        <p className="font-medium">AED {(subtotal || 0).toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Total Amount</p>
-                        <p className="font-medium text-green-700">AED {total.toFixed(2)}</p>
+                        <p className="font-medium text-green-700">AED {(total || 0).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>

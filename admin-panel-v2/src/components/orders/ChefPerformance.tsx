@@ -236,7 +236,7 @@ const ChefPerformance = () => {
             </div>
             <div className="flex items-center text-gray-600">
               <Star className="h-4 w-4 mr-1 text-yellow-500" />
-              {chef.metrics.avgRating.toFixed(1)}
+              {(chef.metrics.avgRating || 0).toFixed(1)}
             </div>
             <div className="flex items-center text-gray-600">
               <Activity className="h-4 w-4 mr-1" />
@@ -371,7 +371,7 @@ const ChefPerformance = () => {
                         {order.rating && (
                           <div className="flex items-center text-sm">
                             <Star className="h-3 w-3 text-yellow-500 mr-1" />
-                            {order.rating.toFixed(1)}
+                            {(order.rating || 0).toFixed(1)}
                           </div>
                         )}
                       </div>
@@ -440,7 +440,7 @@ const ChefPerformance = () => {
                 <div>
                   <p className="text-sm text-gray-600">Average Rating</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {stats.averageMetrics.avgRating.toFixed(1)}
+                    {(stats.averageMetrics.avgRating || 0).toFixed(1)}
                   </p>
                 </div>
                 <Star className="h-8 w-8 text-yellow-500" />

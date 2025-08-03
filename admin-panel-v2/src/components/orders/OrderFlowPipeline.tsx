@@ -434,7 +434,7 @@ const OrderFlowPipeline = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">AED {order.totalAmount.toFixed(2)}</p>
+                  <p className="font-medium">AED {(order.totalAmount || 0).toFixed(2)}</p>
                   <p className="text-sm text-gray-600">{order.items.length} items</p>
                 </div>
               </div>
@@ -469,7 +469,7 @@ const OrderFlowPipeline = () => {
               </div>
               <div className="flex items-center text-sm">
                 <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
-                Total: AED {selectedOrder.totalAmount.toFixed(2)}
+                Total: AED {(selectedOrder.totalAmount || 0).toFixed(2)}
               </div>
               {selectedOrder.waiter && (
                 <div className="flex items-center text-sm">

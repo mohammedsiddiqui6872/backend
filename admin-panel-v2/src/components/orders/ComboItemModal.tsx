@@ -264,14 +264,14 @@ const ComboItemModal: React.FC<Props> = ({ isOpen, onClose, onComboSelected, exi
                         <div className="mt-4 flex items-center justify-between">
                           <div>
                             <p className="text-sm text-gray-500 line-through">
-                              AED {pricing.regular.toFixed(2)}
+                              AED {(pricing.regular || 0).toFixed(2)}
                             </p>
                             <p className="text-xl font-bold text-primary-600">
-                              AED {combo.price.toFixed(2)}
+                              AED {(combo.price || 0).toFixed(2)}
                             </p>
                           </div>
                           <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                            Save AED {combo.savings.toFixed(2)}
+                            Save AED {(combo.savings || 0).toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -345,7 +345,7 @@ const ComboItemModal: React.FC<Props> = ({ isOpen, onClose, onComboSelected, exi
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="font-medium text-sm">{menuItem.name}</p>
-                                  <p className="text-xs text-gray-600">AED {menuItem.price.toFixed(2)}</p>
+                                  <p className="text-xs text-gray-600">AED {(menuItem.price || 0).toFixed(2)}</p>
                                   {menuItem.isDefault && (
                                     <span className="text-xs text-primary-600">Default</span>
                                   )}
@@ -368,13 +368,13 @@ const ComboItemModal: React.FC<Props> = ({ isOpen, onClose, onComboSelected, exi
                     <div>
                       <p className="text-sm text-blue-900">Combo Price</p>
                       <p className="text-2xl font-bold text-blue-900">
-                        AED {selectedCombo?.price.toFixed(2)}
+                        AED {(selectedCombo?.price || 0).toFixed(2)}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-blue-700">You Save</p>
                       <p className="text-lg font-medium text-green-600">
-                        AED {calculateComboPrice().savings.toFixed(2)}
+                        AED {(calculateComboPrice().savings || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>

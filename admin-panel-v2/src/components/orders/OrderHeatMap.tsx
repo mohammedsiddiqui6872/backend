@@ -271,11 +271,11 @@ const OrderHeatMap = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Revenue</p>
-                <p className="font-medium">AED {selectedCell.revenue.toFixed(2)}</p>
+                <p className="font-medium">AED {(selectedCell.revenue || 0).toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Avg Order</p>
-                <p className="font-medium">AED {selectedCell.avgOrderValue.toFixed(2)}</p>
+                <p className="font-medium">AED {(selectedCell.avgOrderValue || 0).toFixed(2)}</p>
               </div>
             </div>
             {selectedCell.peakItems.length > 0 && (
@@ -322,7 +322,7 @@ const OrderHeatMap = () => {
                   {table.totalOrders} orders
                 </p>
                 <p className="text-xs text-gray-600">
-                  AED {table.totalRevenue.toFixed(0)}
+                  AED {(table.totalRevenue || 0).toFixed(0)}
                 </p>
               </div>
               
@@ -349,7 +349,7 @@ const OrderHeatMap = () => {
               <div>
                 <p className="text-sm text-gray-600">Total Tables Revenue</p>
                 <p className="text-2xl font-bold">
-                  AED {tableData.reduce((sum, t) => sum + t.totalRevenue, 0).toFixed(2)}
+                  AED {(tableData.reduce((sum, t) => sum + (t.totalRevenue || 0), 0) || 0).toFixed(2)}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-gray-400" />
@@ -360,7 +360,7 @@ const OrderHeatMap = () => {
               <div>
                 <p className="text-sm text-gray-600">Average Utilization</p>
                 <p className="text-2xl font-bold">
-                  {(tableData.reduce((sum, t) => sum + t.utilization, 0) / tableData.length).toFixed(1)}%
+                  {((tableData.reduce((sum, t) => sum + (t.utilization || 0), 0) / (tableData.length || 1)) || 0).toFixed(1)}%
                 </p>
               </div>
               <Activity className="h-8 w-8 text-gray-400" />

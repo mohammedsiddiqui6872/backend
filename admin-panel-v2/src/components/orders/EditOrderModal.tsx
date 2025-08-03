@@ -427,7 +427,7 @@ const EditOrderModal: React.FC<Props> = ({ order, isOpen, onClose, onOrderUpdate
                           <span className="text-sm font-medium">{item.name}</span>
                           {getStationIcon(item.station)}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">AED {item.price.toFixed(2)}</p>
+                        <p className="text-xs text-gray-500 mt-1">AED {(item.price || 0).toFixed(2)}</p>
                       </button>
                     ))}
                   </div>
@@ -546,27 +546,27 @@ const EditOrderModal: React.FC<Props> = ({ order, isOpen, onClose, onOrderUpdate
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
-                  <span>AED {editedOrder.subtotal.toFixed(2)}</span>
+                  <span>AED {(editedOrder.subtotal || 0).toFixed(2)}</span>
                 </div>
                 {editedOrder.discount && editedOrder.discount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>Discount</span>
-                    <span className="text-red-600">-AED {editedOrder.discount.toFixed(2)}</span>
+                    <span className="text-red-600">-AED {(editedOrder.discount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span>Tax (5%)</span>
-                  <span>AED {editedOrder.tax.toFixed(2)}</span>
+                  <span>AED {(editedOrder.tax || 0).toFixed(2)}</span>
                 </div>
                 {editedOrder.tip && editedOrder.tip > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>Tip</span>
-                    <span className="text-green-600">+AED {editedOrder.tip.toFixed(2)}</span>
+                    <span className="text-green-600">+AED {(editedOrder.tip || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-medium pt-2 border-t">
                   <span>Total</span>
-                  <span>AED {editedOrder.total.toFixed(2)}</span>
+                  <span>AED {(editedOrder.total || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -646,7 +646,7 @@ const EditOrderModal: React.FC<Props> = ({ order, isOpen, onClose, onOrderUpdate
                           </div>
                           {modifier.price > 0 && (
                             <span className="text-sm text-gray-600">
-                              +AED {modifier.price.toFixed(2)}
+                              +AED {(modifier.price || 0).toFixed(2)}
                             </span>
                           )}
                         </label>

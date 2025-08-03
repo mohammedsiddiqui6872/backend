@@ -145,7 +145,7 @@ const OrdersManagement = () => {
 
   const updateOrderInList = (orderId: string, updates: Partial<Order>) => {
     setOrders(prevOrders => 
-      prevOrders.map(order => 
+      (prevOrders || []).map(order => 
         order._id === orderId ? { ...order, ...updates } : order
       )
     );
@@ -505,7 +505,7 @@ const OrdersManagement = () => {
                     Total Revenue
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    AED {stats.totalRevenue.toFixed(2)}
+                    AED {(stats.totalRevenue || 0).toFixed(2)}
                   </dd>
                 </dl>
               </div>
@@ -525,7 +525,7 @@ const OrdersManagement = () => {
                     Avg Order Value
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    AED {stats.averageOrderValue.toFixed(2)}
+                    AED {(stats.averageOrderValue || 0).toFixed(2)}
                   </dd>
                 </dl>
               </div>
@@ -626,7 +626,7 @@ const OrdersManagement = () => {
       {/* Orders List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {filteredOrders.length > 0 ? (
+          {filteredOrders && filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <li key={order._id} className="hover:bg-gray-50 transition-colors">
                 <div className="px-4 py-4 sm:px-6">
@@ -671,7 +671,7 @@ const OrdersManagement = () => {
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <p className="text-lg font-semibold text-gray-900">
-                          AED {order.total.toFixed(2)}
+                          AED {(order.total || 0).toFixed(2)}
                         </p>
                         {order.paymentStatus === 'paid' && (
                           <p className="text-sm text-green-600 flex items-center">
@@ -691,7 +691,7 @@ const OrdersManagement = () => {
                               className="block py-1 px-2 border border-gray-300 bg-white rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                             >
                               <option value="">Update Status</option>
-                              {getNextStatus(order.status, selectedRole).map(status => (
+                              {(getNextStatus(order.status, selectedRole) || []).map(status => (
                                 <option key={status} value={status}>
                                   {status.charAt(0).toUpperCase() + status.slice(1)}
                                 </option>
