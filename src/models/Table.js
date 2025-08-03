@@ -129,9 +129,14 @@ tableSchema.pre('save', async function(next) {
       0 // No expiry for permanent QR codes
     );
     
+    // Get tenant subdomain for direct URL
+    const subdomain = tenant.subdomain || this.tenantId;
+    const directUrl = `https://${subdomain}.gritservices.ae?table=${this.number}`;
+    
     this.qrCode = {
       code: qrData.code,
-      url: qrData.url,
+      url: directUrl, // Direct URL for QR code
+      validationUrl: qrData.url, // URL for encrypted validation if needed
       customization: {
         encrypted: true
       }

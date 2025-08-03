@@ -373,6 +373,13 @@ router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, 
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Get tenant for subdomain
+    const Tenant = require('../../models/Tenant');
+    const tenant = await Tenant.findOne({ tenantId: req.tenantId });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
     // Use encrypted QR code generation
     const { generateEncryptedQRCode } = require('../../utils/tableEncryption');
     const qrData = generateEncryptedQRCode(
@@ -382,9 +389,13 @@ router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, 
       0 // No expiry
     );
 
+    // Create direct URL for QR code
+    const directUrl = `https://${tenant.subdomain}.gritservices.ae?table=${table.number}`;
+
     table.qrCode = {
       code: qrData.code,
-      url: qrData.url,
+      url: directUrl, // Direct URL for QR code
+      validationUrl: qrData.url, // Encrypted validation URL if needed
       customization: {
         ...table.qrCode?.customization,
         encrypted: true
@@ -392,8 +403,8 @@ router.post('/:tableNumber/qr-code', authorize('admin', 'manager'), async (req, 
     };
     await table.save();
 
-    // Generate visual QR code
-    const qrCodeDataUrl = await QRCode.toDataURL(qrData.url);
+    // Generate visual QR code with direct URL
+    const qrCodeDataUrl = await QRCode.toDataURL(directUrl);
 
     res.json({
       success: true,
@@ -411,6 +422,13 @@ router.post('/regenerate-qr', authorize('admin'), async (req, res) => {
   try {
     const { tableIds, useEncryption = true } = req.body;
     const filter = { tenantId: req.tenantId };
+    
+    // Get tenant for subdomain
+    const Tenant = require('../../models/Tenant');
+    const tenant = await Tenant.findOne({ tenantId: req.tenantId });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
     
     // If specific tables are provided, filter by them
     if (tableIds && tableIds.length > 0) {
@@ -431,9 +449,13 @@ router.post('/regenerate-qr', authorize('admin'), async (req, res) => {
           0 // No expiry
         );
         
+        // Create direct URL for QR code
+        const directUrl = `https://${tenant.subdomain}.gritservices.ae?table=${table.number}`;
+        
         table.qrCode = {
           code: qrData.code,
-          url: qrData.url,
+          url: directUrl, // Direct URL for QR code
+          validationUrl: qrData.url, // Encrypted validation URL if needed
           customization: {
             ...table.qrCode?.customization,
             encrypted: true

@@ -93,11 +93,16 @@ function generateEncryptedQRCode(tenantId, tableId, tableNumber, expiryHours = 0
   }
   
   const encryptedCode = encryptTableData(data);
-  const frontendUrl = process.env.FRONTEND_URL || 'https://app.gritservices.ae';
+  
+  // For direct QR code scanning, we need the tenant subdomain
+  // This will be updated when the table is created with tenant info
+  // For now, we'll use a placeholder that will be replaced
+  const baseUrl = process.env.FRONTEND_URL || 'https://app.gritservices.ae';
   
   return {
     code: encryptedCode,
-    url: `${frontendUrl}/t/${encryptedCode}`,
+    url: `${baseUrl}/table-access/t/${encryptedCode}`, // Intermediate URL for validation
+    directUrl: null, // Will be set by the Table model with subdomain
     displayCode: `Table-${tableNumber}`,
     encrypted: true
   };
