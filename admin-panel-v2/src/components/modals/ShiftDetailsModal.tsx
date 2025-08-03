@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { shiftsAPI } from '../../services/api';
+import { handleApiError } from '../../utils/errorHandling';
 import { calculateShiftDuration, formatDuration } from '../../utils/shiftUtils';
 import { Employee, Shift, SwapRequestData } from '../../types/shift';
 
@@ -95,7 +96,7 @@ const ShiftDetailsModal = ({ isOpen, shift, onClose, onEdit, onDelete, employees
       setSwapReason('');
       onClose();
     } catch (error) {
-      toast.error('Failed to submit swap request');
+      handleApiError(error, 'Failed to submit swap request');
     } finally {
       setIsSwapping(false);
     }

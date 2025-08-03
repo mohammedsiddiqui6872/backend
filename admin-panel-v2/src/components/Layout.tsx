@@ -11,18 +11,21 @@ import {
   ChefHat,
   Clock,
   Package2,
-  PieChart
+  PieChart,
+  Eye
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import storageManager from '../utils/storageManager';
 import toast from 'react-hot-toast';
+import AccessibilitySettings from './common/AccessibilitySettings';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [restaurantName, setRestaurantName] = useState('');
+  const [showAccessibilitySettings, setShowAccessibilitySettings] = useState(false);
   
   useEffect(() => {
     // Get restaurant name from tenant config
@@ -92,7 +95,15 @@ const Layout = () => {
             })}
           </div>
           
-          <div className="absolute bottom-0 w-full p-4 border-t">
+          <div className="absolute bottom-0 w-full p-4 border-t space-y-2">
+            <button
+              onClick={() => setShowAccessibilitySettings(true)}
+              className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              aria-label="Open accessibility settings"
+            >
+              <Eye className="h-5 w-5 mr-3" />
+              Accessibility
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -110,6 +121,12 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+      
+      {/* Accessibility Settings Modal */}
+      <AccessibilitySettings
+        isOpen={showAccessibilitySettings}
+        onClose={() => setShowAccessibilitySettings(false)}
+      />
     </div>
   );
 };

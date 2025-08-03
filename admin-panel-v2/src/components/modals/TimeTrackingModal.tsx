@@ -3,6 +3,7 @@ import { X, LogIn, LogOut, Coffee, Clock, User, Calendar, AlertCircle } from 'lu
 import { format } from 'date-fns';
 import { shiftsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { handleApiError, validateShiftOperation } from '../../utils/errorHandling';
 import { Employee, Shift } from '../../types/shift';
 
 interface TimeTrackingModalProps {
@@ -59,6 +60,12 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       toast.error('No scheduled shift found for today');
       return;
     }
+    
+    const validation = validateShiftOperation(activeShift, 'clockIn');
+    if (!validation.valid) {
+      toast.error(validation.error!);
+      return;
+    }
 
     try {
       await shiftsAPI.clockIn(activeShift._id);
@@ -66,15 +73,18 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       fetchActiveShift();
       onRefresh();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to clock in';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to clock in');
     }
   };
 
   const handleClockOut = async () => {
     if (!activeShift) return;
+    
+    const validation = validateShiftOperation(activeShift, 'clockOut');
+    if (!validation.valid) {
+      toast.error(validation.error!);
+      return;
+    }
 
     try {
       await shiftsAPI.clockOut(activeShift._id);
@@ -83,10 +93,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       setActiveShift(null);
       onRefresh();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to clock out';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to clock out');
     }
   };
 
@@ -98,10 +105,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       toast.success(`${type === 'short' ? 'Short' : 'Meal'} break started`);
       fetchActiveShift();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to start break';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to start break');
     }
   };
 
@@ -113,10 +117,7 @@ const TimeTrackingModal = ({ isOpen, onClose, employees, onRefresh }: TimeTracki
       toast.success('Break ended');
       fetchActiveShift();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to end break';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to end break');
     }
   };
 

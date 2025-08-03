@@ -1,0 +1,179 @@
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip link becomes visible on focus */
+.sr-only:focus {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Font size adjustments */
+.text-large {
+  font-size: 1.125rem;
+}
+
+.text-large h1 { font-size: 2.5rem; }
+.text-large h2 { font-size: 2rem; }
+.text-large h3 { font-size: 1.75rem; }
+.text-large h4 { font-size: 1.5rem; }
+
+.text-extra-large {
+  font-size: 1.25rem;
+}
+
+.text-extra-large h1 { font-size: 3rem; }
+.text-extra-large h2 { font-size: 2.5rem; }
+.text-extra-large h3 { font-size: 2rem; }
+.text-extra-large h4 { font-size: 1.75rem; }
+
+/* High contrast mode */
+.high-contrast {
+  filter: contrast(1.5);
+}
+
+.high-contrast * {
+  border-color: currentColor !important;
+}
+
+.high-contrast button:focus,
+.high-contrast input:focus,
+.high-contrast select:focus,
+.high-contrast textarea:focus,
+.high-contrast a:focus {
+  outline: 3px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
+/* Reduce motion */
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Colorblind mode - additional visual indicators */
+.colorblind-mode .shift-morning::before {
+  content: "M";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.colorblind-mode .shift-afternoon::before {
+  content: "A";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.colorblind-mode .shift-evening::before {
+  content: "E";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.colorblind-mode .shift-night::before {
+  content: "N";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Focus indicators */
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Keyboard navigation hints */
+.keyboard-hint {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.keyboard-hints-enabled .focusable:focus .keyboard-hint {
+  opacity: 1;
+}
+
+/* Improved button states */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Enhanced form labels */
+label {
+  cursor: pointer;
+}
+
+label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Better error messages */
+.error-message {
+  border-left: 4px solid #ef4444;
+  padding-left: 1rem;
+  background-color: #fee;
+}
+
+/* Success messages */
+.success-message {
+  border-left: 4px solid #10b981;
+  padding-left: 1rem;
+  background-color: #f0fdf4;
+}
+
+/* Loading states */
+[aria-busy="true"] {
+  cursor: wait;
+}
+
+/* Print styles for better accessibility */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break-after {
+    page-break-after: always;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+}

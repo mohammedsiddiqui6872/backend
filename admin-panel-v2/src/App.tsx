@@ -14,6 +14,8 @@ import Layout from './components/Layout';
 import TableServiceHistory from './components/tables/TableServiceHistory';
 import { authAPI } from './services/api';
 import storageManager from './utils/storageManager';
+import { AccessibilityProvider } from './contexts/AccessibilityContext';
+import './styles/accessibility.css';
 
 // Component to handle navigation with query params preserved
 function NavigateWithQuery({ to }: { to: string }) {
@@ -90,8 +92,9 @@ function App() {
   }
 
   return (
-    <Router basename="/admin-panel">
-      <Toaster position="top-right" />
+    <AccessibilityProvider>
+      <Router basename="/admin-panel">
+        <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={
           isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={async () => {
@@ -121,8 +124,9 @@ function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </AccessibilityProvider>
   );
 }
 

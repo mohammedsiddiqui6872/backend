@@ -7,6 +7,8 @@ import {
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
 import { shiftsAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { handleApiError, retryOperation } from '../utils/errorHandling';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import { Employee, Shift, ShiftStats, ShiftFormData, ShiftUpdateData } from '../types/shift';
 import AddShiftModal from '../components/modals/AddShiftModal';
 import EditShiftModal from '../components/modals/EditShiftModal';
@@ -41,15 +43,17 @@ const Shifts = () => {
 
   const fetchShifts = async () => {
     try {
-      const response = await shiftsAPI.getShifts({
-        startDate: weekStart.toISOString(),
-        endDate: weekEnd.toISOString(),
-        department: filterDepartment,
-        employee: filterEmployee
-      });
+      const response = await retryOperation(() => 
+        shiftsAPI.getShifts({
+          startDate: weekStart.toISOString(),
+          endDate: weekEnd.toISOString(),
+          department: filterDepartment,
+          employee: filterEmployee
+        })
+      );
       setShifts(response.data.data);
     } catch (error) {
-      toast.error('Failed to load shifts');
+      handleApiError(error, 'Failed to load shifts');
     } finally {
       setLoading(false);
     }
@@ -85,10 +89,7 @@ const Shifts = () => {
       fetchShifts();
       fetchStats();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to create shift';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to create shift');
     }
   };
 
@@ -102,10 +103,7 @@ const Shifts = () => {
       setSelectedShift(null);
       fetchShifts();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to update shift';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to update shift');
     }
   };
 
@@ -120,7 +118,7 @@ const Shifts = () => {
       fetchShifts();
       fetchStats();
     } catch (error) {
-      toast.error('Failed to cancel shift');
+      handleApiError(error, 'Failed to cancel shift');
     }
   };
 
@@ -277,7 +275,8 @@ const Shifts = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -628,7 +627,8 @@ const Shifts = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

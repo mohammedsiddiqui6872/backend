@@ -2,12 +2,17 @@ import { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, Clock, Users, Plus, ChevronLeft, 
   ChevronRight, Filter, Download, Upload, AlertCircle, CheckCircle,
-  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye, Copy, FileText
+  XCircle, Timer, Coffee, LogIn, LogOut, Repeat, Eye, Copy, FileText, Edit3
 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday } from 'date-fns';
 import { shiftsAPI, shiftTemplatesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { getShiftTypeColor } from '../../utils/shiftUtils';
+import { handleApiError, retryOperation } from '../../utils/errorHandling';
+import ErrorBoundary from '../common/ErrorBoundary';
+import { getShiftAriaLabel, announce, handleCalendarKeyboard, getAccessibleShiftColor } from '../../utils/accessibility';
+import { useAccessibility } from '../../contexts/AccessibilityContext';
+import SkipLink from '../common/SkipLink';
 import { Employee, Shift, ShiftStats, ShiftFormData, ShiftUpdateData, ShiftType } from '../../types/shift';
 import AddShiftModal from '../modals/AddShiftModal';
 import EditShiftModal from '../modals/EditShiftModal';
@@ -15,14 +20,19 @@ import ShiftDetailsModal from '../modals/ShiftDetailsModal';
 import TimeTrackingModal from '../modals/TimeTrackingModal';
 import ShiftTemplateModal from '../modals/ShiftTemplateModal';
 import ShiftTemplatesListModal from '../modals/ShiftTemplatesListModal';
+import BulkShiftOperationsModal from '../modals/BulkShiftOperationsModal';
+import QuickStatsWidget from './QuickStatsWidget';
+import MonthViewCalendar from './MonthViewCalendar';
+import ConflictDetectionWidget from './ConflictDetectionWidget';
 
 const ShiftManagement = () => {
+  const { settings } = useAccessibility();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [stats, setStats] = useState<ShiftStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'day' | 'month'>('week');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,6 +43,10 @@ const ShiftManagement = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showTemplatesListModal, setShowTemplatesListModal] = useState(false);
+  const [selectedShifts, setSelectedShifts] = useState<string[]>([]);
+  const [showBulkOperationsModal, setShowBulkOperationsModal] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showQuickStats, setShowQuickStats] = useState(true);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -47,15 +61,17 @@ const ShiftManagement = () => {
 
   const fetchShifts = async () => {
     try {
-      const response = await shiftsAPI.getShifts({
-        startDate: weekStart.toISOString(),
-        endDate: weekEnd.toISOString(),
-        department: filterDepartment,
-        employee: filterEmployee
-      });
+      const response = await retryOperation(() => 
+        shiftsAPI.getShifts({
+          startDate: weekStart.toISOString(),
+          endDate: weekEnd.toISOString(),
+          department: filterDepartment,
+          employee: filterEmployee
+        })
+      );
       setShifts(response.data.data);
     } catch (error) {
-      toast.error('Failed to load shifts');
+      handleApiError(error, 'Failed to load shifts');
     } finally {
       setLoading(false);
     }
@@ -63,22 +79,26 @@ const ShiftManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await shiftsAPI.getEmployees();
+      const response = await retryOperation(() => shiftsAPI.getEmployees());
       setEmployees(response.data.data);
     } catch (error) {
-      console.error('Failed to load employees');
+      handleApiError(error, 'Failed to load employees');
+      console.error('Failed to load employees:', error);
     }
   };
 
   const fetchStats = async () => {
     try {
-      const response = await shiftsAPI.getStats({
-        startDate: weekStart.toISOString(),
-        endDate: weekEnd.toISOString()
-      });
+      const response = await retryOperation(() => 
+        shiftsAPI.getStats({
+          startDate: weekStart.toISOString(),
+          endDate: weekEnd.toISOString()
+        })
+      );
       setStats(response.data.data);
     } catch (error) {
-      console.error('Failed to load stats');
+      handleApiError(error, 'Failed to load statistics');
+      console.error('Failed to load stats:', error);
     }
   };
 
@@ -91,10 +111,7 @@ const ShiftManagement = () => {
       fetchShifts();
       fetchStats();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to create shift';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to create shift');
     }
   };
 
@@ -108,10 +125,7 @@ const ShiftManagement = () => {
       setSelectedShift(null);
       fetchShifts();
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as any).response?.data?.message || 'Failed to update shift';
-      toast.error(errorMessage);
+      handleApiError(error, 'Failed to update shift');
     }
   };
 
@@ -126,7 +140,7 @@ const ShiftManagement = () => {
       fetchShifts();
       fetchStats();
     } catch (error) {
-      toast.error('Failed to cancel shift');
+      handleApiError(error, 'Failed to cancel shift');
     }
   };
 
@@ -345,12 +359,52 @@ const ShiftManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
+        <SkipLink target="shift-calendar">Skip to calendar</SkipLink>
+        <SkipLink target="shift-actions">Skip to actions</SkipLink>
       {/* Action Buttons */}
-      <div className="flex justify-end space-x-3">
+      <div id="shift-actions" className="flex justify-end space-x-3" role="toolbar" aria-label="Shift management actions">
+        {isSelectionMode && (
+          <>
+            <span className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700">
+              {selectedShifts.length} selected
+            </span>
+            <button
+              onClick={() => setShowBulkOperationsModal(true)}
+              disabled={selectedShifts.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              aria-label="Bulk operations on selected shifts"
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              Bulk Operations
+            </button>
+            <button
+              onClick={() => {
+                setIsSelectionMode(false);
+                setSelectedShifts([]);
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              aria-label="Cancel selection"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+        {!isSelectionMode && (
+          <button
+            onClick={() => setIsSelectionMode(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            aria-label="Enable multi-select mode"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Select Multiple
+          </button>
+        )}
         <button
           onClick={() => setShowTemplatesListModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          aria-label="Manage shift templates"
         >
           <FileText className="h-4 w-4 mr-2" />
           Templates
@@ -358,7 +412,9 @@ const ShiftManagement = () => {
         <button
           onClick={copyLastWeekShifts}
           disabled={isCopyingLastWeek}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          aria-label="Copy shifts from last week"
+          aria-busy={isCopyingLastWeek}
         >
           <Copy className="h-4 w-4 mr-2" />
           {isCopyingLastWeek ? 'Copying...' : 'Copy Last Week'}
@@ -392,6 +448,23 @@ const ShiftManagement = () => {
           Add Shift
         </button>
       </div>
+
+      {/* Quick Stats Dashboard */}
+      {showQuickStats && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <QuickStatsWidget shifts={shifts} employees={employees} />
+          <ConflictDetectionWidget 
+            shifts={shifts} 
+            onShiftClick={(shiftId) => {
+              const shift = shifts.find(s => s._id === shiftId);
+              if (shift) {
+                setSelectedShift(shift);
+                setShowDetailsModal(true);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (
@@ -483,8 +556,12 @@ const ShiftManagement = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              onClick={() => {
+                setCurrentWeek(subWeeks(currentWeek, 1));
+                announce('Navigated to previous week');
+              }}
+              className="p-2 hover:bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              aria-label="Go to previous week"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -492,8 +569,12 @@ const ShiftManagement = () => {
               {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
             </div>
             <button
-              onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-              className="p-2 hover:bg-gray-100 rounded-md"
+              onClick={() => {
+                setCurrentWeek(addWeeks(currentWeek, 1));
+                announce('Navigated to next week');
+              }}
+              className="p-2 hover:bg-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              aria-label="Go to next week"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -542,7 +623,7 @@ const ShiftManagement = () => {
               </button>
               <button
                 onClick={() => setViewMode('day')}
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+                className={`px-4 py-2 text-sm font-medium ${
                   viewMode === 'day'
                     ? 'bg-primary-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -550,14 +631,46 @@ const ShiftManagement = () => {
               >
                 Day
               </button>
+              <button
+                onClick={() => setViewMode('month')}
+                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+                  viewMode === 'month'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                } border-t border-b border-r`}
+              >
+                Month
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Calendar View */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="grid grid-cols-7 gap-0 border-b">
+      {viewMode === 'month' ? (
+        <MonthViewCalendar
+          shifts={shifts}
+          onDayClick={(date) => {
+            setSelectedDate(date);
+            setShowAddModal(true);
+          }}
+          onShiftClick={(shift) => {
+            setSelectedShift(shift);
+            setShowDetailsModal(true);
+          }}
+          selectedShifts={selectedShifts}
+          isSelectionMode={isSelectionMode}
+          onShiftSelect={(shiftId) => {
+            setSelectedShifts(prev => 
+              prev.includes(shiftId) 
+                ? prev.filter(id => id !== shiftId)
+                : [...prev, shiftId]
+            );
+          }}
+        />
+      ) : (
+        <div id="shift-calendar" className="bg-white shadow rounded-lg overflow-hidden" role="region" aria-label="Shift calendar">
+          <div className="grid grid-cols-7 gap-0 border-b">
           {weekDays.map(day => (
             <div
               key={day.toISOString()}
@@ -588,13 +701,53 @@ const ShiftManagement = () => {
                   <div
                     key={shift._id}
                     onClick={() => {
-                      setSelectedShift(shift);
-                      setShowDetailsModal(true);
+                      if (isSelectionMode) {
+                        setSelectedShifts(prev => 
+                          prev.includes(shift._id) 
+                            ? prev.filter(id => id !== shift._id)
+                            : [...prev, shift._id]
+                        );
+                      } else {
+                        setSelectedShift(shift);
+                        setShowDetailsModal(true);
+                      }
                     }}
-                    className={`p-2 rounded-md border cursor-pointer hover:shadow-md transition-shadow ${
-                      getShiftTypeColor(shift.shiftType)
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (isSelectionMode) {
+                          setSelectedShifts(prev => 
+                            prev.includes(shift._id) 
+                              ? prev.filter(id => id !== shift._id)
+                              : [...prev, shift._id]
+                          );
+                        } else {
+                          setSelectedShift(shift);
+                          setShowDetailsModal(true);
+                        }
+                      }
+                    }}
+                    className={`p-2 rounded-md border cursor-pointer hover:shadow-md transition-shadow relative ${
+                      getAccessibleShiftColor(shift.shiftType, settings.colorblindMode)
+                    } ${
+                      selectedShifts.includes(shift._id) ? 'ring-2 ring-primary-500' : ''
                     }`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={getShiftAriaLabel(shift)}
+                    aria-selected={selectedShifts.includes(shift._id)}
                   >
+                    {isSelectionMode && (
+                      <div className="absolute top-1 left-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedShifts.includes(shift._id)}
+                          onChange={() => {}}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                          aria-label={`Select shift for ${shift.employee?.name || 'Unassigned'}`}
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         {shift.employee ? (
@@ -635,14 +788,16 @@ const ShiftManagement = () => {
                   setSelectedDate(day);
                   setShowAddModal(true);
                 }}
-                className="mt-2 w-full p-2 border-2 border-dashed border-gray-300 rounded-md text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
+                className="mt-2 w-full p-2 border-2 border-dashed border-gray-300 rounded-md text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                aria-label={`Add shift for ${format(day, 'EEEE, MMMM d')}`}
               >
                 <Plus className="h-4 w-4 mx-auto" />
               </button>
             </div>
           ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modals */}
       {showAddModal && (
@@ -714,7 +869,23 @@ const ShiftManagement = () => {
           }}
         />
       )}
-    </div>
+
+      {showBulkOperationsModal && (
+        <BulkShiftOperationsModal
+          isOpen={showBulkOperationsModal}
+          onClose={() => setShowBulkOperationsModal(false)}
+          selectedShifts={shifts.filter(s => selectedShifts.includes(s._id))}
+          employees={employees}
+          onOperationComplete={() => {
+            fetchShifts();
+            fetchStats();
+            setSelectedShifts([]);
+            setIsSelectionMode(false);
+          }}
+        />
+      )}
+      </div>
+    </ErrorBoundary>
   );
 };
 

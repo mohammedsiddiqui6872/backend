@@ -4,6 +4,9 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { validateShiftTimes, getShiftTypeDefaults } from '../../utils/shiftUtils';
 import { Employee, ShiftFormData, ShiftType } from '../../types/shift';
+import { handleApiError } from '../../utils/errorHandling';
+import { useAccessibility } from '../../contexts/AccessibilityContext';
+import { KEYBOARD_KEYS } from '../../utils/accessibility';
 
 interface AddShiftModalProps {
   isOpen: boolean;
@@ -14,6 +17,7 @@ interface AddShiftModalProps {
 }
 
 const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddShiftModalProps) => {
+  const { settings } = useAccessibility();
   const [formData, setFormData] = useState<ShiftFormData>({
     employee: '',
     date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
@@ -53,7 +57,7 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
     }
   }, [formData.employee, employees]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.employee) {
@@ -73,7 +77,11 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
       return;
     }
 
-    onAdd(formData);
+    try {
+      await onAdd(formData);
+    } catch (error) {
+      handleApiError(error, 'Failed to add shift');
+    }
   };
 
   if (!isOpen) return null;
@@ -93,10 +101,11 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label htmlFor="add-shift-employee" className="block text-sm font-medium text-gray-700">
               Employee <span className="text-red-500">*</span>
             </label>
             <select
+              id="add-shift-employee"
               value={formData.employee}
               onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
@@ -112,10 +121,11 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label htmlFor="add-shift-date" className="block text-sm font-medium text-gray-700">
               Date <span className="text-red-500">*</span>
             </label>
             <input
+              id="add-shift-date"
               type="date"
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -125,10 +135,11 @@ const AddShiftModal = ({ isOpen, onClose, onAdd, employees, selectedDate }: AddS
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label htmlFor="add-shift-type" className="block text-sm font-medium text-gray-700">
               Shift Type <span className="text-red-500">*</span>
             </label>
             <select
+              id="add-shift-type"
               value={formData.shiftType}
               onChange={(e) => setFormData({ ...formData, shiftType: e.target.value as ShiftType })}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
