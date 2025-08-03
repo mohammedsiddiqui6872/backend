@@ -608,6 +608,24 @@ export const ordersAPI = {
   
   getOrderDetails: (id: string) => 
     api.get(`/orders/${id}`),
+  
+  processPayment: (id: string, data: { paymentMethod: string; amountPaid: number; tip: number }) =>
+    api.post(`/orders/${id}/payment`, data),
+  
+  updateItemStatus: (orderId: string, itemId: string, status: string) =>
+    api.patch(`/orders/${orderId}/items/${itemId}/status`, { status }),
+  
+  addItem: (orderId: string, item: any) =>
+    api.post(`/orders/${orderId}/items`, item),
+  
+  updateItem: (orderId: string, itemId: string, updates: any) =>
+    api.put(`/orders/${orderId}/items/${itemId}`, updates),
+  
+  removeItem: (orderId: string, itemId: string) =>
+    api.delete(`/orders/${orderId}/items/${itemId}`),
+  
+  cancelOrder: (id: string, reason: string) =>
+    api.post(`/orders/${id}/cancel`, { reason }),
 };
 
 // Analytics API
