@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Search, Filter, RefreshCw, Clock, CheckCircle, XCircle,
-  AlertCircle, DollarSign, User, MapPin, ShoppingBag,
+  AlertCircle, DollarSign, User, Users, MapPin, ShoppingBag,
   ChevronRight, Eye, Edit, Trash2, Plus, CreditCard,
   Loader2, Calendar, TrendingUp, ArrowUpDown
 } from 'lucide-react';
@@ -10,6 +10,9 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import OrderDetailsModal from './OrderDetailsModal';
 import PaymentModal from './PaymentModal';
+import CreateOrderModal from './CreateOrderModal';
+import EditOrderModal from './EditOrderModal';
+import SplitBillModal from './SplitBillModal';
 import { useSocketConnection } from '../../hooks/useSocketConnection';
 
 interface OrderItem {
@@ -77,6 +80,9 @@ const OrdersManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showSplitBillModal, setShowSplitBillModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState('admin'); // For demo, in production get from auth
 
   // Socket connection for real-time updates
@@ -245,6 +251,16 @@ const OrdersManagement = () => {
   const handlePayment = (order: Order) => {
     setSelectedOrder(order);
     setShowPaymentModal(true);
+  };
+
+  const handleEditOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setShowEditModal(true);
+  };
+
+  const handleSplitBill = (order: Order) => {
+    setSelectedOrder(order);
+    setShowSplitBillModal(true);
   };
 
   const handleViewDetails = (order: Order) => {
@@ -457,6 +473,15 @@ const OrdersManagement = () => {
             <option value="amount">Highest Amount</option>
           </select>
 
+          {/* Create Order Button */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Order
+          </button>
+
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
@@ -546,6 +571,28 @@ const OrdersManagement = () => {
                           </div>
                         )}
 
+                        {/* Edit Button */}
+                        {!['paid', 'cancelled'].includes(order.status) && (
+                          <button
+                            onClick={() => handleEditOrder(order)}
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </button>
+                        )}
+
+                        {/* Split Bill Button */}
+                        {order.status === 'served' && order.paymentStatus !== 'paid' && (
+                          <button
+                            onClick={() => handleSplitBill(order)}
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            <Users className="h-4 w-4 mr-1" />
+                            Split
+                          </button>
+                        )}
+
                         {/* Payment Button */}
                         {order.status === 'served' && order.paymentStatus !== 'paid' && (
                           <button
@@ -610,6 +657,50 @@ const OrdersManagement = () => {
           }}
           onPaymentComplete={() => {
             setShowPaymentModal(false);
+            setSelectedOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
+      {/* Create Order Modal */}
+      <CreateOrderModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onOrderCreated={() => {
+          setShowCreateModal(false);
+          fetchOrders();
+        }}
+      />
+
+      {/* Edit Order Modal */}
+      {showEditModal && selectedOrder && (
+        <EditOrderModal
+          order={selectedOrder}
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedOrder(null);
+          }}
+          onOrderUpdated={() => {
+            setShowEditModal(false);
+            setSelectedOrder(null);
+            fetchOrders();
+          }}
+        />
+      )}
+
+      {/* Split Bill Modal */}
+      {showSplitBillModal && selectedOrder && (
+        <SplitBillModal
+          order={selectedOrder}
+          isOpen={showSplitBillModal}
+          onClose={() => {
+            setShowSplitBillModal(false);
+            setSelectedOrder(null);
+          }}
+          onSplitComplete={() => {
+            setShowSplitBillModal(false);
             setSelectedOrder(null);
             fetchOrders();
           }}

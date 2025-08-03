@@ -626,6 +626,9 @@ export const ordersAPI = {
   
   cancelOrder: (id: string, reason: string) =>
     api.post(`/orders/${id}/cancel`, { reason }),
+  
+  createOrder: (data: any) =>
+    api.post('/orders', data),
 };
 
 // Analytics API
