@@ -53,7 +53,6 @@ const Layout = () => {
   const menuItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/team', icon: Users, label: 'Team' },
-    { path: '/shifts', icon: Clock, label: 'Shifts' },
     { path: '/menu', icon: MenuSquare, label: 'Menu' },
     { path: '/tables', icon: Grid3X3, label: 'Tables' },
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },

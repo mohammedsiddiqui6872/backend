@@ -221,13 +221,7 @@ app.use('/api/admin/team', require('./src/routes/team'));
 app.use('/api/admin/shifts', require('./src/routes/shifts'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
 
-// Test upload route for debugging
-app.use('/api/test', require('./src/routes/test-upload'));
-
-// Test upload page
-app.get('/test-upload', (req, res) => {
-  res.sendFile(path.join(__dirname, 'test-upload.html'));
-});
+// Test routes removed for production
 
 // Special handling for admin panel to allow access without failing on tenant context
 app.get('/admin-panel', async (req, res, next) => {

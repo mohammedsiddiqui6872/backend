@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Team from './pages/Team';
-import Shifts from './pages/Shifts';
 import Menu from './pages/Menu';
 import Combos from './pages/Combos';
 import Tables from './pages/Tables';
@@ -114,7 +113,6 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="team" element={<Team />} />
-          <Route path="shifts" element={<Shifts />} />
           <Route path="menu" element={<Menu />} />
           <Route path="combos" element={<Combos />} />
           <Route path="tables" element={<Tables />} />

@@ -1,5 +1,12 @@
 import * as React from 'react';
 
+interface TabsContext {
+  value: string;
+  onValueChange: (value: string) => void;
+}
+
+const TabsContext = React.createContext<TabsContext | undefined>(undefined);
+
 interface TabsProps {
   value: string;
   onValueChange: (value: string) => void;
@@ -7,43 +14,30 @@ interface TabsProps {
   children: React.ReactNode;
 }
 
-interface TabsChildProps {
-  value?: string;
-  onValueChange?: (value: string) => void;
-}
-
 export const Tabs: React.FC<TabsProps> = ({ value, onValueChange, className = '', children }) => {
   return (
-    <div className={className}>
-      {React.Children.map(children, child => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<TabsChildProps>, { value, onValueChange });
-        }
-        return child;
-      })}
-    </div>
+    <TabsContext.Provider value={{ value, onValueChange }}>
+      <div className={className}>
+        {children}
+      </div>
+    </TabsContext.Provider>
   );
 };
 
-interface TabsListProps extends TabsChildProps {
+interface TabsListProps {
   className?: string;
   children: React.ReactNode;
 }
 
-export const TabsList: React.FC<TabsListProps> = ({ className = '', children, value, onValueChange }) => {
+export const TabsList: React.FC<TabsListProps> = ({ className = '', children }) => {
   return (
     <div className={`inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 ${className}`}>
-      {React.Children.map(children, child => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<TabsChildProps>, { value, onValueChange });
-        }
-        return child;
-      })}
+      {children}
     </div>
   );
 };
 
-interface TabsTriggerProps extends TabsChildProps {
+interface TabsTriggerProps {
   value: string;
   className?: string;
   children: React.ReactNode;
@@ -52,10 +46,14 @@ interface TabsTriggerProps extends TabsChildProps {
 export const TabsTrigger: React.FC<TabsTriggerProps> = ({ 
   value: triggerValue, 
   className = '', 
-  children, 
-  value: activeValue,
-  onValueChange 
+  children
 }) => {
+  const context = React.useContext(TabsContext);
+  if (!context) {
+    throw new Error('TabsTrigger must be used within Tabs');
+  }
+  
+  const { value: activeValue, onValueChange } = context;
   const isActive = activeValue === triggerValue;
   
   return (
@@ -67,14 +65,14 @@ export const TabsTrigger: React.FC<TabsTriggerProps> = ({
         ${isActive ? 'bg-white text-gray-950 shadow-sm' : 'hover:bg-gray-50'}
         ${className}
       `}
-      onClick={() => onValueChange?.(triggerValue)}
+      onClick={() => onValueChange(triggerValue)}
     >
       {children}
     </button>
   );
 };
 
-interface TabsContentProps extends TabsChildProps {
+interface TabsContentProps {
   value: string;
   className?: string;
   children: React.ReactNode;
@@ -83,9 +81,15 @@ interface TabsContentProps extends TabsChildProps {
 export const TabsContent: React.FC<TabsContentProps> = ({ 
   value: contentValue, 
   className = '', 
-  children,
-  value: activeValue 
+  children
 }) => {
+  const context = React.useContext(TabsContext);
+  if (!context) {
+    throw new Error('TabsContent must be used within Tabs');
+  }
+  
+  const { value: activeValue } = context;
+  
   if (activeValue !== contentValue) return null;
   
   return (
