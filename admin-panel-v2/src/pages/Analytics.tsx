@@ -4,7 +4,9 @@ import SessionAnalytics from '../components/analytics/SessionAnalytics';
 import PredictiveAnalytics from '../components/analytics/PredictiveAnalytics';
 import RealTimePerformance from '../components/analytics/RealTimePerformance';
 import CustomerBehaviorAnalytics from '../components/analytics/CustomerBehaviorAnalytics';
-import { BarChart3, Activity, Brain, Zap, Users } from 'lucide-react';
+import CompetitiveIntelligence from '../components/analytics/CompetitiveIntelligence';
+import FinancialDeepDive from '../components/analytics/FinancialDeepDive';
+import { BarChart3, Activity, Brain, Zap, Users, Target } from 'lucide-react';
 
 const Analytics = () => {
   const [activeTab, setActiveTab] = useState('real-time');
@@ -19,10 +21,14 @@ const Analytics = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 max-w-4xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-5xl">
           <TabsTrigger value="real-time" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Real-Time
+          </TabsTrigger>
+          <TabsTrigger value="competitive" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Competitive
           </TabsTrigger>
           <TabsTrigger value="customers" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -38,12 +44,16 @@ const Analytics = () => {
           </TabsTrigger>
           <TabsTrigger value="general" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            General
+            Financial
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="real-time" className="mt-6">
           <RealTimePerformance />
+        </TabsContent>
+
+        <TabsContent value="competitive" className="mt-6">
+          <CompetitiveIntelligence />
         </TabsContent>
 
         <TabsContent value="customers" className="mt-6">
@@ -59,14 +69,7 @@ const Analytics = () => {
         </TabsContent>
 
         <TabsContent value="general" className="mt-6">
-          {/* Coming Soon */}
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <BarChart3 className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">General Analytics Dashboard</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              General analytics and insights coming soon.
-            </p>
-          </div>
+          <FinancialDeepDive />
         </TabsContent>
       </Tabs>
     </div>

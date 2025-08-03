@@ -704,6 +704,41 @@ export const analyticsAPI = {
   
   getBehaviorPatterns: (params?: any) =>
     api.get('/admin/analytics/behavior-patterns', { params }),
+  
+  // Competitive Intelligence
+  getCompetitors: (params?: any) =>
+    api.get('/admin/analytics/competitors', { params }),
+  
+  getMarketPosition: (params?: any) =>
+    api.get('/admin/analytics/market-position', { params }),
+  
+  getPricingOpportunities: (params?: any) =>
+    api.get('/admin/analytics/pricing-opportunities', { params }),
+  
+  getMarketTrends: (params?: any) =>
+    api.get('/admin/analytics/market-trends', { params }),
+  
+  getBenchmarkData: (params?: any) =>
+    api.get('/admin/analytics/benchmark-data', { params }),
+  
+  // Financial Deep Dive
+  getPLStatement: (params?: any) =>
+    api.get('/admin/analytics/pl-statement', { params }),
+  
+  getCostBreakdown: (params?: any) =>
+    api.get('/admin/analytics/cost-breakdown', { params }),
+  
+  getROIMetrics: (params?: any) =>
+    api.get('/admin/analytics/roi-metrics', { params }),
+  
+  getCashFlow: (params?: any) =>
+    api.get('/admin/analytics/cash-flow', { params }),
+  
+  getFinancialRatios: (params?: any) =>
+    api.get('/admin/analytics/financial-ratios', { params }),
+  
+  getFinancialSummary: (params?: any) =>
+    api.get('/admin/analytics/financial-summary', { params }),
 };
 
 // Helper to clear tenant data when switching restaurants
