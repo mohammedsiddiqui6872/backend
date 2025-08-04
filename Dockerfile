@@ -31,8 +31,8 @@ RUN npm ci --only=production
 # Copy application files
 COPY . .
 
-# Copy built admin panel from builder stage
-COPY --from=builder /app/admin-panel-v2/dist ./admin-panel-v2/dist
+# Copy built admin panel from builder stage (vite builds to ../admin-panel/dist)
+COPY --from=builder /app/admin-panel/dist ./admin-panel/dist
 
 # Create uploads directory
 RUN mkdir -p uploads/temp
