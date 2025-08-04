@@ -259,6 +259,9 @@ app.use('/api/super-admin', require('./src/routes/superAdmin'));
 // Secure password reset routes with token-based authentication
 app.use('/api/secure-reset', require('./src/routes/securePasswordReset'));
 
+// TEMPORARY: Debug login issues
+app.use('/api/debug', require('./src/routes/debugLogin'));
+
 // Enhanced security and rate limiting for API routes
 app.use('/api', ...advancedRateLimiter.createSecurityStack('public', {
   enableSlowDown: true,
