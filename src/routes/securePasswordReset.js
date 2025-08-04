@@ -117,6 +117,80 @@ router.post('/reset-restaurant-admins/:subdomain', async (req, res) => {
   }
 });
 
+// Reset password for a specific admin user in a restaurant
+router.post('/reset-restaurant-admin/:subdomain', async (req, res) => {
+  try {
+    const { subdomain } = req.params;
+    const { resetToken, newPassword, adminEmail } = req.body;
+    
+    // Verify reset token
+    try {
+      const decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+      if (decoded.purpose !== 'password-reset') {
+        return res.status(403).json({ error: 'Invalid reset token' });
+      }
+    } catch (err) {
+      return res.status(403).json({ error: 'Invalid or expired reset token' });
+    }
+    
+    // Find the tenant
+    const tenant = await Tenant.findOne({ subdomain });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+    
+    // Set tenant context for this operation
+    setTenantContext({
+      tenantId: tenant.tenantId,
+      userId: 'super-admin-reset',
+      requestId: `reset-${Date.now()}`
+    });
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Find and update the specific admin user
+    const adminUser = await User.findOne({
+      tenantId: tenant.tenantId,
+      email: adminEmail || `admin@${subdomain}.ae`
+    });
+    
+    if (!adminUser) {
+      return res.status(404).json({ 
+        error: 'Admin user not found',
+        details: `No user found with email: ${adminEmail || `admin@${subdomain}.ae`}`
+      });
+    }
+    
+    // Update the password
+    adminUser.password = hashedPassword;
+    adminUser.isActive = true;
+    await adminUser.save();
+    
+    res.json({
+      success: true,
+      restaurant: {
+        name: tenant.name,
+        subdomain: tenant.subdomain
+      },
+      adminEmail: adminUser.email,
+      updatedUser: {
+        email: adminUser.email,
+        name: adminUser.name || 'No name',
+        role: adminUser.role
+      },
+      message: `Password reset successfully for ${adminUser.email}`
+    });
+    
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ 
+      error: 'Failed to reset password',
+      details: error.message 
+    });
+  }
+});
+
 // Get list of all restaurants for individual reset
 router.get('/list-restaurants', async (req, res) => {
   try {
