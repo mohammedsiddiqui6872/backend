@@ -65,9 +65,6 @@ router.post('/reset-restaurant-admins/:subdomain', async (req, res) => {
     
     // No need to set tenant context - we'll query directly with tenantId
     
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword || 'password@123', 10);
-    
     // Find and update admin users for this specific tenant
     const adminUsers = await User.find({
       tenantId: tenant.tenantId,
@@ -81,7 +78,8 @@ router.post('/reset-restaurant-admins/:subdomain', async (req, res) => {
     const updatedUsers = [];
     
     for (const admin of adminUsers) {
-      admin.password = hashedPassword;
+      // Don't pre-hash the password - the User model's pre-save hook will hash it
+      admin.password = newPassword || 'password@123';
       admin.isActive = true;
       await admin.save();
       
@@ -136,9 +134,6 @@ router.post('/reset-restaurant-admin/:subdomain', async (req, res) => {
     
     // No need to set tenant context - we'll query directly with tenantId
     
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
     // Find and update the specific admin user
     // Use setOptions to skip tenant filter since we're operating as super admin
     const adminUser = await User.findOne({
@@ -153,8 +148,8 @@ router.post('/reset-restaurant-admin/:subdomain', async (req, res) => {
       });
     }
     
-    // Update the password
-    adminUser.password = hashedPassword;
+    // Update the password - don't pre-hash, the User model's pre-save hook will hash it
+    adminUser.password = newPassword;
     adminUser.isActive = true;
     await adminUser.save();
     
