@@ -38,7 +38,7 @@ import { auditLogAPI } from '../services/auditLogAPI';
 import { 
   AuditLog, 
   AuditLogFilters, 
-  AuditLogStats,
+  AuditLogStats as AuditLogStatsType,
   SecuritySeverity,
   AuditCategory,
   ResourceType,
@@ -52,7 +52,7 @@ import socketService from '../services/socketService';
 // Tab components
 import AuditLogList from '../components/auditLog/AuditLogList';
 import AuditLogDetails from '../components/auditLog/AuditLogDetails';
-import AuditLogStats from '../components/auditLog/AuditLogStats';
+import AuditLogStatsComponent from '../components/auditLog/AuditLogStats';
 import SecurityDashboard from '../components/auditLog/SecurityDashboard';
 import ComplianceReports from '../components/auditLog/ComplianceReports';
 import RealTimeMonitor from '../components/auditLog/RealTimeMonitor';
@@ -64,7 +64,7 @@ const AuditLogPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [stats, setStats] = useState<AuditLogStats | null>(null);
+  const [stats, setStats] = useState<AuditLogStatsType | null>(null);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   
@@ -116,40 +116,58 @@ const AuditLogPage: React.FC = () => {
 
   // Real-time updates
   useEffect(() => {
-    const unsubscribers = [
-      socketService.on('audit:new', (event) => {
-        // Add new event to the list if on first page
-        if (filters.page === 1) {
-          setLogs(prev => [event as any, ...prev.slice(0, -1)]);
-        }
-        // Show notification for high severity events
-        if (event.severity === 'critical' || event.severity === 'high') {
-          toast.error(`Critical event: ${event.action}`, {
-            duration: 5000,
-            icon: '🚨'
-          });
-        }
-      }),
-      
-      socketService.on('audit:alert', (alert) => {
-        toast.error(alert.message, {
-          duration: 10000,
-          icon: '⚠️'
+    // Connect to socket if not connected
+    const token = localStorage.getItem('adminToken') || '';
+    const tenantId = localStorage.getItem('tenantId') || '';
+    
+    if (token && tenantId) {
+      socketService.connect(tenantId, token);
+    }
+
+    // Listen to raw socket events for audit logs
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
+    const handleAuditNew = (event: any) => {
+      // Add new event to the list if on first page
+      if (filters.page === 1) {
+        setLogs(prev => [event, ...prev.slice(0, -1)]);
+      }
+      // Show notification for high severity events
+      if (event.severity === 'critical' || event.severity === 'high') {
+        toast.error(`Critical event: ${event.action}`, {
+          duration: 5000,
+          icon: '🚨'
         });
-      }),
-      
-      socketService.on('audit:reviewed', (review) => {
-        // Update log if it's in the current list
-        setLogs(prev => prev.map(log => 
-          log.eventId === review.eventId 
+      }
+    };
+
+    const handleAuditAlert = (alert: any) => {
+      toast.error(alert.message, {
+        duration: 10000,
+        icon: '⚠️'
+      });
+    };
+
+    const handleAuditReviewed = (review: any) => {
+      // Update log if it's in the current list
+      setLogs(prev => prev.map(log => 
+        log.eventId === review.eventId 
             ? { ...log, flags: { ...log.flags, reviewed: true } }
             : log
-        ));
-      })
-    ];
+      ));
+    };
 
+    // Register event listeners
+    socket.on('audit:new', handleAuditNew);
+    socket.on('audit:alert', handleAuditAlert);
+    socket.on('audit:reviewed', handleAuditReviewed);
+
+    // Cleanup
     return () => {
-      unsubscribers.forEach(unsubscribe => unsubscribe());
+      socket.off('audit:new', handleAuditNew);
+      socket.off('audit:alert', handleAuditAlert);
+      socket.off('audit:reviewed', handleAuditReviewed);
     };
   }, [filters.page]);
 
@@ -325,7 +343,7 @@ const AuditLogPage: React.FC = () => {
         )}
         
         {activeTab === 'analytics' && (
-          <AuditLogStats
+          <AuditLogStatsComponent
             stats={stats}
             loading={!stats}
             onRefresh={loadStats}

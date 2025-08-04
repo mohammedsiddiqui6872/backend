@@ -21,6 +21,7 @@ import { StaffAssignment, WaiterLoad, BulkAssignmentRequest } from '../../types/
 import { Table } from '../../types/table';
 import { User } from '../../types/user';
 import toast from 'react-hot-toast';
+import socketService from '../../services/socketService';
 
 interface AssignmentListViewProps {
   canManage: boolean;
@@ -84,6 +85,29 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
     const handleRefresh = () => loadData();
     window.addEventListener('refresh-assignments', handleRefresh);
     return () => window.removeEventListener('refresh-assignments', handleRefresh);
+  }, [loadData]);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    // Set up real-time listeners
+    const unsubscribers = [
+      socketService.on('assignment:created', () => {
+        console.log('Assignment created - reloading data');
+        loadData();
+      }),
+      socketService.on('assignment:ended', () => {
+        console.log('Assignment ended - reloading data');
+        loadData();
+      }),
+      socketService.on('assignment:bulk-created', () => {
+        console.log('Bulk assignments created - reloading data');
+        loadData();
+      })
+    ];
+
+    return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+    };
   }, [loadData]);
 
   // Prepare table rows with assignments
@@ -154,8 +178,10 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
       await staffAssignmentAPI.unassignWaiter(tableId, waiterId);
       await loadData();
       toast.success('Waiter unassigned successfully');
+      return true;
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to unassign waiter');
+      return false;
     }
   };
 
@@ -409,8 +435,45 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {row.assignment ? (
-                    <div className="flex items-center">
+                  {canManage ? (
+                    <div className="flex items-center space-x-2">
+                      <select
+                        value={row.assignment?.waiterId || ''}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            if (row.assignment) {
+                              // First unassign current waiter
+                              handleUnassign(row.table._id, row.assignment.waiterId).then(() => {
+                                // Then assign new waiter
+                                handleAssign(row.table._id, e.target.value);
+                              });
+                            } else {
+                              handleAssign(row.table._id, e.target.value);
+                            }
+                          } else if (row.assignment) {
+                            handleUnassign(row.table._id, row.assignment.waiterId);
+                          }
+                        }}
+                        className="flex-1 text-sm border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="">No Primary Waiter</option>
+                        {waiters.map(waiter => {
+                          const load = waiterLoads.find(w => w.waiterId === waiter._id);
+                          const isAvailable = load ? load.isAvailable : true;
+                          return (
+                            <option 
+                              key={waiter._id} 
+                              value={waiter._id}
+                              disabled={!isAvailable}
+                            >
+                              {waiter.name} ({getWaiterLoad(waiter._id)})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  ) : (
+                    row.assignment ? (
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {row.assignment.waiterName}
@@ -419,43 +482,87 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
                           Load: {getWaiterLoad(row.assignment.waiterId)}
                         </div>
                       </div>
-                      {canManage && (
-                        <button
-                          onClick={() => handleUnassign(row.table._id, row.assignment!.waiterId)}
-                          className="ml-2 text-red-600 hover:text-red-800"
-                        >
-                          <UserMinus className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">-</div>
+                    ) : (
+                      <div className="text-sm text-gray-500">-</div>
+                    )
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex -space-x-1">
-                    {row.assistantAssignments.slice(0, 3).map((assistant) => (
-                      <div
-                        key={assistant.id}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 border-2 border-white"
-                        title={assistant.waiterName}
+                  {canManage ? (
+                    <div className="flex items-center space-x-2">
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAssign(row.table._id, e.target.value, 'assistant');
+                            e.target.value = '';
+                          }
+                        }}
+                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                        defaultValue=""
                       >
-                        <span className="text-xs font-medium text-gray-600">
-                          {assistant.waiterName.charAt(0)}
-                        </span>
+                        <option value="">Add Assistant...</option>
+                        {waiters
+                          .filter(w => w._id !== row.assignment?.waiterId && 
+                                      !row.assistantAssignments.some(a => a.waiterId === w._id))
+                          .map(waiter => {
+                            const load = waiterLoads.find(w => w.waiterId === waiter._id);
+                            const isAvailable = load ? load.isAvailable : true;
+                            return (
+                              <option 
+                                key={waiter._id} 
+                                value={waiter._id}
+                                disabled={!isAvailable}
+                              >
+                                {waiter.name} ({getWaiterLoad(waiter._id)})
+                              </option>
+                            );
+                          })}
+                      </select>
+                      <div className="flex -space-x-1">
+                        {row.assistantAssignments.map((assistant) => (
+                          <div
+                            key={assistant.id}
+                            className="relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 border-2 border-white group"
+                            title={assistant.waiterName}
+                          >
+                            <span className="text-xs font-medium text-gray-600">
+                              {assistant.waiterName.charAt(0)}
+                            </span>
+                            <button
+                              onClick={() => handleUnassign(row.table._id, assistant.waiterId)}
+                              className="absolute -top-1 -right-1 hidden group-hover:block bg-red-500 text-white rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {row.assistantAssignments.length > 3 && (
-                      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 border-2 border-white">
-                        <span className="text-xs font-medium text-gray-600">
-                          +{row.assistantAssignments.length - 3}
-                        </span>
-                      </div>
-                    )}
-                    {row.assistantAssignments.length === 0 && (
-                      <span className="text-sm text-gray-500">-</span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex -space-x-1">
+                      {row.assistantAssignments.slice(0, 3).map((assistant) => (
+                        <div
+                          key={assistant.id}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 border-2 border-white"
+                          title={assistant.waiterName}
+                        >
+                          <span className="text-xs font-medium text-gray-600">
+                            {assistant.waiterName.charAt(0)}
+                          </span>
+                        </div>
+                      ))}
+                      {row.assistantAssignments.length > 3 && (
+                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 border-2 border-white">
+                          <span className="text-xs font-medium text-gray-600">
+                            +{row.assistantAssignments.length - 3}
+                          </span>
+                        </div>
+                      )}
+                      {row.assistantAssignments.length === 0 && (
+                        <span className="text-sm text-gray-500">-</span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {row.assignment ? (
@@ -472,33 +579,37 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
                 </td>
                 {canManage && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {!row.assignment && (
-                      <select
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleAssign(row.table._id, e.target.value);
-                            e.target.value = '';
-                          }
-                        }}
-                        className="text-primary-600 hover:text-primary-900 border border-gray-300 rounded px-2 py-1 text-xs"
-                        defaultValue=""
-                      >
-                        <option value="">Assign...</option>
-                        {waiters.map(waiter => {
-                          const load = waiterLoads.find(w => w.waiterId === waiter._id);
-                          const isAvailable = load ? load.isAvailable : true;
-                          return (
-                            <option 
-                              key={waiter._id} 
-                              value={waiter._id}
-                              disabled={!isAvailable}
-                            >
-                              {waiter.name} ({getWaiterLoad(waiter._id)})
-                            </option>
-                          );
-                        })}
-                      </select>
-                    )}
+                    <div className="flex items-center justify-end space-x-2">
+                      {row.assignment ? (
+                        <>
+                          <button
+                            onClick={() => handleUnassign(row.table._id, row.assignment!.waiterId)}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50"
+                          >
+                            <UserMinus className="h-3.5 w-3.5 mr-1" />
+                            Unassign
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const firstAvailableWaiter = waiters.find(w => {
+                              const load = waiterLoads.find(wl => wl.waiterId === w._id);
+                              return load ? load.isAvailable : true;
+                            });
+                            if (firstAvailableWaiter) {
+                              handleAssign(row.table._id, firstAvailableWaiter._id);
+                            } else {
+                              toast.error('No available waiters');
+                            }
+                          }}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                        >
+                          <UserPlus className="h-3.5 w-3.5 mr-1" />
+                          Quick Assign
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>

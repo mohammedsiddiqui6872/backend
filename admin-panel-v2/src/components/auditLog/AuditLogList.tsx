@@ -311,16 +311,24 @@ const AuditLogList: React.FC<AuditLogListProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-1">
                         {log.flags.suspicious && (
-                          <AlertCircle className="h-4 w-4 text-red-500" title="Suspicious" />
+                          <span title="Suspicious">
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          </span>
                         )}
                         {log.flags.requiresReview && (
-                          <Eye className="h-4 w-4 text-orange-500" title="Requires Review" />
+                          <span title="Requires Review">
+                            <Eye className="h-4 w-4 text-orange-500" />
+                          </span>
                         )}
                         {log.flags.reviewed && (
-                          <CheckCircle className="h-4 w-4 text-green-500" title="Reviewed" />
+                          <span title="Reviewed">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          </span>
                         )}
                         {log.compliance?.isGdprRelated && (
-                          <Shield className="h-4 w-4 text-blue-500" title="GDPR Related" />
+                          <span title="GDPR Related">
+                            <Shield className="h-4 w-4 text-blue-500" />
+                          </span>
                         )}
                       </div>
                     </td>
