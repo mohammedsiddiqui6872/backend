@@ -3,17 +3,28 @@ const twilio = require('twilio');
 
 class SMSService {
   constructor() {
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-      this.client = twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN
-      );
-      this.fromNumber = process.env.TWILIO_PHONE_NUMBER;
-      this.enabled = true;
-      console.log('SMS service initialized');
+    // Check if Twilio credentials are valid
+    if (
+      process.env.TWILIO_ACCOUNT_SID && 
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_ACCOUNT_SID.startsWith('AC') &&
+      process.env.TWILIO_ACCOUNT_SID.length > 2
+    ) {
+      try {
+        this.client = twilio(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN
+        );
+        this.fromNumber = process.env.TWILIO_PHONE_NUMBER;
+        this.enabled = true;
+        console.log('SMS service initialized');
+      } catch (error) {
+        this.enabled = false;
+        console.log('SMS service disabled - Invalid Twilio credentials');
+      }
     } else {
       this.enabled = false;
-      console.log('SMS service disabled - Twilio credentials not found');
+      console.log('SMS service disabled - Twilio credentials not configured');
     }
   }
 

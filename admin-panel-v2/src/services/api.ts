@@ -800,6 +800,29 @@ export const analyticsAPI = {
   
   updateEmployeeAchievement: (employeeId: string, achievementId: string, data: any) => 
     api.put(`/admin/analytics/employee/${employeeId}/achievement/${achievementId}`, data),
+    
+  // Role Management
+  getRoles: (params?: any) =>
+    api.get('/admin/roles', { params }),
+    
+  getPermissions: () =>
+    api.get('/admin/roles/permissions'),
+    
+  createRole: (data: any) =>
+    api.post('/admin/roles', data),
+    
+  updateRole: (id: string, data: any) =>
+    api.put(`/admin/roles/${id}`, data),
+    
+  deleteRole: (id: string) =>
+    api.delete(`/admin/roles/${id}`),
+    
+  getRoleById: (id: string) =>
+    api.get(`/admin/roles/${id}`),
+    
+  // Team Member Password Update
+  updateTeamMemberPassword: (id: string, newPassword: string) =>
+    api.patch(`/admin/team/members/${id}/password`, { newPassword }),
 };
 
 // Helper to clear tenant data when switching restaurants

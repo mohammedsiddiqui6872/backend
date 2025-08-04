@@ -214,6 +214,22 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), enterprise
     const updates = { ...req.body };
     delete updates.password; // Don't allow password updates through this route
     delete updates.tenantId; // Don't allow tenant changes
+    
+    // Handle supervisor field - convert empty string to null
+    if (updates.profile && updates.profile.supervisor === '') {
+      updates.profile.supervisor = null;
+    }
+    
+    // Handle other ObjectId fields that might be empty strings
+    if (updates.profile) {
+      // Convert empty strings to null for ObjectId fields
+      const objectIdFields = ['supervisor', 'department', 'position'];
+      objectIdFields.forEach(field => {
+        if (updates.profile[field] === '') {
+          updates.profile[field] = null;
+        }
+      });
+    }
 
     // First find the user to ensure it exists and belongs to the tenant
     const existingUser = await User.findOne({
@@ -241,6 +257,44 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), enterprise
   } catch (error) {
     console.error('Error updating team member:', error);
     res.status(500).json({ success: false, message: error.message || 'Error updating team member' });
+  }
+});
+
+// Update team member password
+router.patch('/members/:id/password', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters long' 
+      });
+    }
+    
+    // Find user and update password
+    const user = await User.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId
+    });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Team member not found' });
+    }
+    
+    // Hash the new password
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Password updated successfully' 
+    });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ success: false, message: 'Error updating password' });
   }
 });
 

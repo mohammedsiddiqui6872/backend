@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, Edit2, Trash2, Search, UserCheck, UserX, 
   Phone, Mail, Calendar, Clock, Award, AlertCircle,
-  Building, Users, Filter, Download, Upload, Eye 
+  Building, Users, Filter, Download, Upload, Eye, Shield 
 } from 'lucide-react';
 import { teamAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -69,6 +70,8 @@ interface TeamStats {
 }
 
 const TeamManagement = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([]);
   const [stats, setStats] = useState<TeamStats | null>(null);
@@ -207,6 +210,13 @@ const TeamManagement = () => {
     <div className="space-y-6">
       {/* Action Buttons */}
       <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => navigate('/team/roles' + location.search)}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          Manage Roles
+        </button>
         <button
           onClick={exportTeamData}
           className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
