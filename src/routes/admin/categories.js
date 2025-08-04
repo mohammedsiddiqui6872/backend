@@ -4,11 +4,13 @@ const router = express.Router();
 const Category = require('../../models/Category');
 const MenuItem = require('../../models/MenuItem');
 const { authenticate, authorize } = require('../../middleware/auth');
+const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 const { clearCategoryCache } = require('../../middleware/validation');
 const { cloudinaryUpload, deleteImage, uploadBase64Image } = require('../../config/cloudinary');
 
-// Apply authentication
+// Apply authentication and tenant isolation
 router.use(authenticate);
+router.use(enterpriseTenantIsolation);
 router.use(authorize('admin', 'manager'));
 
 // Get all categories

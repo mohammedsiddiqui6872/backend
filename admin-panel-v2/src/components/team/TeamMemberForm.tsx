@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
@@ -14,7 +14,8 @@ import {
   FormControlLabel,
   Tabs,
   Tab,
-  Paper
+  Paper,
+  CircularProgress
  } from '@mui/material';
 
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -26,6 +27,7 @@ import {
   type CreateTeamMember, 
   type UpdateTeamMember 
 } from '../../schemas/teamSchemas';
+import { analyticsAPI } from '../../services/api';
 
 interface TeamMemberFormProps {
   initialData?: UpdateTeamMember;
@@ -50,7 +52,8 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const roles = [
+// Default roles (fallback if custom roles fail to load)
+const defaultRoles = [
   { value: 'admin', label: 'Admin' },
   { value: 'manager', label: 'Manager' },
   { value: 'chef', label: 'Chef' },
@@ -81,6 +84,39 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
   isLoading = false
 }) => {
   const [tabValue, setTabValue] = React.useState(0);
+  const [roles, setRoles] = useState(defaultRoles);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  
+  // Fetch custom roles on component mount
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await analyticsAPI.getRoles();
+        if (response.data && response.data.length > 0) {
+          // Map the custom roles to the format needed for the select
+          const customRoles = response.data.map((role: any) => ({
+            value: role.code.toLowerCase(),
+            label: role.name
+          }));
+          // Combine default and custom roles, removing duplicates
+          const allRoles = [...defaultRoles];
+          customRoles.forEach((customRole: any) => {
+            if (!allRoles.find(r => r.value === customRole.value)) {
+              allRoles.push(customRole);
+            }
+          });
+          setRoles(allRoles);
+        }
+      } catch (error) {
+        console.error('Failed to fetch custom roles:', error);
+        // Keep default roles on error
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+    
+    fetchRoles();
+  }, []);
   
   const {
     control,
@@ -295,7 +331,12 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
                   render={({ field }) => (
                     <FormControl fullWidth error={!!errors.role} required>
                       <InputLabel>Role</InputLabel>
-                      <Select {...field} label="Role">
+                      <Select 
+                        {...field} 
+                        label="Role"
+                        disabled={rolesLoading}
+                        endAdornment={rolesLoading && <CircularProgress size={20} />}
+                      >
                         {roles.map(role => (
                           <MenuItem key={role.value} value={role.value}>
                             {role.label}
@@ -304,6 +345,9 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
                       </Select>
                       {errors.role && (
                         <FormHelperText>{errors.role.message}</FormHelperText>
+                      )}
+                      {rolesLoading && (
+                        <FormHelperText>Loading custom roles...</FormHelperText>
                       )}
                     </FormControl>
                   )}

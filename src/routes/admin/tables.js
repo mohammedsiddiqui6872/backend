@@ -13,18 +13,23 @@ const TableState = require('../../models/TableState');
 const WaiterSession = require('../../models/WaiterSession');
 
 const { authenticate, authorize } = require('../../middleware/auth');
+const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const archiver = require('archiver');
 
-// Note: Tenant isolation is already applied at the app level in server-multi-tenant.js
+// Apply authentication and tenant isolation
 router.use(authenticate);
+router.use(enterpriseTenantIsolation);
 router.use(authorize('admin', 'manager', 'waiter'));
 
 // Get all tables with complete details
 router.get('/', async (req, res) => {
   try {
-    console.log('[Tables API] Starting request for tenant:', req.tenantId);
+    console.log('[Tables API] Starting request');
+    console.log('[Tables API] req.tenantId:', req.tenantId);
+    console.log('[Tables API] req.tenant:', req.tenant);
+    console.log('[Tables API] req.user.tenantId:', req.user?.tenantId);
     
     // Get all tables with MANDATORY tenant filter
     let tables;

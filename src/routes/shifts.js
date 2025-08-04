@@ -8,6 +8,9 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { enterpriseTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 const mongoose = require('mongoose');
 
+// Helper to get user ID consistently
+const getUserId = (user) => user._id || user.id;
+
 // Get active shift for an employee
 router.get('/active', authenticate, authorize(['shifts.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
@@ -248,7 +251,7 @@ router.post('/:id/clock-in', authenticate, authorize(['shifts.clock']), enterpri
     const shift = await Shift.findOne({ 
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'scheduled'
     });
 
@@ -289,7 +292,7 @@ router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), enterpr
     const shift = await Shift.findOne({ 
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'in-progress'
     });
 
@@ -307,7 +310,7 @@ router.post('/:id/clock-out', authenticate, authorize(['shifts.clock']), enterpr
     const hoursWorked = shift.actualDuration;
     
     // Update employee metrics
-    await User.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(getUserId(req.user), {
       $inc: { 'metrics.totalHoursWorked': hoursWorked }
     });
     
@@ -335,7 +338,7 @@ router.post('/:id/break/start', authenticate, authorize(['shifts.clock']), enter
     const shift = await Shift.findOne({ 
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'in-progress'
     });
 
@@ -379,7 +382,7 @@ router.post('/:id/break/end', authenticate, authorize(['shifts.clock']), enterpr
     const shift = await Shift.findOne({ 
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'in-progress'
     });
 
@@ -427,7 +430,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enter
     const shift = await Shift.findOne({ 
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'scheduled'
     });
 
@@ -461,7 +464,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enter
     }
 
     shift.swapRequest = {
-      requestedBy: req.user.id,
+      requestedBy: getUserId(req.user),
       requestedWith: requestedWithId,
       reason,
       status: 'pending',
@@ -508,7 +511,7 @@ router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ent
     }
 
     shift.swapRequest.status = status;
-    shift.swapRequest.approvedBy = req.user.id;
+    shift.swapRequest.approvedBy = getUserId(req.user);
     shift.swapRequest.responseDate = new Date();
 
     if (status === 'approved') {
@@ -525,7 +528,7 @@ router.put('/:id/swap-request', authenticate, authorize(['shifts.approve']), ent
       shift, 
       shift.swapRequest.requestedBy, 
       status === 'approved',
-      req.user.id
+      getUserId(req.user)
     );
 
     res.json({ 
@@ -671,7 +674,7 @@ router.get('/notifications', authenticate, enterpriseTenantIsolation, async (req
     
     const query = {
       tenantId: req.tenant.tenantId,
-      employee: req.user.id
+      employee: req.user._id || getUserId(req.user)
     };
     
     if (status) query.status = status;
@@ -712,7 +715,7 @@ router.put('/notifications/:id/read', authenticate, enterpriseTenantIsolation, a
     const notification = await ShiftNotification.findOne({
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id
+      employee: getUserId(req.user)
     });
     
     if (!notification) {
@@ -734,7 +737,7 @@ router.put('/notifications/:id/read', authenticate, enterpriseTenantIsolation, a
 // Get notification preferences
 router.get('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
   try {
-    const preferences = await shiftNotificationService.getNotificationPreferences(req.user.id);
+    const preferences = await shiftNotificationService.getNotificationPreferences(getUserId(req.user));
     
     res.json({
       success: true,
@@ -759,7 +762,7 @@ router.put('/notifications/preferences', authenticate, enterpriseTenantIsolation
       reminderTimes: reminderTimes || [60, 30, 15]
     };
     
-    await shiftNotificationService.updateNotificationPreferences(req.user.id, preferences);
+    await shiftNotificationService.updateNotificationPreferences(getUserId(req.user), preferences);
     
     res.json({
       success: true,
@@ -780,7 +783,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enter
     const shift = await Shift.findOne({
       _id: req.params.id,
       tenantId: req.tenant.tenantId,
-      employee: req.user.id,
+      employee: getUserId(req.user),
       status: 'scheduled'
     });
     
@@ -815,7 +818,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enter
     
     // Create swap request
     shift.swapRequest = {
-      requestedBy: req.user.id,
+      requestedBy: getUserId(req.user),
       requestedWith,
       reason,
       status: 'pending',
@@ -827,7 +830,7 @@ router.post('/:id/swap-request', authenticate, authorize(['shifts.swap']), enter
     // Send notification to target employee
     await shiftNotificationService.createSwapRequestNotification(
       shift,
-      req.user.id,
+      getUserId(req.user),
       requestedWith,
       reason
     );

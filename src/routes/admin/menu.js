@@ -3,11 +3,13 @@ const express = require('express');
 const router = express.Router();
 const MenuItem = require('../../models/MenuItem');
 const { authenticate, authorize } = require('../../middleware/auth');
+const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 const { cloudinaryUpload, deleteImage, uploadBase64Image } = require('../../config/cloudinary');
 const { menuItemValidation, bulkUpdateValidation, validate } = require('../../middleware/validation');
 
-// Apply authentication to all admin routes
+// Apply authentication and tenant isolation to all admin routes
 router.use(authenticate);
+router.use(enterpriseTenantIsolation);
 router.use(authorize('admin', 'manager'));
 
 // Get all menu items (admin view with more details)

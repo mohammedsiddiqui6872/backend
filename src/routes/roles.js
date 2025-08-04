@@ -91,17 +91,40 @@ router.get('/', authenticate, authorize(['users.roles']), enterpriseTenantIsolat
   try {
     const { includeInactive = false } = req.query;
     
+    // Get custom roles for this tenant
     const query = { tenantId: req.tenant.tenantId };
     if (!includeInactive) {
       query.isActive = true;
     }
 
-    const roles = await Role.find(query)
+    const customRoles = await Role.find(query)
       .populate('reportsTo', 'name code')
       .sort({ level: 1, name: 1 })
       .lean();
 
-    res.json({ success: true, data: roles });
+    // Get default roles
+    const defaultRoles = require('../constants/defaultRoles');
+    
+    // Add tenant-specific user counts to all roles
+    const rolesWithCounts = await Promise.all([
+      ...defaultRoles.map(async (role) => ({
+        ...role,
+        _id: `default_${role.code}`,
+        userCount: await User.countDocuments({ 
+          tenantId: req.tenant.tenantId, 
+          role: role.code.toLowerCase() 
+        })
+      })),
+      ...customRoles.map(async (role) => ({
+        ...role,
+        userCount: await User.countDocuments({ 
+          tenantId: req.tenant.tenantId, 
+          role: role.code.toLowerCase() 
+        })
+      }))
+    ]);
+
+    res.json({ success: true, data: rolesWithCounts });
   } catch (error) {
     console.error('Error fetching roles:', error);
     res.status(500).json({ success: false, message: 'Error fetching roles' });

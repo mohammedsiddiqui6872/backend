@@ -27,6 +27,18 @@ exports.auth = exports.authenticate = async (req, res, next) => {
     // Let the enterprise tenant isolation middleware handle tenant validation
     // Just preserve the user's tenant ID for the isolation middleware
     user._tenantId = user.tenantId;
+    
+    // CRITICAL: Set tenant context for subsequent queries
+    if (user.tenantId) {
+      const { setTenantContext } = require('./enterpriseTenantIsolation');
+      if (typeof setTenantContext === 'function') {
+        setTenantContext({
+          tenantId: user.tenantId,
+          userId: user._id.toString(),
+          requestId: `req-${Date.now()}`
+        });
+      }
+    }
 
     // Load role permissions if user has a role
     if (user.role) {
@@ -49,6 +61,15 @@ exports.auth = exports.authenticate = async (req, res, next) => {
 
     req.user = user;
     req.token = token;
+    
+    // CRITICAL: Set tenantId on request for route handlers
+    if (user.tenantId) {
+      req.tenantId = user.tenantId;
+      req.tenant = {
+        tenantId: user.tenantId
+      };
+    }
+    
     next();
   } catch (error) {
     res.status(401).json({ error: 'Please authenticate' });

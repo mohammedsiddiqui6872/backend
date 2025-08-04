@@ -52,11 +52,15 @@ const Tables = () => {
         tableAPI.getLayout()
       ]);
       
-      setTables(tablesData.tables);
-      setStats(tablesData.stats);
-      setLayout(layoutData.layout);
+      console.log('Tables API Response:', tablesData); // Debug log
+      
+      setTables(tablesData.tables || []);
+      setStats(tablesData.stats || {});
+      setLayout(layoutData.layout || null);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Show user-friendly error
+      alert('Failed to load tables. Please check console for details.');
     } finally {
       setLoading(false);
     }
