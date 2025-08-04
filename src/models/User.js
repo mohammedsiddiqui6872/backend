@@ -3,13 +3,19 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  tenantId: { type: String, required: true, index: true },
+  tenantId: { 
+    type: String, 
+    required: function() {
+      return this.role !== 'super_admin';
+    }, 
+    index: true 
+  },
   name: { type: String, required: true },
   email: { type: String, required: true, lowercase: true },
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['admin', 'manager', 'chef', 'waiter', 'cashier', 'host', 'bartender'],
+    enum: ['admin', 'manager', 'chef', 'waiter', 'cashier', 'host', 'bartender', 'super_admin'],
     default: 'waiter'
   },
   phone: String,
@@ -117,6 +123,16 @@ const userSchema = new mongoose.Schema({
   lastTokenUpdate: {
     type: Date,
     default: null
+  },
+  
+  // System user flag to prevent deletion
+  isSystemUser: { type: Boolean, default: false },
+  
+  // Additional metadata
+  metadata: {
+    createdBy: String,
+    purpose: String,
+    cannotBeDeleted: Boolean
   }
 }, { timestamps: true });
 
@@ -127,6 +143,31 @@ userSchema.methods.comparePassword = async function(password) {
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Prevent deletion of system users
+userSchema.pre('deleteOne', { document: true, query: false }, function(next) {
+  if (this.isSystemUser || this.metadata?.cannotBeDeleted) {
+    return next(new Error('System users cannot be deleted'));
+  }
+  next();
+});
+
+userSchema.pre('findOneAndDelete', async function(next) {
+  const user = await this.model.findOne(this.getQuery());
+  if (user && (user.isSystemUser || user.metadata?.cannotBeDeleted)) {
+    return next(new Error('System users cannot be deleted'));
+  }
+  next();
+});
+
+userSchema.pre('deleteMany', async function(next) {
+  const users = await this.model.find(this.getQuery());
+  const hasSystemUser = users.some(user => user.isSystemUser || user.metadata?.cannotBeDeleted);
+  if (hasSystemUser) {
+    return next(new Error('Cannot delete system users'));
+  }
   next();
 });
 
@@ -170,6 +211,11 @@ userSchema.pre(/^find/, function() {
 
 // Ensure tenantId is set when creating new users
 userSchema.pre('save', function(next) {
+  // Skip tenant requirement for super admin users or when explicitly disabled
+  if (this.role === 'super_admin' || process.env.DISABLE_TENANT_ISOLATION === 'true') {
+    return next();
+  }
+  
   if (!this.tenantId) {
     const context = getCurrentTenant();
     if (context?.tenantId) {

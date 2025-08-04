@@ -34,10 +34,30 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Check super admin credentials
-    if (email === 'admin@gritservices.ae' && password === process.env.SUPER_ADMIN_PASSWORD) {
+    // Check super admin credentials - both hardcoded and GRITSERVICES user
+    if ((email === 'admin@gritservices.ae' && password === process.env.SUPER_ADMIN_PASSWORD) ||
+        (email === 'GRITSERVICES@gritservices.ae' && password === 'Musa@786')) {
+      
+      // Check if GRITSERVICES user exists in database
+      let user = null;
+      if (email === 'GRITSERVICES@gritservices.ae') {
+        user = await User.findOne({ 
+          email: email.toLowerCase(), 
+          role: 'super_admin',
+          tenantId: { $exists: false }
+        });
+        
+        if (user && !(await user.comparePassword(password))) {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+      }
+      
       const token = jwt.sign(
-        { id: 'super_admin_001', email, role: 'super_admin' },
+        { 
+          id: user ? user._id : 'super_admin_001', 
+          email, 
+          role: 'super_admin' 
+        },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -46,9 +66,10 @@ router.post('/login', async (req, res) => {
         success: true,
         token,
         user: {
+          id: user ? user._id : 'super_admin_001',
           email,
           role: 'super_admin',
-          name: 'Super Admin'
+          name: user ? user.name : 'Super Admin'
         }
       });
     } else {
