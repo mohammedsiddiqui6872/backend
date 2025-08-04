@@ -53,7 +53,10 @@ class DatabaseManager {
       tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
       
       // Additional Performance Settings
-      maxStalenessSeconds: parseInt(process.env.DB_MAX_STALENESS) || 120, // Allow reads from secondaries up to 2 minutes behind
+      // Note: maxStalenessSeconds only works with secondary read preferences
+      ...(process.env.DB_READ_PREFERENCE && process.env.DB_READ_PREFERENCE !== 'primary' 
+        ? { maxStalenessSeconds: parseInt(process.env.DB_MAX_STALENESS) || 120 }
+        : {}),
       retryWrites: true, // Retry write operations once
       retryReads: true   // Retry read operations once
     };
@@ -110,6 +113,7 @@ class DatabaseManager {
         db.collection('menuitems').createIndex({ 'tenantId': 1, 'price': 1 }, { background: true }),
         
         db.collection('tables').createIndex({ 'tenantId': 1, 'status': 1 }, { background: true }),
+        // Compound unique index to ensure table numbers are unique per tenant
         db.collection('tables').createIndex({ 'tenantId': 1, 'number': 1 }, { unique: true, background: true }),
         
         db.collection('shifts').createIndex({ 'tenantId': 1, 'employee': 1, 'date': -1 }, { background: true }),
@@ -133,23 +137,37 @@ class DatabaseManager {
         }),
         
         // Text search indexes
+        // Note: Text indexes are created separately as MongoDB only allows one text index per collection
         db.collection('menuitems').createIndex({ 
-          'tenantId': 1,
           'name': 'text', 
           'description': 'text' 
         }, { background: true }),
         
         db.collection('users').createIndex({ 
-          'tenantId': 1,
           'name': 'text', 
           'email': 'text' 
         }, { background: true })
       ];
 
-      await Promise.all(indexPromises);
-      console.log('Database indexes created successfully');
+      // Execute index creation with individual error handling
+      const results = await Promise.allSettled(indexPromises);
+      
+      // Check for any failures
+      const failures = results.filter(result => result.status === 'rejected');
+      if (failures.length > 0) {
+        console.warn(`Warning: ${failures.length} indexes failed to create`);
+        failures.forEach((failure, index) => {
+          // Ignore "Index already exists" errors (code 85 or 86)
+          if (failure.reason?.code !== 85 && failure.reason?.code !== 86) {
+            console.error(`Index creation failed:`, failure.reason);
+          }
+        });
+      }
+      
+      console.log('Database index creation completed');
     } catch (error) {
-      console.error('Error creating database indexes:', error);
+      console.error('Critical error during index creation:', error);
+      // Don't exit - the app can still function without optimal indexes
     }
   }
 
