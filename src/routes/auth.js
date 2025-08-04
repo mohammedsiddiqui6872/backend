@@ -253,7 +253,10 @@ router.get('/me', authenticate, async (req, res) => {
 // Get current user profile - THIS IS THE MISSING ENDPOINT
 router.get('/profile', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    // For admin users, we need to skip tenant filter
+    const user = await User.findById(req.user._id)
+      .select('-password')
+      .setOptions({ skipTenantFilter: true });
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

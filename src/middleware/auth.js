@@ -15,7 +15,10 @@ exports.auth = exports.authenticate = async (req, res, next) => {
       throw new Error('JWT_SECRET environment variable is not configured');
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ _id: decoded.id, isActive: true }).select('-password');
+    // Skip tenant filter to find user, we'll verify tenant context separately
+    const user = await User.findOne({ _id: decoded.id, isActive: true })
+      .select('-password')
+      .setOptions({ skipTenantFilter: true });
 
     if (!user) {
       throw new Error();
@@ -31,7 +34,7 @@ exports.auth = exports.authenticate = async (req, res, next) => {
         code: user.role.toUpperCase(), 
         tenantId: user.tenantId,
         isActive: true 
-      });
+      }).setOptions({ skipTenantFilter: true });
       
       if (role) {
         // Merge role permissions with user-specific permissions
