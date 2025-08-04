@@ -16,6 +16,8 @@ router.get('/customer-session/table/:tableNumber', async (req, res) => {
     // Log for debugging
     console.log('Guest API - Getting session for table:', tableNumber, 'Tenant:', req.tenant?.tenantId);
     
+    // For guest sessions, we'll just return null if no waiter-created session exists
+    // The frontend can handle creating a guest session locally
     const session = await CustomerSession.findOne({
       tableNumber,
       isActive: true,
@@ -57,37 +59,33 @@ router.post('/customer-session', async (req, res) => {
       });
     }
     
-    // Create or update customer session
-    let session = await CustomerSession.findOne({
+    // For guest sessions, we don't need to create a CustomerSession
+    // since that requires a waiter. Instead, we'll just validate the table
+    // and return a simple session object that the frontend can use
+    
+    // Generate a unique session ID for this guest session
+    const sessionId = `guest-${tableNumber}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Return a session-like object without saving to database
+    // This avoids the waiter requirement while still allowing guests to order
+    const guestSessionData = {
+      _id: sessionId,
+      sessionId: sessionId,
+      tenantId: req.tenant?.tenantId,
       tableNumber,
+      customerName,
+      customerPhone,
+      customerEmail,
+      occupancy: occupancy || 1,
+      startTime: new Date(),
       isActive: true,
-      tenantId: req.tenant?.tenantId
-    });
-    
-    if (!session) {
-      session = new CustomerSession({
-        tenantId: req.tenant?.tenantId,
-        tableNumber,
-        customerName,
-        customerPhone,
-        customerEmail,
-        occupancy: occupancy || 1,
-        startTime: new Date(),
-        isActive: true
-      });
-    } else {
-      // Update existing session
-      session.customerName = customerName;
-      session.customerPhone = customerPhone || session.customerPhone;
-      session.customerEmail = customerEmail || session.customerEmail;
-      session.occupancy = occupancy || session.occupancy;
-    }
-    
-    await session.save();
+      status: 'active',
+      orders: []
+    };
     
     res.json({ 
       success: true, 
-      data: session,
+      data: guestSessionData,
       message: 'Welcome! You can now place your order.' 
     });
   } catch (error) {
@@ -131,7 +129,9 @@ router.post('/orders', async (req, res) => {
     
     await order.save();
     
-    // Update customer session with order
+    // For guest orders, we don't need to update a session
+    // The order itself contains all necessary information
+    // If there's a waiter-created session, update it
     const session = await CustomerSession.findOne({
       tableNumber,
       isActive: true,
