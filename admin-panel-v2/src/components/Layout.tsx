@@ -14,7 +14,8 @@ import {
   PieChart,
   Eye,
   UserCheck,
-  Shield
+  Shield,
+  FileCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
@@ -64,6 +65,7 @@ const Layout = () => {
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/compliance', icon: Shield, label: 'Compliance' },
+    { path: '/audit-log', icon: FileCheck, label: 'Audit Log' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

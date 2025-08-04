@@ -91,6 +91,9 @@ const shiftNotificationService = require('./src/services/shiftNotificationServic
 shiftNotificationService.initialize();
 app.set('shiftNotificationService', shiftNotificationService);
 
+// Initialize audit logging
+const { auditMiddleware } = require('./src/middleware/auditLogger');
+
 // Enhanced security middleware stack
 app.use(compression({
   level: 6,
@@ -215,6 +218,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Apply audit logging middleware
+app.use(auditMiddleware());
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -335,6 +341,9 @@ app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignm
 
 // Compliance routes
 app.use('/api/compliance', require('./src/routes/compliance'));
+
+// Audit log routes
+app.use('/api/admin/audit-logs', require('./src/routes/admin/auditLogs'));
 
 // Test routes removed for production
 
