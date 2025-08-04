@@ -106,12 +106,21 @@ router.post('/fix-password', async (req, res) => {
     
     // Hash the password properly
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    user.isActive = true;
-    await user.save();
     
-    // Verify it worked
-    const isValid = await bcrypt.compare(newPassword, user.password);
+    // Update directly to bypass pre-save hook that might double-hash
+    await User.updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          password: hashedPassword,
+          isActive: true 
+        }
+      }
+    ).setOptions({ skipTenantFilter: true });
+    
+    // Verify it worked by fetching the user again
+    const updatedUser = await User.findById(user._id).setOptions({ skipTenantFilter: true });
+    const isValid = await bcrypt.compare(newPassword, updatedUser.password);
     
     res.json({
       success: true,
