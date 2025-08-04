@@ -92,20 +92,31 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
     const fetchRoles = async () => {
       try {
         const response = await analyticsAPI.getRoles();
+        console.log('Fetched roles:', response.data); // Debug log
+        
         if (response.data && response.data.length > 0) {
-          // Map the custom roles to the format needed for the select
-          const customRoles = response.data.map((role: any) => ({
-            value: role.code.toLowerCase(),
-            label: role.name
-          }));
-          // Combine default and custom roles, removing duplicates
-          const allRoles = [...defaultRoles];
-          customRoles.forEach((customRole: any) => {
-            if (!allRoles.find(r => r.value === customRole.value)) {
-              allRoles.push(customRole);
-            }
-          });
-          setRoles(allRoles);
+          // Filter out only custom roles (non-system roles)
+          const customRoles = response.data
+            .filter((role: any) => !role.isSystem)
+            .map((role: any) => ({
+              value: role.code.toLowerCase(),
+              label: role.name
+            }));
+          
+          console.log('Custom roles:', customRoles); // Debug log
+          
+          // Combine default and custom roles
+          const allRoles = [...defaultRoles, ...customRoles];
+          
+          // Remove duplicates based on value
+          const uniqueRoles = allRoles.filter((role, index, self) =>
+            index === self.findIndex((r) => r.value === role.value)
+          );
+          
+          setRoles(uniqueRoles);
+        } else {
+          // Even if no custom roles, use default roles
+          setRoles(defaultRoles);
         }
       } catch (error) {
         console.error('Failed to fetch custom roles:', error);

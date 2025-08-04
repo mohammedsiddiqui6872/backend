@@ -345,23 +345,68 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
   
   // Check if uploads directory exists
   const uploadsDir = path.join(__dirname, '../../../uploads/profiles');
-  if (!require('fs').existsSync(uploadsDir)) {
-    require('fs').mkdirSync(uploadsDir, { recursive: true });
-    console.log('Created uploads directory:', uploadsDir);
+  const fs = require('fs');
+  
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      console.log('Created uploads directory:', uploadsDir);
+    } else {
+      console.log('Uploads directory exists:', uploadsDir);
+    }
+    
+    // Check directory permissions
+    fs.accessSync(uploadsDir, fs.constants.W_OK);
+    console.log('Directory is writable');
+  } catch (error) {
+    console.error('Directory error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server configuration error: uploads directory not accessible' 
+    });
   }
   
   uploadDocuments.array('documents', 5)(req, res, (err) => {
     if (err) {
       console.error('Multer error:', err);
       console.error('Error stack:', err.stack);
+      console.error('Error code:', err.code);
+      console.error('Error field:', err.field);
+      
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ success: false, message: 'File too large. Maximum size is 10MB' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'File too large. Maximum size is 10MB per file',
+          error: 'FILE_TOO_LARGE'
+        });
+      } else if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Too many files. Maximum 5 files allowed at once',
+          error: 'TOO_MANY_FILES'
+        });
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Unexpected field name. Files must be uploaded with field name "documents"',
+          error: 'INVALID_FIELD_NAME'
+        });
       } else if (err.message && err.message.includes('File type not allowed')) {
-        return res.status(400).json({ success: false, message: err.message });
+        return res.status(400).json({ 
+          success: false, 
+          message: err.message,
+          error: 'INVALID_FILE_TYPE'
+        });
       }
-      return res.status(400).json({ success: false, message: err.message || 'Error uploading file' });
+      return res.status(400).json({ 
+        success: false, 
+        message: err.message || 'Error uploading file',
+        error: 'UPLOAD_ERROR',
+        details: err.toString()
+      });
     }
     console.log('Multer processing complete');
+    console.log('Files processed:', req.files?.length || 0);
     next();
   });
 }, async (req, res) => {

@@ -141,9 +141,9 @@ async function migrateAndCleanupTables() {
     console.log('Or uncomment the line below and run again:');
     console.log('// await oldTablesCollection.drop();');
     
-    // Uncomment this line to actually drop the old collection
-    // await oldTablesCollection.drop();
-    // console.log('Old tables collection dropped successfully');
+    // Drop the old collection
+    await oldTablesCollection.drop();
+    console.log('Old tables collection dropped successfully');
     
     await mongoose.disconnect();
     console.log('\nDone!');
