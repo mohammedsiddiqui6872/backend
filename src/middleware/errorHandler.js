@@ -138,8 +138,39 @@ const errorHandler = (err, req, res, next) => {
     error.requestId = req.requestId;
   }
   
-  // Use shared error handler
-  sharedErrorHandler(error, req, res, next);
+  // Use shared error handler if available, otherwise use fallback
+  if (sharedErrorHandler && typeof sharedErrorHandler === 'function') {
+    sharedErrorHandler(error, req, res, next);
+  } else {
+    // Fallback error handler
+    const statusCode = error.statusCode || error.status || 500;
+    const message = error.message || 'Internal Server Error';
+    
+    // Log error
+    if (logger && logger.error) {
+      logger.error('Request error:', {
+        error: error,
+        request: {
+          method: req.method,
+          url: req.originalUrl,
+          headers: req.headers,
+          body: req.body,
+          params: req.params,
+          query: req.query
+        }
+      });
+    }
+    
+    // Send error response
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        message: message,
+        code: error.code || 'INTERNAL_ERROR',
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+      }
+    });
+  }
 };
 
 // Not found handler

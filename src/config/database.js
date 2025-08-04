@@ -45,12 +45,14 @@ class DatabaseManager {
       // Compression (if supported by MongoDB version)
       compressors: ['zlib'],
       
+      // MongoDB Driver Options
+      directConnection: false, // Required for replica sets
+      
       // Authentication (if needed)
       authSource: process.env.DB_AUTH_SOURCE || 'admin',
       
-      // TLS Settings (for production) - 'ssl' options are deprecated, use 'tls' instead
-      tls: process.env.NODE_ENV === 'production',
-      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
+      // Note: MongoDB Atlas handles TLS/SSL through the connection string
+      // Don't set tls options here as it can conflict with Atlas configuration
       
       // Additional Performance Settings
       // Note: maxStalenessSeconds only works with secondary read preferences
