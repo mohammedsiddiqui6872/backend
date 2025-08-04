@@ -16,12 +16,10 @@ class DatabaseManager {
 
   /**
    * Get optimized connection options
+   * Updated for Mongoose 8.x - removed deprecated options
    */
   getConnectionOptions() {
     return {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      
       // Connection Pool Settings
       maxPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE) || 10, // Maintain up to 10 socket connections
       minPoolSize: parseInt(process.env.DB_MIN_POOL_SIZE) || 2,  // Maintain at least 2 socket connections
@@ -30,7 +28,6 @@ class DatabaseManager {
       socketTimeoutMS: parseInt(process.env.DB_SOCKET_TIMEOUT) || 45000, // Close sockets after 45 seconds of inactivity
       
       // Buffering Settings
-      bufferMaxEntries: 0, // Disable mongoose buffering
       bufferCommands: false, // Disable mongoose buffering
       
       // Heartbeat Settings
@@ -51,9 +48,9 @@ class DatabaseManager {
       // Authentication (if needed)
       authSource: process.env.DB_AUTH_SOURCE || 'admin',
       
-      // SSL/TLS Settings (for production)
-      ssl: process.env.NODE_ENV === 'production',
-      sslValidate: process.env.NODE_ENV === 'production',
+      // TLS Settings (for production) - 'ssl' options are deprecated, use 'tls' instead
+      tls: process.env.NODE_ENV === 'production',
+      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
       
       // Additional Performance Settings
       maxStalenessSeconds: parseInt(process.env.DB_MAX_STALENESS) || 120, // Allow reads from secondaries up to 2 minutes behind
@@ -81,8 +78,12 @@ class DatabaseManager {
     
     // Optimize for faster updates
     mongoose.set('runValidators', true);
-    // Removed deprecated options: useCreateIndex and useFindAndModify
-    // These are now the default behavior in Mongoose 6.0+
+    
+    // Note: Deprecated options removed for Mongoose 8.x compatibility:
+    // - useNewUrlParser, useUnifiedTopology (now always enabled)
+    // - useCreateIndex, useFindAndModify (now default behavior)
+    // - bufferMaxEntries (use bufferCommands instead)
+    // - ssl/sslValidate (use tls/tlsAllowInvalidCertificates instead)
   }
 
   /**
