@@ -89,7 +89,7 @@ class SocketService {
     this.socket.on('assignment:ended', (data) => {
       console.log('Assignment ended:', data);
       this.emit('assignment:ended', data);
-      toast.info(`Assignment ended for table ${data.tableNumber}`);
+      toast(`Assignment ended for table ${data.tableNumber}`, { icon: 'ℹ️' });
     });
 
     this.socket.on('assignment:bulk-created', (data) => {
@@ -101,13 +101,13 @@ class SocketService {
     this.socket.on('assignment:rotation', (data) => {
       console.log('Assignments rotated:', data);
       this.emit('assignment:rotation', data);
-      toast.info(`${data.rotations.length} assignments rotated`);
+      toast(`${data.rotations.length} assignments rotated`, { icon: 'ℹ️' });
     });
 
     this.socket.on('assignment:emergency-reassign', (data) => {
       console.log('Emergency reassignment:', data);
       this.emit('assignment:emergency-reassign', data);
-      toast.warning(`${data.reassignedCount} tables reassigned from ${data.fromWaiterName} to ${data.toWaiterName}`);
+      toast(`${data.reassignedCount} tables reassigned from ${data.fromWaiterName} to ${data.toWaiterName}`, { icon: '⚠️' });
     });
 
     this.socket.on('assignment:current-list', (data) => {

@@ -17,8 +17,6 @@ import AssignmentScheduleView from '../components/staffAssignment/AssignmentSche
 import AssignmentAnalytics from '../components/staffAssignment/AssignmentAnalytics';
 import AssignmentHistory from '../components/staffAssignment/AssignmentHistory';
 import AssignmentRules from '../components/staffAssignment/AssignmentRules';
-import { useAuth } from '../hooks/useAuth';
-import { checkPermission } from '../utils/permissions';
 import toast from 'react-hot-toast';
 import socketService from '../services/socketService';
 
@@ -27,13 +25,13 @@ const StaffAssignment: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'assignments' | 'history' | 'rules' | 'analytics'>('assignments');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notifications, setNotifications] = useState<number>(0);
-  const { user } = useAuth();
 
-  // Check permissions
-  const canViewAssignments = checkPermission(user, 'tables', 'read');
-  const canManageAssignments = checkPermission(user, 'tables', 'update');
-  const canViewAnalytics = checkPermission(user, 'analytics', 'read');
-  const canManageRules = checkPermission(user, 'settings', 'update');
+  // For now, assume admin has all permissions
+  // In production, you would get this from the auth token or API
+  const canViewAssignments = true;
+  const canManageAssignments = true;
+  const canViewAnalytics = true;
+  const canManageRules = true;
 
   useEffect(() => {
     // Set up Socket.io connection

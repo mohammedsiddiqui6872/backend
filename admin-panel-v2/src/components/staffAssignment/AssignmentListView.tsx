@@ -50,14 +50,14 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tablesData, assignmentsData, waitersData, waiterLoadsData] = await Promise.all([
+      const [tablesResponse, assignmentsData, waitersData, waiterLoadsData] = await Promise.all([
         tableAPI.getTables(),
         staffAssignmentAPI.getAssignments(),
         userAPI.getUsers({ role: 'waiter' }),
         staffAssignmentAPI.getWaiterLoads()
       ]);
 
-      setTables(tablesData);
+      setTables(tablesResponse.tables);
       setAssignments(assignmentsData);
       setWaiters(waitersData.filter(u => u.isActive));
       setWaiterLoads(waiterLoadsData);
@@ -170,7 +170,7 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
       const result = await staffAssignmentAPI.bulkAssign(request);
       
       if (result.conflicts.length > 0) {
-        toast.warning(`Assigned ${result.successful.length} tables with ${result.conflicts.length} conflicts`);
+        toast(`Assigned ${result.successful.length} tables with ${result.conflicts.length} conflicts`, { icon: '⚠️' });
       } else {
         toast.success(`Successfully assigned ${result.successful.length} tables`);
       }
@@ -276,7 +276,7 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
             <button
               onClick={() => {
                 // Export functionality
-                toast.info('Export feature coming soon');
+                toast('Export feature coming soon', { icon: 'ℹ️' });
               }}
               className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >

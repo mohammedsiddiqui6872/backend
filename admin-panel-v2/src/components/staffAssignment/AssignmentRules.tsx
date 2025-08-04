@@ -260,21 +260,21 @@ const AssignmentRules: React.FC<AssignmentRulesProps> = ({ canManage }) => {
                   <div className="mt-4 space-y-2">
                     <h5 className="text-sm font-medium text-gray-700">Conditions:</h5>
                     <div className="flex flex-wrap gap-2">
-                      {rule.conditions.shiftType?.length > 0 && (
+                      {rule.conditions.shiftType && rule.conditions.shiftType.length > 0 && (
                         <div className="inline-flex items-center px-3 py-1 rounded-md bg-blue-50 text-blue-700 text-sm">
                           <Calendar className="h-3 w-3 mr-1" />
                           Shift: {rule.conditions.shiftType.join(', ')}
                         </div>
                       )}
-                      {rule.conditions.tableType?.length > 0 && (
+                      {rule.conditions.tableType && rule.conditions.tableType.length > 0 && (
                         <div className="inline-flex items-center px-3 py-1 rounded-md bg-purple-50 text-purple-700 text-sm">
                           <Layers className="h-3 w-3 mr-1" />
                           Tables: {rule.conditions.tableType.join(', ')}
                         </div>
                       )}
-                      {rule.conditions.dayOfWeek?.length > 0 && (
+                      {rule.conditions.dayOfWeek && rule.conditions.dayOfWeek.length > 0 && (
                         <div className="inline-flex items-center px-3 py-1 rounded-md bg-green-50 text-green-700 text-sm">
-                          Days: {rule.conditions.dayOfWeek.map(d => 
+                          Days: {rule.conditions.dayOfWeek.map((d: number) => 
                             DAYS_OF_WEEK.find(day => day.value === d)?.label || d
                           ).join(', ')}
                         </div>

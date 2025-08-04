@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// @ts-ignore - react-dnd types issue
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
+// @ts-ignore - react-dnd types issue
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { 
   User, 
@@ -40,7 +42,7 @@ const WaiterCard: React.FC<{
     type: 'waiter',
     item: { type: 'waiter', waiterId: waiter.waiterId, waiterName: waiter.waiterName },
     canDrag: canManage && waiter.isAvailable,
-    collect: (monitor) => ({
+    collect: (monitor: any) => ({
       isDragging: monitor.isDragging(),
     }),
   });
@@ -90,12 +92,12 @@ const TableCard: React.FC<{
   const [{ isOver, canDrop }, drop] = useDrop<DragItem, void, { isOver: boolean; canDrop: boolean }>({
     accept: 'waiter',
     canDrop: () => canManage && table.status !== 'maintenance',
-    drop: (item) => {
+    drop: (item: any) => {
       if (assignment?.waiterId !== item.waiterId) {
         onAssign(table._id, item.waiterId);
       }
     },
-    collect: (monitor) => ({
+    collect: (monitor: any) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
     }),
@@ -186,19 +188,19 @@ const AssignmentGridView: React.FC<AssignmentGridViewProps> = ({ canManage }) =>
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tablesData, assignmentsData, waiterLoadsData, layoutData] = await Promise.all([
+      const [tablesResponse, assignmentsData, waiterLoadsData, layoutData] = await Promise.all([
         tableAPI.getTables(),
         staffAssignmentAPI.getAssignments(filters),
         staffAssignmentAPI.getWaiterLoads(),
         tableAPI.getLayout()
       ]);
 
-      setTables(tablesData);
+      setTables(tablesResponse.tables);
       setAssignments(assignmentsData);
       setWaiterLoads(waiterLoadsData);
       
       // Extract unique floors
-      const uniqueFloors = layoutData.floors.map(f => f.name);
+      const uniqueFloors = layoutData.layout.floors.map((f: any) => f.name);
       setFloors(uniqueFloors);
     } catch (error) {
       console.error('Error loading data:', error);

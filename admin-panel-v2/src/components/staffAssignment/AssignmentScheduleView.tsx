@@ -114,7 +114,7 @@ const AssignmentScheduleView: React.FC<AssignmentScheduleViewProps> = ({ canMana
       });
 
       if (tables.length === 0) {
-        toast.info('No unassigned tables available');
+        toast('No unassigned tables available', { icon: 'ℹ️' });
         return;
       }
 
@@ -124,7 +124,7 @@ const AssignmentScheduleView: React.FC<AssignmentScheduleViewProps> = ({ canMana
       const availableCapacity = maxTables - currentTables;
 
       if (availableCapacity <= 0) {
-        toast.warning('Waiter is at full capacity');
+        toast('Waiter is at full capacity', { icon: '⚠️' });
         return;
       }
 
