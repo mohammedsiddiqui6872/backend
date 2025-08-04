@@ -50,7 +50,8 @@ const io = socketIo(server, {
       callback(null, allowed);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Tenant-Subdomain', 'X-CSRF-Token', 'X-Guest-Session-Id', 'X-Table-Number', 'X-Device-Type']
   }
 });
 
@@ -113,7 +114,7 @@ app.use(cors({
     callback(null, allowed);
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Tenant-Subdomain', 'X-CSRF-Token', 'X-Guest-Session-Id', 'X-Table-Number'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Tenant-Subdomain', 'X-CSRF-Token', 'X-Guest-Session-Id', 'X-Table-Number', 'X-Device-Type'],
   exposedHeaders: ['X-Total-Count', 'X-Tenant-Id']
 }));
 
@@ -200,6 +201,7 @@ app.use('/api/tables', ensureTenantIsolation, require('./src/routes/tables'));
 app.use('/api/payments', ensureTenantIsolation, require('./src/routes/payments'));
 app.use('/api/feedback', ensureTenantIsolation, require('./src/routes/feedback'));
 app.use('/api/customer-sessions', ensureTenantIsolation, require('./src/routes/customerSessions'));
+app.use('/api/guest', ensureTenantIsolation, require('./src/routes/guest')); // Guest endpoints - no auth required
 
 // Admin routes
 app.use('/api/admin/users', ensureTenantIsolation, require('./src/routes/admin/users'));
