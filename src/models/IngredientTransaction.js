@@ -173,7 +173,9 @@ ingredientTransactionSchema.pre('save', async function(next) {
 
 // Ensure tenant isolation in queries
 ingredientTransactionSchema.pre(/^find/, function() {
-  const context = require('../middleware/tenantContext').getCurrentTenantId();
+  const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
+  const contextData = getCurrentTenant();
+  const context = contextData?.tenantId;
   if (context && !this.getQuery().tenantId) {
     this.where({ tenantId: context });
   }

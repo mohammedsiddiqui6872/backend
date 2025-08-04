@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const User = require('../../models/User');
 const { authenticate, authorize } = require('../../middleware/auth');
-const { ensureTenantIsolation } = require('../../middleware/tenantContext');
+const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 
 router.use(authenticate);
 router.use(authorize('admin'));
-router.use(ensureTenantIsolation);
+router.use(enterpriseTenantIsolation);
 
 // Get all users
 router.get('/', async (req, res) => {

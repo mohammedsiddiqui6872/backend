@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const { createUploadMiddleware } = require('../middleware/fileUploadSecurity');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -299,7 +300,12 @@ router.patch('/members/:id/password', authenticate, authorize(['users.manage']),
 });
 
 // Upload profile photo
-router.post('/members/:id/photo', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, upload.single('photo'), async (req, res) => {
+router.post('/members/:id/photo', 
+  authenticate, 
+  authorize(['users.manage']), 
+  enterpriseTenantIsolation, 
+  ...createUploadMiddleware('profile-photo', 'photo', 1),
+  async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });

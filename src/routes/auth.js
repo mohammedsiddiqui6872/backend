@@ -116,9 +116,12 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate token
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not configured');
+    }
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -181,7 +184,7 @@ router.post('/admin/login', async (req, res) => {
       
       // Check if user belongs to this tenant
       if (user.tenantId !== tenant.tenantId) {
-        console.log('Tenant mismatch:', user.tenantId, 'vs', tenant.tenantId);
+        // Don't log sensitive tenant IDs in production
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     }
@@ -191,13 +194,16 @@ router.post('/admin/login', async (req, res) => {
     await user.save();
 
     // Generate token with tenant info
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not configured');
+    }
     const token = jwt.sign(
       { 
         id: user._id, 
         role: user.role,
         tenantId: user.tenantId
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 

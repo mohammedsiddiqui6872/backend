@@ -1,5 +1,5 @@
 // Mongoose plugin to add tenant support to all models
-const { getCurrentTenantId } = require('../middleware/tenantContext');
+const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
 function tenantPlugin(schema) {
   // Add tenantId field to all schemas
@@ -17,7 +17,7 @@ function tenantPlugin(schema) {
   // Pre-save hook to ensure tenantId is set
   schema.pre('save', function(next) {
     if (!this.tenantId) {
-      const tenantId = getCurrentTenantId();
+      const tenantId = getCurrentTenant()?.tenantId;
       if (tenantId) {
         this.tenantId = tenantId;
       } else if (!this.isNew) {
@@ -50,7 +50,7 @@ function tenantPlugin(schema) {
         return;
       }
 
-      const tenantId = getCurrentTenantId();
+      const tenantId = getCurrentTenant()?.tenantId;
       if (tenantId) {
         this.where({ tenantId });
       }
@@ -74,7 +74,7 @@ function tenantPlugin(schema) {
 
   // Instance method to check if document belongs to current tenant
   schema.methods.belongsToCurrentTenant = function() {
-    const currentTenantId = getCurrentTenantId();
+    const currentTenantId = getCurrentTenant()?.tenantId;
     return currentTenantId && this.tenantId === currentTenantId;
   };
 

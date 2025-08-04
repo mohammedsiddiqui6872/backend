@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { getCurrentTenantId } = require('../middleware/tenantContext');
+const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
 const roleSchema = new mongoose.Schema({
   tenantId: { 
@@ -7,7 +7,7 @@ const roleSchema = new mongoose.Schema({
     required: true, 
     index: true,
     default: function() {
-      return getCurrentTenantId();
+      return getCurrentTenant()?.tenantId;
     }
   },
   
@@ -109,7 +109,7 @@ const roleSchema = new mongoose.Schema({
 
 // Add tenant filter
 roleSchema.pre(/^find/, function() {
-  const tenantId = getCurrentTenantId();
+  const tenantId = getCurrentTenant()?.tenantId;
   if (tenantId) {
     this.where({ tenantId });
   }
@@ -117,7 +117,7 @@ roleSchema.pre(/^find/, function() {
 
 roleSchema.pre('save', function(next) {
   if (!this.tenantId) {
-    this.tenantId = getCurrentTenantId();
+    this.tenantId = getCurrentTenant()?.tenantId;
   }
   next();
 });

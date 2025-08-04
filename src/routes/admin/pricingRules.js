@@ -4,7 +4,7 @@ const PricingRule = require('../../models/PricingRule');
 const MenuItem = require('../../models/MenuItem');
 const { authenticate, authorize } = require('../../middleware/auth');
 const { body, param, query, validationResult } = require('express-validator');
-const { getCurrentTenantId } = require('../../middleware/tenantContext');
+const { getCurrentTenant } = require('../../middleware/enterpriseTenantIsolation');
 
 // Apply authentication to all admin routes
 router.use(authenticate);
@@ -22,7 +22,7 @@ const validate = (req, res, next) => {
 // Get all pricing rules
 router.get('/', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const { type, menuItem, isActive } = req.query;
     
     const query = { tenantId };
@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 // Get pricing rules for a specific menu item
 router.get('/menu-item/:menuItemId', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const rules = await PricingRule.find({
       tenantId,
       menuItem: req.params.menuItemId,
@@ -65,7 +65,7 @@ router.post('/calculate-price', [
   body('context').optional().isObject()
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const { menuItemId, quantity = 1, context = {} } = req.body;
     
     // Get menu item base price
@@ -111,7 +111,7 @@ router.post('/', [
   body('validUntil').optional().isISO8601()
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const ruleData = { ...req.body, tenantId };
     
     // Verify menu item exists and belongs to tenant
@@ -161,7 +161,7 @@ router.put('/:id', [
   body('validUntil').optional().isISO8601()
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const rule = await PricingRule.findOne({
       _id: req.params.id,
       tenantId
@@ -200,7 +200,7 @@ router.put('/:id', [
 // Delete pricing rule
 router.delete('/:id', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const rule = await PricingRule.findOneAndDelete({
       _id: req.params.id,
       tenantId
@@ -228,7 +228,7 @@ router.post('/bulk-create', [
   body('rules.*.type').isIn(['time_based', 'day_of_week', 'quantity_based', 'combo', 'bogo'])
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const { rules } = req.body;
     const results = [];
     const errors = [];
@@ -273,7 +273,7 @@ router.post('/bulk-create', [
 // Toggle rule active status
 router.patch('/:id/toggle-active', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const rule = await PricingRule.findOne({
       _id: req.params.id,
       tenantId

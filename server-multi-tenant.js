@@ -9,10 +9,11 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const fs = require('fs');
 require('dotenv').config();
+const logger = require('./src/utils/logger');
 
-// Import multi-tenant middleware
-const { tenantContext, ensureTenantIsolation } = require('./src/middleware/tenantContext');
-const { enterpriseTenantIsolation, strictTenantIsolation, auditTenantAccess } = require('./src/middleware/enterpriseTenantIsolation');
+// Import multi-tenant middleware - using only enterprise tenant isolation
+const { enterpriseTenantIsolation, strictTenantIsolation, auditTenantAccess, getCurrentTenant } = require('./src/middleware/enterpriseTenantIsolation');
+const publicTenantContext = require('./src/middleware/publicTenantContext');
 const { authenticate } = require('./src/middleware/auth');
 
 // Import table status rule engine
@@ -85,8 +86,21 @@ app.set('shiftNotificationService', shiftNotificationService);
 // Security middleware
 app.use(compression());
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for now, configure properly later
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.socket.io", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "wss:", "https:"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false // Allow for image uploads
 }));
 
 // CORS configuration for multi-tenant
@@ -123,7 +137,7 @@ const createTenantRateLimiter = (windowMs, max) => {
   const limiters = new Map();
   
   return (req, res, next) => {
-    // Use tenant ID from the request object (set by tenantContext middleware)
+    // Use tenant ID from the request object (set by tenant middleware)
     const tenantId = req.tenant?.tenantId || req.tenantId || 'public';
     
     if (!limiters.has(tenantId)) {
@@ -148,9 +162,11 @@ const createTenantRateLimiter = (windowMs, max) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Request logging
+// Request logging - sanitized for production
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Tenant: ${req.get('host')}`);
+  if (process.env.NODE_ENV !== 'production') {
+    logger.http(`${req.method} ${req.path} - Host: ${req.get('host')}`);
+  }
   next();
 });
 
@@ -185,52 +201,52 @@ app.use('/api/table', require('./src/routes/tableAccess'));
 // Super admin routes (for SaaS management - no tenant context)
 app.use('/api/super-admin', require('./src/routes/superAdmin'));
 
-// Apply tenant context middleware to remaining routes
-app.use('/api', tenantContext);
-
-// Apply rate limiting after tenant context is set (for API routes)
+// NOTE: Enterprise tenant isolation is applied per route after authentication
+// Apply rate limiting (for API routes)
 app.use('/api', createTenantRateLimiter(15 * 60 * 1000, 500)); // 500 requests per 15 minutes per tenant
 
-// Tenant-specific routes
-app.use('/api/auth', ensureTenantIsolation, require('./src/routes/auth'));
-app.use('/api/menu', ensureTenantIsolation, require('./src/routes/menu'));
-app.use('/api/categories', ensureTenantIsolation, require('./src/routes/categories'));
-app.use('/api/combos', ensureTenantIsolation, require('./src/routes/combos'));
-app.use('/api/orders', ensureTenantIsolation, require('./src/routes/orders'));
-app.use('/api/tables', ensureTenantIsolation, require('./src/routes/tables'));
-app.use('/api/payments', ensureTenantIsolation, require('./src/routes/payments'));
-app.use('/api/feedback', ensureTenantIsolation, require('./src/routes/feedback'));
-app.use('/api/customer-sessions', ensureTenantIsolation, require('./src/routes/customerSessions'));
-app.use('/api/guest', ensureTenantIsolation, require('./src/routes/guest')); // Guest endpoints - no auth required
+// Public tenant routes (no authentication required, but need tenant context)
+app.use('/api/auth', publicTenantContext, require('./src/routes/auth'));
+app.use('/api/guest', publicTenantContext, require('./src/routes/guest'));
+app.use('/api/menu', publicTenantContext, require('./src/routes/menu'));
+app.use('/api/categories', publicTenantContext, require('./src/routes/categories'));
 
-// Admin routes
-app.use('/api/admin/users', ensureTenantIsolation, require('./src/routes/admin/users'));
-app.use('/api/admin/menu', ensureTenantIsolation, require('./src/routes/admin/menu'));
-app.use('/api/admin/categories', ensureTenantIsolation, require('./src/routes/admin/categories'));
-app.use('/api/admin/stock', ensureTenantIsolation, require('./src/routes/admin/stock'));
-app.use('/api/admin/ingredients', ensureTenantIsolation, require('./src/routes/admin/ingredients'));
-app.use('/api/admin/recipes', ensureTenantIsolation, require('./src/routes/admin/recipes'));
-app.use('/api/admin/pricing-rules', ensureTenantIsolation, require('./src/routes/admin/pricingRules'));
-app.use('/api/admin/combos', ensureTenantIsolation, require('./src/routes/admin/combos'));
-app.use('/api/admin/modifiers', ensureTenantIsolation, require('./src/routes/modifiers'));
-app.use('/api/admin/menu-analytics', ensureTenantIsolation, require('./src/routes/admin/menuAnalytics'));
-app.use('/api/admin/channels', ensureTenantIsolation, require('./src/routes/admin/channels'));
-app.use('/api/admin/menu-schedules', ensureTenantIsolation, require('./src/routes/admin/menuSchedules'));
-app.use('/api/admin/tables/import', ensureTenantIsolation, require('./src/routes/admin/tableImport'));
-app.use('/api/admin/tables/combination', ensureTenantIsolation, require('./src/routes/admin/tableCombination'));
-app.use('/api/admin/tables', ensureTenantIsolation, require('./src/routes/admin/tables'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/analytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/orderAnalytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/predictiveAnalytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/customerAnalytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/competitiveAnalytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/financialAnalytics'));
-app.use('/api/admin/analytics', ensureTenantIsolation, require('./src/routes/admin/employeePerformance'));
-app.use('/api/admin/stations', ensureTenantIsolation, require('./src/routes/admin/stations'));
-app.use('/api/admin/inventory', ensureTenantIsolation, require('./src/routes/admin/Inventory'));
-app.use('/api/admin/table-status-rules', ensureTenantIsolation, require('./src/routes/admin/tableStatusRules'));
-app.use('/api/admin/session-analytics', ensureTenantIsolation, require('./src/routes/admin/sessionAnalytics'));
-app.use('/api/admin/table-service-history', ensureTenantIsolation, require('./src/routes/admin/tableServiceHistory'));
+// Routes that require authentication - these will use authenticate + enterpriseTenantIsolation internally
+app.use('/api/combos', require('./src/routes/combos'));
+app.use('/api/orders', require('./src/routes/orders'));
+app.use('/api/tables', require('./src/routes/tables'));
+app.use('/api/payments', require('./src/routes/payments'));
+app.use('/api/feedback', require('./src/routes/feedback'));
+app.use('/api/customer-sessions', require('./src/routes/customerSessions'));
+
+// Admin routes - These routes should handle authentication + enterpriseTenantIsolation internally
+app.use('/api/admin/users', require('./src/routes/admin/users'));
+app.use('/api/admin/menu', require('./src/routes/admin/menu'));
+app.use('/api/admin/categories', require('./src/routes/admin/categories'));
+app.use('/api/admin/stock', require('./src/routes/admin/stock'));
+app.use('/api/admin/ingredients', require('./src/routes/admin/ingredients'));
+app.use('/api/admin/recipes', require('./src/routes/admin/recipes'));
+app.use('/api/admin/pricing-rules', require('./src/routes/admin/pricingRules'));
+app.use('/api/admin/combos', require('./src/routes/admin/combos'));
+app.use('/api/admin/modifiers', require('./src/routes/modifiers'));
+app.use('/api/admin/menu-analytics', require('./src/routes/admin/menuAnalytics'));
+app.use('/api/admin/channels', require('./src/routes/admin/channels'));
+app.use('/api/admin/menu-schedules', require('./src/routes/admin/menuSchedules'));
+app.use('/api/admin/tables/import', require('./src/routes/admin/tableImport'));
+app.use('/api/admin/tables/combination', require('./src/routes/admin/tableCombination'));
+app.use('/api/admin/tables', require('./src/routes/admin/tables'));
+app.use('/api/admin/analytics', require('./src/routes/admin/analytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/orderAnalytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/predictiveAnalytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/customerAnalytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/competitiveAnalytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/financialAnalytics'));
+app.use('/api/admin/analytics', require('./src/routes/admin/employeePerformance'));
+app.use('/api/admin/stations', require('./src/routes/admin/stations'));
+app.use('/api/admin/inventory', require('./src/routes/admin/Inventory'));
+app.use('/api/admin/table-status-rules', require('./src/routes/admin/tableStatusRules'));
+app.use('/api/admin/session-analytics', require('./src/routes/admin/sessionAnalytics'));
+app.use('/api/admin/table-service-history', require('./src/routes/admin/tableServiceHistory'));
 
 // Enhanced team management routes - Using enterprise isolation
 app.use('/api/admin/team', require('./src/routes/team'));
@@ -245,9 +261,9 @@ app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignm
 app.get('/admin-panel', async (req, res, next) => {
   // Apply tenant context but don't fail if not found - let the frontend handle it
   try {
-    await tenantContext(req, res, () => {});
+    await publicTenantContext(req, res, () => {});
   } catch (error) {
-    console.log('Tenant context error for admin panel:', error);
+    logger.debug('Admin panel tenant context lookup failed');
   }
   
   const distPath = path.join(__dirname, 'admin-panel/dist');
@@ -270,9 +286,9 @@ app.use('/admin-panel', express.static(path.join(__dirname, 'admin-panel/dist'))
 // Handle all admin panel routes
 app.get('/admin-panel/*', async (req, res) => {
   try {
-    await tenantContext(req, res, () => {});
+    await publicTenantContext(req, res, () => {});
   } catch (error) {
-    console.log('Tenant context error for admin panel:', error);
+    logger.debug('Admin panel tenant context lookup failed');
   }
   
   const distPath = path.join(__dirname, 'admin-panel/dist');
@@ -285,19 +301,14 @@ app.get('/admin-panel/*', async (req, res) => {
   }
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+// Import error handlers
+const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+app.use(notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 // Disable strict populate globally to avoid issues with backward compatibility fields
 mongoose.set('strictPopulate', false);
@@ -308,13 +319,14 @@ mongoose.connect(process.env.MONGODB_URI, {
   useUnifiedTopology: true,
 })
 .then(() => {
-  console.log('Connected to MongoDB (Multi-tenant mode)');
+  logger.info('Connected to MongoDB (Multi-tenant mode)');
   
-  // Initialize tenant-aware socket handlers
-  require('./src/sockets/tenantSocket')(io);
+  // Initialize enhanced tenant-aware socket handlers with memory leak prevention
+  const socketHandler = require('./src/sockets/enhancedTenantSocket');
+  socketHandler(io);
 })
 .catch(err => {
-  console.error('MongoDB connection error:', err);
+  logger.error('MongoDB connection error:', err);
   process.exit(1);
 });
 
@@ -342,9 +354,9 @@ io.use(async (socket, next) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Multi-tenant server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Domain: gritservices.ae`);
+  logger.info(`Multi-tenant server running on port ${PORT}`);
+  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`Domain: gritservices.ae`);
   
   // Start session monitor
   sessionMonitor.start();
@@ -352,12 +364,19 @@ server.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+  logger.info('SIGTERM signal received: closing HTTP server');
   sessionMonitor.stop();
+  
+  // Clean up socket connections
+  const socketHandler = require('./src/sockets/enhancedTenantSocket');
+  if (socketHandler.cleanup) {
+    socketHandler.cleanup();
+  }
+  
   server.close(() => {
-    console.log('HTTP server closed');
+    logger.info('HTTP server closed');
     mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed');
+      logger.info('MongoDB connection closed');
       process.exit(0);
     });
   });

@@ -3,10 +3,10 @@ const router = express.Router();
 const Role = require('../models/Role');
 const User = require('../models/User');
 const { authenticate, authorize } = require('../middleware/auth');
-const { ensureTenantIsolation } = require('../middleware/tenantContext');
+const { enterpriseTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 
 // Get all permissions (for UI)
-router.get('/permissions', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.get('/permissions', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const permissions = {
       menu: [
@@ -87,7 +87,7 @@ router.get('/permissions', authenticate, authorize(['users.roles']), ensureTenan
 });
 
 // Get all roles
-router.get('/', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.get('/', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { includeInactive = false } = req.query;
     
@@ -109,7 +109,7 @@ router.get('/', authenticate, authorize(['users.roles']), ensureTenantIsolation,
 });
 
 // Get role by ID
-router.get('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.get('/:id', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const role = await Role.findOne({ 
       _id: req.params.id,
@@ -142,7 +142,7 @@ router.get('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
 });
 
 // Create role
-router.post('/', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.post('/', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const {
       name,
@@ -189,7 +189,7 @@ router.post('/', authenticate, authorize(['users.roles']), ensureTenantIsolation
 });
 
 // Update role
-router.put('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.put('/:id', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const updates = { ...req.body };
     delete updates.tenantId;
@@ -246,7 +246,7 @@ router.put('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolati
 });
 
 // Delete/deactivate role
-router.delete('/:id', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.delete('/:id', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const role = await Role.findOne({ 
       _id: req.params.id,
@@ -291,7 +291,7 @@ router.delete('/:id', authenticate, authorize(['users.roles']), ensureTenantIsol
 });
 
 // Clone role
-router.post('/:id/clone', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.post('/:id/clone', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { name, code } = req.body;
 
@@ -340,7 +340,7 @@ router.post('/:id/clone', authenticate, authorize(['users.roles']), ensureTenant
 });
 
 // Get role templates (predefined roles)
-router.get('/templates/list', authenticate, authorize(['users.roles']), ensureTenantIsolation, async (req, res) => {
+router.get('/templates/list', authenticate, authorize(['users.roles']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const templates = [
       {

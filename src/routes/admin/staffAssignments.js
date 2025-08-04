@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../../middleware/auth');
-const { ensureTenantIsolation } = require('../../middleware/tenantContext');
+const { enterpriseTenantIsolation } = require('../../middleware/enterpriseTenantIsolation');
 const StaffAssignment = require('../../models/StaffAssignment');
 const AssignmentRule = require('../../models/AssignmentRule');
 const Table = require('../../models/Table');
@@ -12,7 +12,7 @@ const Order = require('../../models/Order');
 
 // Apply authentication and tenant isolation to all routes
 router.use(authenticate);
-router.use(ensureTenantIsolation);
+router.use(enterpriseTenantIsolation);
 
 // Get current assignments with filters
 router.get('/', authorize('admin', 'manager'), async (req, res) => {

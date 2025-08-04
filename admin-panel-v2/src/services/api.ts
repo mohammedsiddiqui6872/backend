@@ -650,6 +650,9 @@ export const tablesAPI = {
 export const ordersAPI = {
   getOrders: (params?: any) => 
     api.get('/orders', { params }),
+    
+  getOrderFlow: () => 
+    api.get('/orders/flow'),
   
   updateOrderStatus: (id: string, status: string) => 
     api.patch(`/orders/${id}/status`, { status }),

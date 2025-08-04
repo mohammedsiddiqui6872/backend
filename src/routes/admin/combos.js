@@ -4,7 +4,7 @@ const Combo = require('../../models/Combo');
 const MenuItem = require('../../models/MenuItem');
 const { authenticate, authorize } = require('../../middleware/auth');
 const { body, param, validationResult } = require('express-validator');
-const { getCurrentTenantId } = require('../../middleware/tenantContext');
+const { getCurrentTenant } = require('../../middleware/enterpriseTenantIsolation');
 const cloudinary = require('cloudinary').v2;
 
 // Apply authentication to all admin routes
@@ -23,7 +23,7 @@ const validate = (req, res, next) => {
 // Get all combos
 router.get('/', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const { isActive, category } = req.query;
     
     const query = { tenantId };
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 // Get single combo
 router.get('/:id', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const combo = await Combo.findOne({
       _id: req.params.id,
       tenantId
@@ -87,7 +87,7 @@ router.post('/', [
   body('items.*.quantity').optional().isInt({ min: 1 })
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const comboData = { ...req.body, tenantId };
     
     // Handle base64 image upload
@@ -161,7 +161,7 @@ router.put('/:id', [
   body('items').optional().isArray({ min: 1 })
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const combo = await Combo.findOne({
       _id: req.params.id,
       tenantId
@@ -240,7 +240,7 @@ router.put('/:id', [
 // Delete combo
 router.delete('/:id', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const combo = await Combo.findOneAndDelete({
       _id: req.params.id,
       tenantId
@@ -263,7 +263,7 @@ router.delete('/:id', async (req, res) => {
 // Toggle combo active status
 router.patch('/:id/toggle-active', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const combo = await Combo.findOne({
       _id: req.params.id,
       tenantId
@@ -290,7 +290,7 @@ router.patch('/:id/toggle-active', async (req, res) => {
 // Check combo availability
 router.get('/:id/availability', async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const combo = await Combo.findOne({
       _id: req.params.id,
       tenantId
@@ -325,7 +325,7 @@ router.post('/bulk-create', [
   body('combos.*.items').isArray({ min: 1 })
 ], validate, async (req, res) => {
   try {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const { combos } = req.body;
     const results = [];
     const errors = [];

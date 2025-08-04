@@ -11,21 +11,19 @@ exports.auth = exports.authenticate = async (req, res, next) => {
       throw new Error();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not configured');
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ _id: decoded.id, isActive: true }).select('-password');
 
     if (!user) {
       throw new Error();
     }
 
-    // SECURITY: Verify token integrity
-    if (decoded.tenantId && user.tenantId && decoded.tenantId !== user.tenantId) {
-      console.error('Token tenant mismatch - possible tampering:', decoded.tenantId, 'vs', user.tenantId);
-      throw new Error('Invalid token');
-    }
-
-    // Store user's actual tenant ID for enterprise isolation middleware
-    user._tenantId = user.tenantId; // Preserve original tenant ID
+    // Let the enterprise tenant isolation middleware handle tenant validation
+    // Just preserve the user's tenant ID for the isolation middleware
+    user._tenantId = user.tenantId;
 
     // Load role permissions if user has a role
     if (user.role) {

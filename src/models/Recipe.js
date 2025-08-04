@@ -197,7 +197,9 @@ recipeSchema.pre('save', function(next) {
 
 // Ensure tenant isolation in queries
 recipeSchema.pre(/^find/, function() {
-  const context = require('../middleware/tenantContext').getCurrentTenantId();
+  const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
+  const contextData = getCurrentTenant();
+  const context = contextData?.tenantId;
   if (context && !this.getQuery().tenantId) {
     this.where({ tenantId: context });
   }

@@ -1,6 +1,6 @@
 const StockTransaction = require('../models/StockTransaction');
 const MenuItem = require('../models/MenuItem');
-const { getCurrentTenantId } = require('../middleware/tenantContext');
+const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
 class StockService {
   /**
@@ -123,7 +123,7 @@ class StockService {
    * Adjust stock manually
    */
   static async adjustStock(menuItemId, quantity, reason, userId, transactionType = 'adjustment') {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const menuItem = await MenuItem.findOne({ _id: menuItemId, tenantId });
     
     if (!menuItem) {
@@ -172,7 +172,7 @@ class StockService {
    * Record waste
    */
   static async recordWaste(menuItemId, quantity, reason, userId) {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const menuItem = await MenuItem.findOne({ _id: menuItemId, tenantId });
     
     if (!menuItem) {
@@ -221,7 +221,7 @@ class StockService {
    * Get stock levels for all items
    */
   static async getStockLevels(filters = {}) {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     const query = { tenantId, ...filters };
     
     if (filters.lowStock) {
@@ -245,7 +245,7 @@ class StockService {
    * Get stock value report
    */
   static async getStockValueReport() {
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenant()?.tenantId;
     
     const items = await MenuItem.find({ 
       tenantId, 
