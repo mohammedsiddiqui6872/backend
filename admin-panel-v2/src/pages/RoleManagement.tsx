@@ -18,14 +18,48 @@ import { analyticsAPI } from '../services/api';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 
-const RoleManagement = () => {
-  const [roles, setRoles] = useState([]);
-  const [permissions, setPermissions] = useState({});
+interface Role {
+  _id?: string;
+  name: string;
+  code: string;
+  description?: string;
+  permissions: string[];
+  uiAccess: {
+    dashboard: boolean;
+    orders: boolean;
+    menu: boolean;
+    tables: boolean;
+    customers: boolean;
+    analytics: boolean;
+    inventory: boolean;
+    staff: boolean;
+    settings: boolean;
+  };
+  level: number;
+  isActive: boolean;
+  isSystem?: boolean;
+  userCount?: number;
+  reportsTo?: string;
+}
+
+interface Permission {
+  code: string;
+  name: string;
+  description: string;
+}
+
+interface PermissionCategory {
+  [key: string]: Permission[];
+}
+
+const RoleManagement: React.FC = () => {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<PermissionCategory>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [editingRole, setEditingRole] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [savingRole, setSavingRole] = useState(false);
 
   // Load roles and permissions
@@ -46,7 +80,7 @@ const RoleManagement = () => {
       
       // Expand all permission categories by default
       const categories = Object.keys(permissionsRes.data || {});
-      const expanded = {};
+      const expanded: Record<string, boolean> = {};
       categories.forEach(cat => expanded[cat] = true);
       setExpandedCategories(expanded);
     } catch (err) {
@@ -57,7 +91,7 @@ const RoleManagement = () => {
     }
   };
 
-  const toggleCategory = (category) => {
+  const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category]
@@ -87,12 +121,12 @@ const RoleManagement = () => {
     setShowCreateModal(true);
   };
 
-  const handleEditRole = (role) => {
+  const handleEditRole = (role: Role) => {
     setEditingRole({ ...role });
     setShowCreateModal(true);
   };
 
-  const handleDeleteRole = async (roleId) => {
+  const handleDeleteRole = async (roleId: string) => {
     if (!window.confirm('Are you sure you want to delete this role? This action cannot be undone.')) {
       return;
     }
@@ -100,13 +134,13 @@ const RoleManagement = () => {
     try {
       await analyticsAPI.deleteRole(roleId);
       await loadData();
-    } catch (err) {
+    } catch (err: any) {
       alert('Failed to delete role: ' + (err.response?.data?.message || err.message));
     }
   };
 
   const handleSaveRole = async () => {
-    if (!editingRole.name || !editingRole.code) {
+    if (!editingRole || !editingRole.name || !editingRole.code) {
       alert('Please fill in all required fields');
       return;
     }
@@ -121,14 +155,14 @@ const RoleManagement = () => {
       setShowCreateModal(false);
       setEditingRole(null);
       await loadData();
-    } catch (err) {
+    } catch (err: any) {
       alert('Failed to save role: ' + (err.response?.data?.message || err.message));
     } finally {
       setSavingRole(false);
     }
   };
 
-  const togglePermission = (permission) => {
+  const togglePermission = (permission: string) => {
     if (!editingRole) return;
     
     const permissions = editingRole.permissions || [];
@@ -142,7 +176,7 @@ const RoleManagement = () => {
     });
   };
 
-  const toggleUIAccess = (section) => {
+  const toggleUIAccess = (section: keyof Role['uiAccess']) => {
     if (!editingRole) return;
     
     setEditingRole({
@@ -154,7 +188,7 @@ const RoleManagement = () => {
     });
   };
 
-  const selectAllPermissions = (category) => {
+  const selectAllPermissions = (category: string) => {
     if (!editingRole || !permissions[category]) return;
     
     const categoryPermissions = permissions[category].map(p => p.code);
@@ -279,7 +313,7 @@ const RoleManagement = () => {
                   </button>
                   {!role.isSystem && (
                     <button
-                      onClick={() => handleDeleteRole(role._id)}
+                      onClick={() => role._id && handleDeleteRole(role._id)}
                       className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete Role"
                     >
@@ -332,7 +366,7 @@ const RoleManagement = () => {
                       onChange={(e) => setEditingRole({...editingRole, code: e.target.value.toUpperCase()})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
                       placeholder="e.g. KITCHEN_MANAGER"
-                      disabled={editingRole._id && editingRole.isSystem}
+                      disabled={!!(editingRole._id && editingRole.isSystem)}
                     />
                   </div>
                 </div>
@@ -344,7 +378,7 @@ const RoleManagement = () => {
                     value={editingRole.description || ''}
                     onChange={(e) => setEditingRole({...editingRole, description: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    rows="2"
+                    rows={2}
                     placeholder="Brief description of this role's responsibilities"
                   />
                 </div>
@@ -356,7 +390,7 @@ const RoleManagement = () => {
                     <input
                       type="number"
                       value={editingRole.level || 1}
-                      onChange={(e) => setEditingRole({...editingRole, level: parseInt(e.target.value)})}
+                      onChange={(e) => setEditingRole({...editingRole, level: parseInt(e.target.value) || 1})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       min="1"
                       max="10"
@@ -367,7 +401,7 @@ const RoleManagement = () => {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={editingRole.isActive}
+                        checked={editingRole.isActive || false}
                         onChange={(e) => setEditingRole({...editingRole, isActive: e.target.checked})}
                         className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                       />
@@ -396,8 +430,8 @@ const RoleManagement = () => {
                     <label key={key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={editingRole.uiAccess?.[key] || false}
-                        onChange={() => toggleUIAccess(key)}
+                        checked={editingRole.uiAccess?.[key as keyof Role['uiAccess']] || false}
+                        onChange={() => toggleUIAccess(key as keyof Role['uiAccess'])}
                         className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                       />
                       <span className="text-sm text-gray-700">{label}</span>

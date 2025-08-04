@@ -37,10 +37,11 @@ const io = socketIo(server, {
         : [];
       
       const allowedPatterns = [
-        /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
+        /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae(:\d+)?$/,
         /^https?:\/\/localhost:\d+$/,
         /^https?:\/\/127\.0\.0\.1:\d+$/,
-        /^https?:\/\/.*\.vercel\.app$/ // Allow Vercel preview deployments
+        /^https?:\/\/.*\.vercel\.app$/,
+        /^https?:\/\/.*\.onrender\.com$/ // Allow Render deployments
       ];
       
       // Check if origin matches any allowed origin or pattern
@@ -98,10 +99,11 @@ app.use(cors({
       : [];
     
     const allowedPatterns = [
-      /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae$/,
+      /^https?:\/\/([a-z0-9-]+\.)?gritservices\.ae(:\d+)?$/,
       /^https?:\/\/localhost:\d+$/,
       /^https?:\/\/127\.0\.0\.1:\d+$/,
-      /^https?:\/\/.*\.vercel\.app$/ // Allow Vercel preview deployments
+      /^https?:\/\/.*\.vercel\.app$/,
+      /^https?:\/\/.*\.onrender\.com$/ // Allow Render deployments
     ];
     
     // Check if origin matches any allowed origin or pattern
@@ -111,7 +113,7 @@ app.use(cors({
     callback(null, allowed);
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-CSRF-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Tenant-Subdomain', 'X-CSRF-Token', 'X-Guest-Session-Id', 'X-Table-Number'],
   exposedHeaders: ['X-Total-Count', 'X-Tenant-Id']
 }));
 
