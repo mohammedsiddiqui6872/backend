@@ -65,7 +65,7 @@ const Layout = () => {
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/compliance', icon: Shield, label: 'Compliance' },
-    { path: '/audit-log', icon: FileCheck, label: 'Audit Log' },
+    { path: '/audit-log', icon: FileCheck, label: 'Activity Log' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

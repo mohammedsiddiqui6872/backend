@@ -23,7 +23,7 @@ const Orders = lazy(() => import('./pages/Orders'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Compliance = lazy(() => import('./pages/Compliance'));
-const AuditLog = lazy(() => import('./pages/AuditLog'));
+const AuditLog = lazy(() => import('./pages/RestaurantAuditLog'));
 const TableServiceHistory = lazy(() => import('./components/tables/TableServiceHistory'));
 
 // Lazy load PageLoader component

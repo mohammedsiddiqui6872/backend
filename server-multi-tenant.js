@@ -344,6 +344,7 @@ app.use('/api/compliance', require('./src/routes/compliance'));
 
 // Audit log routes
 app.use('/api/admin/audit-logs', require('./src/routes/admin/auditLogs'));
+app.use('/api/admin/restaurant-audit-logs', require('./src/routes/admin/restaurantAuditLogs'));
 
 // Test routes removed for production
 
