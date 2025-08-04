@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Tenant = require('../models/Tenant');
-const { setTenantContext } = require('../middleware/enterpriseTenantIsolation');
+// We don't need tenant isolation for super admin operations
 
 // Generate a secure password reset token for super admin use
 router.post('/generate-reset-token', async (req, res) => {
@@ -63,12 +63,7 @@ router.post('/reset-restaurant-admins/:subdomain', async (req, res) => {
       return res.status(404).json({ error: 'Restaurant not found' });
     }
     
-    // Set tenant context for this operation
-    setTenantContext({
-      tenantId: tenant.tenantId,
-      userId: 'super-admin-reset',
-      requestId: `reset-${Date.now()}`
-    });
+    // No need to set tenant context - we'll query directly with tenantId
     
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword || 'password@123', 10);
@@ -139,21 +134,17 @@ router.post('/reset-restaurant-admin/:subdomain', async (req, res) => {
       return res.status(404).json({ error: 'Restaurant not found' });
     }
     
-    // Set tenant context for this operation
-    setTenantContext({
-      tenantId: tenant.tenantId,
-      userId: 'super-admin-reset',
-      requestId: `reset-${Date.now()}`
-    });
+    // No need to set tenant context - we'll query directly with tenantId
     
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     // Find and update the specific admin user
+    // Use setOptions to skip tenant filter since we're operating as super admin
     const adminUser = await User.findOne({
       tenantId: tenant.tenantId,
       email: adminEmail || `admin@${subdomain}.ae`
-    });
+    }).setOptions({ skipTenantFilter: true });
     
     if (!adminUser) {
       return res.status(404).json({ 
@@ -212,17 +203,11 @@ router.get('/list-restaurants', async (req, res) => {
       .sort('name');
     
     const restaurantList = await Promise.all(tenants.map(async (tenant) => {
-      // Set tenant context to count users
-      setTenantContext({
-        tenantId: tenant.tenantId,
-        userId: 'super-admin-reset',
-        requestId: `list-${Date.now()}`
-      });
-      
+      // Count admin users directly with tenantId
       const adminCount = await User.countDocuments({
         tenantId: tenant.tenantId,
         role: { $in: ['admin', 'manager'] }
-      });
+      }).setOptions({ skipTenantFilter: true });
       
       return {
         name: tenant.name,
