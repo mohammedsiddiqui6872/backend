@@ -810,6 +810,7 @@ router.get('/:tableId/analytics', async (req, res) => {
 router.post('/:tableId/assign-waiter', async (req, res) => {
   try {
     const { waiterId, role = 'primary' } = req.body;
+    const StaffAssignment = require('../../models/StaffAssignment');
     
     const table = await Table.findOne({
       _id: req.params.tableId,
@@ -820,12 +821,97 @@ router.post('/:tableId/assign-waiter', async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Verify waiter exists and is active
+    const waiter = await User.findOne({
+      _id: waiterId,
+      tenantId: req.tenantId,
+      role: 'waiter',
+      isActive: true
+    });
+    
+    if (!waiter) {
+      return res.status(404).json({ error: 'Waiter not found or not active' });
+    }
+
+    // Check if table already has a primary waiter
+    const existingAssignment = await StaffAssignment.findOne({
+      tenantId: req.tenantId,
+      tableId: table._id,
+      role: 'primary',
+      status: 'active'
+    });
+    
+    if (existingAssignment && role === 'primary') {
+      // End the existing assignment
+      await existingAssignment.endAssignment(req.user._id);
+    }
+
+    // Create new assignment
+    const assignment = new StaffAssignment({
+      tenantId: req.tenantId,
+      tableId: table._id,
+      tableNumber: table.number,
+      waiterId: waiter._id,
+      waiterName: waiter.name,
+      role,
+      assignedBy: req.user._id,
+      assignedByName: req.user.name,
+      sectionId: table.location?.section,
+      floorId: table.location?.floor,
+      reason: 'manual'
+    });
+    
+    await assignment.save();
+    
+    // Update table with waiter assignment
     await table.assignWaiter(waiterId, role);
+    
+    // Update table state if exists
+    const tableState = await TableState.findOne({ 
+      tableNumber: table.number,
+      tenantId: req.tenantId 
+    });
+    
+    if (tableState) {
+      await tableState.assignWaiter(waiterId, req.user._id);
+    }
+    
+    // Update waiter session if exists
+    const waiterSession = await WaiterSession.getActiveSession(waiterId);
+    if (waiterSession) {
+      await waiterSession.addTable(table.number);
+    }
+    
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`tenant:${req.tenantId}`).emit('assignment:created', {
+        assignment: await StaffAssignment.findById(assignment._id)
+          .populate('waiterId', 'name email avatar')
+          .populate('tableId', 'number displayName location')
+      });
+    }
+
+    // Return the assignment in the format expected by frontend
+    const populatedAssignment = await StaffAssignment.findById(assignment._id)
+      .populate('waiterId', 'name email avatar')
+      .populate('tableId', 'number displayName location');
 
     res.json({
-      success: true,
-      table,
-      message: `Waiter assigned as ${role}`
+      id: populatedAssignment._id,
+      tenantId: populatedAssignment.tenantId,
+      tableId: populatedAssignment.tableId._id,
+      tableNumber: populatedAssignment.tableNumber,
+      waiterId: populatedAssignment.waiterId._id,
+      waiterName: populatedAssignment.waiterName,
+      waiterAvatar: populatedAssignment.waiterId.avatar,
+      role: populatedAssignment.role,
+      assignedBy: populatedAssignment.assignedBy,
+      assignedByName: populatedAssignment.assignedByName,
+      assignedAt: populatedAssignment.assignedAt,
+      status: populatedAssignment.status,
+      sectionId: populatedAssignment.sectionId,
+      floorId: populatedAssignment.floorId
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -835,6 +921,7 @@ router.post('/:tableId/assign-waiter', async (req, res) => {
 router.post('/:tableId/remove-waiter', async (req, res) => {
   try {
     const { waiterId } = req.body;
+    const StaffAssignment = require('../../models/StaffAssignment');
     
     const table = await Table.findOne({
       _id: req.params.tableId,
@@ -845,11 +932,54 @@ router.post('/:tableId/remove-waiter', async (req, res) => {
       return res.status(404).json({ error: 'Table not found' });
     }
 
+    // Find active assignment
+    const assignment = await StaffAssignment.findOne({
+      tenantId: req.tenantId,
+      tableId: req.params.tableId,
+      waiterId,
+      status: 'active'
+    });
+    
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    
+    // End assignment
+    await assignment.endAssignment(req.user._id);
+    
+    // Update table
     await table.removeWaiter(waiterId);
+    
+    // Update table state if exists
+    const tableState = await TableState.findOne({ 
+      tableNumber: table.number,
+      tenantId: req.tenantId 
+    });
+    
+    if (tableState) {
+      if (tableState.currentWaiter?.toString() === waiterId.toString()) {
+        await tableState.releaseWaiter();
+      }
+    }
+    
+    // Update waiter session if exists
+    const waiterSession = await WaiterSession.getActiveSession(waiterId);
+    if (waiterSession) {
+      await waiterSession.removeTable(table.number);
+    }
+    
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`tenant:${req.tenantId}`).emit('assignment:ended', {
+        assignmentId: assignment._id,
+        tableId: table._id,
+        waiterId
+      });
+    }
 
     res.json({
       success: true,
-      table,
       message: 'Waiter removed'
     });
   } catch (error) {
