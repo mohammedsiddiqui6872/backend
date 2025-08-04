@@ -18,13 +18,70 @@ const sharedErrorHandler = null;
 const sharedNotFoundHandler = null;
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const errorLoggerMiddleware = null;
-class BusinessLogicError extends Error { constructor(message) { super(message); this.statusCode = 400; } }
-class ValidationError extends Error { constructor(message) { super(message); this.statusCode = 400; } }
-class AuthenticationError extends Error { constructor(message) { super(message); this.statusCode = 401; } }
-class AuthorizationError extends Error { constructor(message) { super(message); this.statusCode = 403; } }
-class DatabaseError extends Error { constructor(message) { super(message); this.statusCode = 500; } }
-class NetworkError extends Error { constructor(message) { super(message); this.statusCode = 503; } }
-const getErrorSerializer = () => ({ serialize: (error) => ({ message: error.message, code: error.code }) });
+const getErrorSerializer = () => ({
+  serialize: (error) => ({
+    message: error.message,
+    status: error.status || 500,
+    code: error.code,
+    details: error.details,
+    stack: error.stack
+  })
+});
+// Temporary error classes until shared-errors is properly set up
+class BusinessLogicError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'BusinessLogicError';
+    this.statusCode = 400; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
+class ValidationError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'ValidationError';
+    this.statusCode = 400; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
+class AuthenticationError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'AuthenticationError';
+    this.statusCode = 401; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
+class AuthorizationError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'AuthorizationError';
+    this.statusCode = 403; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
+class DatabaseError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'DatabaseError';
+    this.statusCode = 500; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
+class NetworkError extends Error { 
+  constructor(message, details) { 
+    super(message); 
+    this.name = 'NetworkError';
+    this.statusCode = 503; 
+    this.isOperational = true;
+    this.details = details;
+  } 
+}
 const logger = require('../utils/logger');
 
 // Legacy error classes for backward compatibility
