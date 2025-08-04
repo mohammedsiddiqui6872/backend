@@ -13,13 +13,17 @@ router.get('/customer-session/table/:tableNumber', async (req, res) => {
   try {
     const { tableNumber } = req.params;
     
+    // Log for debugging
+    console.log('Guest API - Getting session for table:', tableNumber, 'Tenant:', req.tenant?.tenantId);
+    
     const session = await CustomerSession.findOne({
       tableNumber,
       isActive: true,
       tenantId: req.tenant?.tenantId
     });
     
-    res.json({ success: true, data: session });
+    // Return empty data if no session found instead of null
+    res.json({ success: true, data: session || null });
   } catch (error) {
     console.error('Error fetching customer session:', error);
     res.status(500).json({ success: false, message: 'Error fetching session' });
@@ -31,6 +35,8 @@ router.post('/customer-session', async (req, res) => {
   try {
     const { tableNumber, customerName, customerPhone, customerEmail, occupancy } = req.body;
     
+    console.log('Guest API - Creating session:', { tableNumber, customerName, tenantId: req.tenant?.tenantId });
+    
     if (!tableNumber || !customerName) {
       return res.status(400).json({ 
         success: false,
@@ -38,9 +44,9 @@ router.post('/customer-session', async (req, res) => {
       });
     }
     
-    // Check if table exists
+    // Check if table exists - use String() to ensure proper comparison
     const table = await Table.findOne({ 
-      number: tableNumber,
+      number: String(tableNumber),
       tenantId: req.tenant?.tenantId 
     });
     
