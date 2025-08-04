@@ -256,8 +256,8 @@ app.use('/api/table', require('./src/routes/tableAccess'));
 // Super admin routes (for SaaS management - no tenant context)
 app.use('/api/super-admin', require('./src/routes/superAdmin'));
 
-// TEMPORARY: Password reset endpoint - REMOVE AFTER USE!
-app.use('/api/temp', require('./src/routes/tempPasswordReset'));
+// Secure password reset routes with token-based authentication
+app.use('/api/secure-reset', require('./src/routes/securePasswordReset'));
 
 // Enhanced security and rate limiting for API routes
 app.use('/api', ...advancedRateLimiter.createSecurityStack('public', {
