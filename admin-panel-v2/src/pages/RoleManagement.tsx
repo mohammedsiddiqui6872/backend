@@ -75,11 +75,16 @@ const RoleManagement: React.FC = () => {
         analyticsAPI.getPermissions()
       ]);
       
-      setRoles(rolesRes.data || []);
-      setPermissions(permissionsRes.data || {});
+      // Ensure roles is always an array
+      const rolesData = Array.isArray(rolesRes.data) ? rolesRes.data : (rolesRes.data?.data || []);
+      setRoles(rolesData);
+      
+      // Ensure permissions is always an object with arrays
+      const permissionsData = permissionsRes.data?.data || permissionsRes.data || {};
+      setPermissions(permissionsData);
       
       // Expand all permission categories by default
-      const categories = Object.keys(permissionsRes.data || {});
+      const categories = Object.keys(permissionsData);
       const expanded: Record<string, boolean> = {};
       categories.forEach(cat => expanded[cat] = true);
       setExpandedCategories(expanded);
@@ -191,7 +196,9 @@ const RoleManagement: React.FC = () => {
   const selectAllPermissions = (category: string) => {
     if (!editingRole || !permissions[category]) return;
     
-    const categoryPermissions = permissions[category].map(p => p.code);
+    // Ensure permissions[category] is an array
+    const categoryPerms = Array.isArray(permissions[category]) ? permissions[category] : [];
+    const categoryPermissions = categoryPerms.map(p => p.code);
     const currentPermissions = editingRole.permissions || [];
     const hasAll = categoryPermissions.every(p => currentPermissions.includes(p));
     
@@ -445,7 +452,10 @@ const RoleManagement: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Permissions</h3>
                 <p className="text-sm text-gray-600 mb-4">Select specific permissions for this role</p>
                 
-                {Object.entries(permissions).map(([category, perms]) => (
+                {Object.entries(permissions).map(([category, perms]) => {
+                  // Ensure perms is an array
+                  const permArray = Array.isArray(perms) ? perms : [];
+                  return (
                   <div key={category} className="mb-4 border border-gray-200 rounded-lg">
                     <button
                       onClick={() => toggleCategory(category)}
@@ -458,7 +468,7 @@ const RoleManagement: React.FC = () => {
                         }
                         <h4 className="font-medium text-gray-900 capitalize">{category}</h4>
                         <span className="text-sm text-gray-500">
-                          ({perms.filter(p => editingRole.permissions?.includes(p.code)).length}/{perms.length})
+                          ({permArray.filter(p => editingRole.permissions?.includes(p.code)).length}/{permArray.length})
                         </span>
                       </div>
                       <button
@@ -469,13 +479,13 @@ const RoleManagement: React.FC = () => {
                         }}
                         className="text-sm text-purple-600 hover:text-purple-700"
                       >
-                        {perms.every(p => editingRole.permissions?.includes(p.code)) ? 'Deselect All' : 'Select All'}
+                        {permArray.every(p => editingRole.permissions?.includes(p.code)) ? 'Deselect All' : 'Select All'}
                       </button>
                     </button>
                     
                     {expandedCategories[category] && (
                       <div className="p-4 grid md:grid-cols-2 gap-3">
-                        {perms.map(permission => (
+                        {permArray.map(permission => (
                           <label key={permission.code} className="flex items-start gap-2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -492,7 +502,8 @@ const RoleManagement: React.FC = () => {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
