@@ -75,11 +75,15 @@ const AssignmentHistory: React.FC = () => {
         userAPI.getUsers({ role: 'waiter' })
       ]);
 
-      setHistory(historyData);
-      setWaiters(waitersData.filter(u => u.isActive));
+      // Ensure we have arrays
+      const historyArray = Array.isArray(historyData) ? historyData : [];
+      const waitersArray = Array.isArray(waitersData) ? waitersData : [];
+      
+      setHistory(historyArray);
+      setWaiters(waitersArray.filter((u: any) => u.isActive));
 
       // Calculate stats
-      calculateStats(historyData);
+      calculateStats(historyArray);
     } catch (error) {
       console.error('Error loading history:', error);
       toast.error('Failed to load assignment history');

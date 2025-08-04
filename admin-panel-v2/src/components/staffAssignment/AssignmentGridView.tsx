@@ -195,9 +195,14 @@ const AssignmentGridView: React.FC<AssignmentGridViewProps> = ({ canManage }) =>
         tableAPI.getLayout()
       ]);
 
-      setTables(tablesResponse.tables);
-      setAssignments(assignmentsData);
-      setWaiterLoads(waiterLoadsData);
+      // Ensure we have proper data
+      const tables = Array.isArray(tablesResponse.tables) ? tablesResponse.tables : [];
+      const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+      const loads = Array.isArray(waiterLoadsData) ? waiterLoadsData : [];
+      
+      setTables(tables);
+      setAssignments(assignments);
+      setWaiterLoads(loads);
       
       // Extract unique floors
       const uniqueFloors = layoutData.layout.floors.map((f: any) => f.name);

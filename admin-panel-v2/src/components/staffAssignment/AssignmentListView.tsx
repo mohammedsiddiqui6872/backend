@@ -57,10 +57,16 @@ const AssignmentListView: React.FC<AssignmentListViewProps> = ({ canManage }) =>
         staffAssignmentAPI.getWaiterLoads()
       ]);
 
-      setTables(tablesResponse.tables);
-      setAssignments(assignmentsData);
-      setWaiters(waitersData.filter(u => u.isActive));
-      setWaiterLoads(waiterLoadsData);
+      // Ensure we have proper data
+      const tables = Array.isArray(tablesResponse.tables) ? tablesResponse.tables : [];
+      const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+      const waiters = Array.isArray(waitersData) ? waitersData : [];
+      const loads = Array.isArray(waiterLoadsData) ? waiterLoadsData : [];
+      
+      setTables(tables);
+      setAssignments(assignments);
+      setWaiters(waiters.filter((u: any) => u.isActive));
+      setWaiterLoads(loads);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load assignment data');

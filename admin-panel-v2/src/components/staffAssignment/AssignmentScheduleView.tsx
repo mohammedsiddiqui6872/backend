@@ -60,13 +60,18 @@ const AssignmentScheduleView: React.FC<AssignmentScheduleViewProps> = ({ canMana
         staffAssignmentAPI.getWaiterLoads()
       ]);
 
+      // Ensure we have arrays
+      const shiftsArray = Array.isArray(shiftsData) ? shiftsData : [];
+      const assignmentsArray = Array.isArray(assignmentsData) ? assignmentsData : [];
+      const waiterLoadsArray = Array.isArray(waiterLoadsData) ? waiterLoadsData : [];
+
       // Combine shifts with their assignments
-      const shiftsWithAssignments: ShiftWithAssignments[] = shiftsData.map(shift => {
-        const shiftAssignments = assignmentsData.filter(
-          a => a.shiftId === shift._id
+      const shiftsWithAssignments: ShiftWithAssignments[] = shiftsArray.map((shift: any) => {
+        const shiftAssignments = assignmentsArray.filter(
+          (a: any) => a.shiftId === shift._id
         );
-        const waiterLoad = waiterLoadsData.find(
-          w => w.waiterId === shift.employee._id
+        const waiterLoad = waiterLoadsArray.find(
+          (w: any) => w.waiterId === shift.employee?._id
         );
         
         return {
@@ -77,7 +82,7 @@ const AssignmentScheduleView: React.FC<AssignmentScheduleViewProps> = ({ canMana
       });
 
       setShifts(shiftsWithAssignments);
-      setAssignments(assignmentsData);
+      setAssignments(assignmentsArray);
     } catch (error) {
       console.error('Error loading schedule data:', error);
       toast.error('Failed to load schedule data');
