@@ -25,7 +25,7 @@ router.get('/customer-session/table/:tableNumber', async (req, res) => {
     });
     
     // Return empty data if no session found instead of null
-    res.json({ success: true, data: session || null });
+    res.json({ success: true, activeSession: session || null });
   } catch (error) {
     console.error('Error fetching customer session:', error);
     res.status(500).json({ success: false, message: 'Error fetching session' });
@@ -85,7 +85,7 @@ router.post('/customer-session', async (req, res) => {
     
     res.json({ 
       success: true, 
-      data: guestSessionData,
+      session: guestSessionData,
       message: 'Welcome! You can now place your order.' 
     });
   } catch (error) {
