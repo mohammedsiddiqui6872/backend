@@ -1,16 +1,30 @@
-const {
-  errorHandler: sharedErrorHandler,
-  notFoundHandler: sharedNotFoundHandler,
-  asyncHandler,
-  errorLoggerMiddleware,
-  BusinessLogicError,
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  DatabaseError,
-  NetworkError,
-  getErrorSerializer
-} = require('@gritservices/shared-errors');
+// Temporarily disabled until shared-errors package is built
+// const {
+//   errorHandler: sharedErrorHandler,
+//   notFoundHandler: sharedNotFoundHandler,
+//   asyncHandler,
+//   errorLoggerMiddleware,
+//   BusinessLogicError,
+//   ValidationError,
+//   AuthenticationError,
+//   AuthorizationError,
+//   DatabaseError,
+//   NetworkError,
+//   getErrorSerializer
+// } = require('@gritservices/shared-errors');
+
+// Temporary implementations
+const sharedErrorHandler = null;
+const sharedNotFoundHandler = null;
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const errorLoggerMiddleware = null;
+class BusinessLogicError extends Error { constructor(message) { super(message); this.statusCode = 400; } }
+class ValidationError extends Error { constructor(message) { super(message); this.statusCode = 400; } }
+class AuthenticationError extends Error { constructor(message) { super(message); this.statusCode = 401; } }
+class AuthorizationError extends Error { constructor(message) { super(message); this.statusCode = 403; } }
+class DatabaseError extends Error { constructor(message) { super(message); this.statusCode = 500; } }
+class NetworkError extends Error { constructor(message) { super(message); this.statusCode = 503; } }
+const getErrorSerializer = () => ({ serialize: (error) => ({ message: error.message, code: error.code }) });
 const logger = require('../utils/logger');
 
 // Legacy error classes for backward compatibility

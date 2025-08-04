@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Install dependencies for building native modules
 RUN apk add --no-cache python3 make g++ bash
@@ -18,7 +18,7 @@ COPY admin-panel-v2/ .
 RUN npm install && npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 RUN apk add --no-cache python3 make g++
 
@@ -32,7 +32,7 @@ RUN npm ci --only=production
 COPY . .
 
 # Copy built admin panel from builder stage
-COPY --from=builder /app/admin-panel/dist ./admin-panel/dist
+COPY --from=builder /app/admin-panel-v2/dist ./admin-panel-v2/dist
 
 # Create uploads directory
 RUN mkdir -p uploads/temp

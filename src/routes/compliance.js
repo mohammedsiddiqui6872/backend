@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
-const { ensureTenantIsolation } = require('../middleware/tenantIsolation');
+const { enterpriseTenantIsolation: ensureTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
 const LegalDocument = require('../models/LegalDocument');
 const ConsentRecord = require('../models/ConsentRecord');
 const DataRetentionPolicy = require('../models/DataRetentionPolicy');
