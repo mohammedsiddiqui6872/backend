@@ -237,6 +237,7 @@ app.use('/api/admin/team', require('./src/routes/team'));
 app.use('/api/admin/shifts', require('./src/routes/shifts'));
 app.use('/api/admin/shift-templates', require('./src/routes/shiftTemplates'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
+app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignments'));
 
 // Test routes removed for production
 

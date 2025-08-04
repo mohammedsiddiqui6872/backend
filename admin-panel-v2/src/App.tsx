@@ -8,6 +8,7 @@ import RoleManagement from './pages/RoleManagement';
 import Menu from './pages/Menu';
 import Combos from './pages/Combos';
 import Tables from './pages/Tables';
+import StaffAssignment from './pages/StaffAssignment';
 import Orders from './pages/Orders';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
@@ -122,6 +123,7 @@ function App() {
           <Route path="combos" element={<Combos />} />
           <Route path="tables" element={<Tables />} />
           <Route path="tables/:tableId/history" element={<TableServiceHistory />} />
+          <Route path="staff-assignment" element={<StaffAssignment />} />
           <Route path="orders" element={<Orders />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />

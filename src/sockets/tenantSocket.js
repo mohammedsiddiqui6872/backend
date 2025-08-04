@@ -183,6 +183,133 @@ module.exports = (io) => {
       }
     });
 
+    // Handle staff assignment requests
+    socket.on('assignment:request-update', async () => {
+      try {
+        const StaffAssignment = require('../models/StaffAssignment');
+        const assignments = await StaffAssignment.getActiveAssignments(tenantId);
+        
+        socket.emit('assignment:current-list', {
+          assignments,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        console.error('Error fetching assignments:', error);
+        socket.emit('error', { message: 'Failed to fetch assignments' });
+      }
+    });
+
+    // Handle assignment creation from client
+    socket.on('assignment:create', async (data) => {
+      try {
+        const { tableId, waiterId, role = 'primary' } = data;
+        
+        // Validate waiter and table exist
+        const User = require('../models/User');
+        const waiter = await User.findOne({
+          _id: waiterId,
+          tenantId,
+          role: 'waiter',
+          isActive: true
+        });
+        
+        const table = await Table.findOne({
+          _id: tableId,
+          tenantId
+        });
+        
+        if (!waiter || !table) {
+          return socket.emit('error', { 
+            message: 'Invalid waiter or table' 
+          });
+        }
+        
+        // Create assignment
+        const StaffAssignment = require('../models/StaffAssignment');
+        const assignment = new StaffAssignment({
+          tenantId,
+          tableId: table._id,
+          tableNumber: table.number,
+          waiterId: waiter._id,
+          waiterName: waiter.name,
+          role,
+          assignedBy: socket.userId || waiterId, // Use socket user if available
+          assignedByName: socket.userName || waiter.name,
+          sectionId: table.location?.section,
+          floorId: table.location?.floor,
+          reason: 'manual'
+        });
+        
+        await assignment.save();
+        
+        // Update table
+        await table.assignWaiter(waiterId, role);
+        
+        // Emit to all clients
+        io.to(`tenant:${tenantId}`).emit('assignment:created', {
+          assignment: await StaffAssignment.findById(assignment._id)
+            .populate('waiterId', 'name email avatar')
+            .populate('tableId', 'number displayName location')
+        });
+      } catch (error) {
+        console.error('Error creating assignment:', error);
+        socket.emit('error', { message: 'Failed to create assignment' });
+      }
+    });
+
+    // Handle assignment end from client
+    socket.on('assignment:end', async (data) => {
+      try {
+        const { assignmentId } = data;
+        const StaffAssignment = require('../models/StaffAssignment');
+        
+        const assignment = await StaffAssignment.findOne({
+          _id: assignmentId,
+          tenantId,
+          status: 'active'
+        });
+        
+        if (!assignment) {
+          return socket.emit('error', { message: 'Assignment not found' });
+        }
+        
+        // End assignment
+        await assignment.endAssignment(socket.userId || assignment.waiterId);
+        
+        // Update table
+        const table = await Table.findById(assignment.tableId);
+        if (table) {
+          await table.removeWaiter(assignment.waiterId);
+        }
+        
+        // Emit to all clients
+        io.to(`tenant:${tenantId}`).emit('assignment:ended', {
+          assignmentId: assignment._id,
+          tableNumber: assignment.tableNumber,
+          waiterId: assignment.waiterId
+        });
+      } catch (error) {
+        console.error('Error ending assignment:', error);
+        socket.emit('error', { message: 'Failed to end assignment' });
+      }
+    });
+
+    // Handle waiter load request
+    socket.on('assignment:request-loads', async () => {
+      try {
+        const StaffAssignment = require('../models/StaffAssignment');
+        const waiterLoads = await StaffAssignment.getWaiterLoads(tenantId);
+        
+        socket.emit('assignment:waiter-loads', {
+          loads: waiterLoads,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        console.error('Error fetching waiter loads:', error);
+        socket.emit('error', { message: 'Failed to fetch waiter loads' });
+      }
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log(`Socket disconnected for tenant: ${tenantId}`);
