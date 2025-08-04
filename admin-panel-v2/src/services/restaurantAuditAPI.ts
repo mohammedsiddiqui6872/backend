@@ -1,4 +1,4 @@
-import axiosInstance from './axiosConfig';
+import axiosInstance from './api';
 import { 
   RestaurantAuditLog, 
   RestaurantAuditLogFilters,

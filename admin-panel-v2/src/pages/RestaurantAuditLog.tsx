@@ -65,9 +65,9 @@ const RestaurantAuditLogPage: React.FC = () => {
     ];
     
     const staff = [
-      { id: '1', name: 'John Doe', role: 'Waiter' },
-      { id: '2', name: 'Jane Smith', role: 'Manager' },
-      { id: '3', name: 'Mike Johnson', role: 'Chef' }
+      { userId: '1', name: 'John Doe', role: 'Waiter' },
+      { userId: '2', name: 'Jane Smith', role: 'Manager' },
+      { userId: '3', name: 'Mike Johnson', role: 'Chef' }
     ];
     
     return Array.from({ length: 20 }, (_, i) => ({
