@@ -7,14 +7,22 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
+const mongoSanitize = require('express-mongo-sanitize');
 const fs = require('fs');
 require('dotenv').config();
 const logger = require('./src/utils/logger');
+
+// Import enhanced configurations
+const { connectDB } = require('./src/config/database');
+const { cacheManager } = require('./src/config/redis');
+const { advancedRateLimiter } = require('./src/middleware/advancedRateLimiting');
+const { validateInput, createSecurityStack } = require('./src/middleware/nosqlInjectionProtection');
 
 // Import multi-tenant middleware - using only enterprise tenant isolation
 const { enterpriseTenantIsolation, strictTenantIsolation, auditTenantAccess, getCurrentTenant } = require('./src/middleware/enterpriseTenantIsolation');
 const publicTenantContext = require('./src/middleware/publicTenantContext');
 const { authenticate } = require('./src/middleware/auth');
+const { apiVersioning, VersioningStrategy } = require('./src/middleware/apiVersioning');
 
 // Import table status rule engine
 const TableStatusRuleEngine = require('./src/services/tableStatusRuleEngine');
@@ -83,8 +91,28 @@ const shiftNotificationService = require('./src/services/shiftNotificationServic
 shiftNotificationService.initialize();
 app.set('shiftNotificationService', shiftNotificationService);
 
-// Security middleware
-app.use(compression());
+// Enhanced security middleware stack
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    // Don't compress responses with this request header
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Fallback to standard filter function
+    return compression.filter(req, res);
+  }
+}));
+
+// NoSQL injection protection
+app.use(mongoSanitize({
+  replaceWith: '_',
+  onSanitize: ({ req, key }) => {
+    logger.warn(`Sanitized potentially malicious key: ${key} from ${req.ip}`);
+  }
+}));
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -100,7 +128,15 @@ app.use(helmet({
       baseUri: ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: false // Allow for image uploads
+  crossOriginEmbedderPolicy: false, // Allow for image uploads
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: 'same-origin' }
 }));
 
 // CORS configuration for multi-tenant
@@ -158,9 +194,18 @@ const createTenantRateLimiter = (windowMs, max) => {
   };
 };
 
-// Body parsing with increased limits for image uploads
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Body parsing with security-focused limits
+app.use(express.json({ 
+  limit: '10mb', // Reduced from 50mb for security
+  strict: true,
+  type: 'application/json'
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10mb', // Reduced from 50mb for security
+  parameterLimit: 100, // Limit number of parameters
+  type: 'application/x-www-form-urlencoded'
+}));
 
 // Request logging - sanitized for production
 app.use((req, res, next) => {
@@ -186,7 +231,17 @@ app.get('/', (req, res) => {
   });
 });
 
-// Public routes (no tenant required)
+// Apply API versioning middleware
+app.use('/api', apiVersioning({
+  strategy: VersioningStrategy.URL_PATH,
+  defaultVersion: 'v1',
+  deprecationWarning: true
+}));
+
+// System health and monitoring routes
+app.use('/api/system', require('./src/routes/systemHealth'));
+
+// Legacy health endpoint for backward compatibility
 app.get('/api/public/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -201,9 +256,26 @@ app.use('/api/table', require('./src/routes/tableAccess'));
 // Super admin routes (for SaaS management - no tenant context)
 app.use('/api/super-admin', require('./src/routes/superAdmin'));
 
-// NOTE: Enterprise tenant isolation is applied per route after authentication
-// Apply rate limiting (for API routes)
-app.use('/api', createTenantRateLimiter(15 * 60 * 1000, 500)); // 500 requests per 15 minutes per tenant
+// Enhanced security and rate limiting for API routes
+app.use('/api', ...advancedRateLimiter.createSecurityStack('public', {
+  enableSlowDown: true,
+  enableAdaptive: false,
+  customLimits: { points: 1000, duration: 3600, blockDuration: 300 }
+}));
+
+// Add burst protection for all API routes
+app.use('/api', advancedRateLimiter.createBurstProtection({
+  points: 30,
+  duration: 1,
+  blockDuration: 5
+}));
+
+// Additional IP-based rate limiting
+app.use('/api', advancedRateLimiter.createIPRateLimiter({
+  points: 5000,
+  duration: 3600,
+  blockDuration: 1800
+}));
 
 // Public tenant routes (no authentication required, but need tenant context)
 app.use('/api/auth', publicTenantContext, require('./src/routes/auth'));
@@ -254,6 +326,9 @@ app.use('/api/admin/shifts', require('./src/routes/shifts'));
 app.use('/api/admin/shift-templates', require('./src/routes/shiftTemplates'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
 app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignments'));
+
+// Compliance routes
+app.use('/api/compliance', require('./src/routes/compliance'));
 
 // Test routes removed for production
 
@@ -313,17 +388,17 @@ app.use(errorHandler);
 // Disable strict populate globally to avoid issues with backward compatibility fields
 mongoose.set('strictPopulate', false);
 
-// MongoDB connection with multi-tenant setup
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+// Enhanced MongoDB connection with optimizations
+connectDB()
 .then(() => {
-  logger.info('Connected to MongoDB (Multi-tenant mode)');
+  logger.info('Connected to MongoDB with enhanced optimizations');
   
   // Initialize enhanced tenant-aware socket handlers with memory leak prevention
   const socketHandler = require('./src/sockets/enhancedTenantSocket');
   socketHandler(io);
+  
+  // Initialize cache manager if not already done
+  logger.info('Cache manager initialized');
 })
 .catch(err => {
   logger.error('MongoDB connection error:', err);

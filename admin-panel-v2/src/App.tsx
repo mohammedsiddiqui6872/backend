@@ -1,23 +1,32 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useState, useEffect } from 'react';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Team from './pages/Team';
-import RoleManagement from './pages/RoleManagement';
-import Menu from './pages/Menu';
-import Combos from './pages/Combos';
-import Tables from './pages/Tables';
-import StaffAssignment from './pages/StaffAssignment';
-import Orders from './pages/Orders';
-import Analytics from './pages/Analytics';
-import Settings from './pages/Settings';
+import { useState, useEffect, Suspense, lazy } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Layout from './components/Layout';
-import TableServiceHistory from './components/tables/TableServiceHistory';
 import { authAPI } from './services/api';
 import storageManager from './utils/storageManager';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
+import { queryClient } from './lib/queryClient';
 import './styles/accessibility.css';
+
+// Lazy load pages for code splitting
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Team = lazy(() => import('./pages/Team'));
+const RoleManagement = lazy(() => import('./pages/RoleManagement'));
+const Menu = lazy(() => import('./pages/Menu'));
+const Combos = lazy(() => import('./pages/Combos'));
+const Tables = lazy(() => import('./pages/Tables'));
+const StaffAssignment = lazy(() => import('./pages/StaffAssignment'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Compliance = lazy(() => import('./pages/Compliance'));
+const TableServiceHistory = lazy(() => import('./components/tables/TableServiceHistory'));
+
+// Lazy load PageLoader component
+const PageLoader = lazy(() => import('./components/common/PageLoader').then(module => ({ default: module.PageLoader })));
 
 // Component to handle navigation with query params preserved
 function NavigateWithQuery({ to }: { to: string }) {
@@ -94,12 +103,14 @@ function App() {
   }
 
   return (
-    <AccessibilityProvider>
-      <Router basename="/admin-panel">
-        <Toaster position="top-right" />
-      <Routes>
-        <Route path="/login" element={
-          isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={async () => {
+    <QueryClientProvider client={queryClient}>
+      <AccessibilityProvider>
+        <Router basename="/admin-panel">
+          <Toaster position="top-right" />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={
+                isAuthenticated ? <NavigateWithQuery to="/" /> : <Login onLogin={async () => {
             setIsAuthenticated(true);
             // Fetch tenant info after login
             try {
@@ -126,11 +137,15 @@ function App() {
           <Route path="staff-assignment" element={<StaffAssignment />} />
           <Route path="orders" element={<Orders />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="compliance" element={<Compliance />} />
           <Route path="settings" element={<Settings />} />
         </Route>
-        </Routes>
-      </Router>
-    </AccessibilityProvider>
+            </Routes>
+          </Suspense>
+        </Router>
+      </AccessibilityProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 

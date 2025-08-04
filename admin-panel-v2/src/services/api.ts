@@ -833,4 +833,12 @@ export const clearTenantData = () => {
   storageManager.clearSubdomainData();
 };
 
+// Category API (alias for menuAPI category methods)
+export const categoryAPI = {
+  getCategories: menuAPI.getCategories,
+  addCategory: menuAPI.addCategory,
+  updateCategory: menuAPI.updateCategory,
+  deleteCategory: menuAPI.deleteCategory,
+};
+
 export default api;

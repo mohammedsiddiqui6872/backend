@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { securityManager } = require('../config/security');
+const rateLimit = require('express-rate-limit');
 
 // Super admin authentication middleware
 const superAdminAuth = async (req, res, next) => {
@@ -29,54 +31,76 @@ const superAdminAuth = async (req, res, next) => {
   }
 };
 
+// Rate limiting for super admin login
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true
+});
+
 // Login for super admin
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, mfaToken } = req.body;
     
-    // Check super admin credentials - both hardcoded and GRITSERVICES user
-    if ((email === 'admin@gritservices.ae' && password === process.env.SUPER_ADMIN_PASSWORD) ||
-        (email === 'GRITSERVICES@gritservices.ae' && password === 'Musa@786')) {
-      
-      // Check if GRITSERVICES user exists in database
-      let user = null;
-      if (email === 'GRITSERVICES@gritservices.ae') {
-        user = await User.findOne({ 
-          email: email.toLowerCase(), 
-          role: 'super_admin',
-          tenantId: { $exists: false }
-        });
-        
-        if (user && !(await user.comparePassword(password))) {
-          return res.status(401).json({ error: 'Invalid credentials' });
-        }
+    // Validate input
+    const validation = securityManager.validateAndSanitizeInput(
+      { email, password },
+      {
+        email: { type: 'email', required: true },
+        password: { type: 'string', required: true, minLength: 8 }
       }
-      
-      const token = jwt.sign(
-        { 
-          id: user ? user._id : 'super_admin_001', 
-          email, 
-          role: 'super_admin' 
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user ? user._id : 'super_admin_001',
-          email,
-          role: 'super_admin',
-          name: user ? user.name : 'Super Admin'
-        }
+    );
+
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid input', 
+        details: validation.errors 
       });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Use secure validation
+    const authResult = await securityManager.validateSuperAdminCredentials(
+      validation.sanitized.email, 
+      validation.sanitized.password
+    );
+
+    if (!authResult.valid) {
+      // Log failed attempt for security monitoring
+      console.warn(`Failed super admin login attempt for ${email} from ${req.ip}`);
+      
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        reason: authResult.reason 
+      });
+    }
+
+    // Generate secure token with shorter expiry for super admin
+    const token = securityManager.generateSecureToken(
+      {
+        id: authResult.admin.id,
+        email: authResult.admin.email,
+        role: 'super_admin',
+        permissions: authResult.admin.permissions
+      },
+      securityManager.tokenExpiry.superAdmin
+    );
+
+    // Log successful login for audit
+    console.info(`Super admin login successful for ${email} from ${req.ip}`);
+
+    res.json({
+      success: true,
+      token,
+      user: authResult.admin,
+      expiresIn: securityManager.tokenExpiry.superAdmin
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Super admin login error:', error);
+    res.status(500).json({ error: 'Authentication service unavailable' });
   }
 });
 

@@ -64,13 +64,13 @@ const UPLOAD_CONTEXTS = {
   'receipts': ['image/jpeg', 'image/png', 'application/pdf']
 };
 
-// Maximum file sizes (in bytes)
+// Maximum file sizes (in bytes) - Reduced to prevent DoS
 const MAX_FILE_SIZES = {
-  'profile-photo': 5 * 1024 * 1024,     // 5MB
-  'menu-item': 10 * 1024 * 1024,        // 10MB
-  'documents': 20 * 1024 * 1024,        // 20MB
-  'table-import': 5 * 1024 * 1024,      // 5MB
-  'receipts': 10 * 1024 * 1024          // 10MB
+  'profile-photo': 2 * 1024 * 1024,     // 2MB (reduced from 5MB)
+  'menu-item': 5 * 1024 * 1024,         // 5MB (reduced from 10MB)
+  'documents': 10 * 1024 * 1024,        // 10MB (reduced from 20MB)
+  'table-import': 2 * 1024 * 1024,      // 2MB (reduced from 5MB)
+  'receipts': 5 * 1024 * 1024           // 5MB (reduced from 10MB)
 };
 
 /**
@@ -154,6 +154,51 @@ function createFileFilter(uploadContext) {
 }
 
 /**
+ * Rate limiting for file uploads per tenant
+ */
+const uploadRateLimiter = new Map();
+
+function getUploadRateLimit(tenantId, uploadContext) {
+  const key = `${tenantId}:${uploadContext}`;
+  
+  if (!uploadRateLimiter.has(key)) {
+    const limits = {
+      'profile-photo': { max: 5, windowMs: 60000 }, // 5 uploads per minute
+      'menu-item': { max: 20, windowMs: 300000 },   // 20 uploads per 5 minutes
+      'documents': { max: 10, windowMs: 300000 },   // 10 uploads per 5 minutes
+      'table-import': { max: 3, windowMs: 600000 }, // 3 uploads per 10 minutes
+      'receipts': { max: 15, windowMs: 300000 }     // 15 uploads per 5 minutes
+    };
+    
+    const limit = limits[uploadContext] || { max: 10, windowMs: 300000 };
+    uploadRateLimiter.set(key, {
+      uploads: [],
+      ...limit
+    });
+  }
+  
+  return uploadRateLimiter.get(key);
+}
+
+function checkUploadRateLimit(tenantId, uploadContext) {
+  const limiter = getUploadRateLimit(tenantId, uploadContext);
+  const now = Date.now();
+  
+  // Clean old entries
+  limiter.uploads = limiter.uploads.filter(time => now - time < limiter.windowMs);
+  
+  if (limiter.uploads.length >= limiter.max) {
+    return {
+      allowed: false,
+      retryAfter: Math.ceil((limiter.uploads[0] + limiter.windowMs - now) / 1000)
+    };
+  }
+  
+  limiter.uploads.push(now);
+  return { allowed: true };
+}
+
+/**
  * Create secure file upload middleware
  */
 function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1) {
@@ -161,10 +206,12 @@ function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1)
     storage: createStorage(uploadContext),
     fileFilter: createFileFilter(uploadContext),
     limits: {
-      fileSize: MAX_FILE_SIZES[uploadContext] || 10 * 1024 * 1024,
-      files: maxCount,
-      fields: 10,
-      parts: 20
+      fileSize: MAX_FILE_SIZES[uploadContext] || 5 * 1024 * 1024, // Reduced default
+      files: Math.min(maxCount, 5), // Limit maximum files
+      fields: 5,  // Reduced from 10
+      parts: 10,  // Reduced from 20
+      fieldSize: 1024 * 1024, // 1MB field size limit
+      fieldNameSize: 100 // Limit field name size
     }
   });
 
@@ -176,6 +223,20 @@ function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1)
         if (!req.file) return next();
 
         try {
+          const tenant = getCurrentTenant();
+          if (!tenant) {
+            return res.status(403).json({ error: 'Tenant context required' });
+          }
+
+          // Check upload rate limit
+          const rateLimitCheck = checkUploadRateLimit(tenant.tenantId, uploadContext);
+          if (!rateLimitCheck.allowed) {
+            return res.status(429).json({
+              error: 'Upload rate limit exceeded',
+              retryAfter: rateLimitCheck.retryAfter
+            });
+          }
+
           // Verify magic numbers
           if (!verifyFileType(req.file.buffer, req.file.mimetype)) {
             return res.status(400).json({ 
@@ -183,10 +244,27 @@ function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1)
             });
           }
 
-          // Add secure filename
-          const tenant = getCurrentTenant();
-          if (!tenant) {
-            return res.status(403).json({ error: 'Tenant context required' });
+          // Scan file content for malicious patterns
+          const contentSafe = await scanFileContent(req.file.buffer, req.file.mimetype);
+          if (!contentSafe) {
+            return res.status(400).json({
+              error: 'File contains potentially malicious content'
+            });
+          }
+
+          // Additional security checks
+          if (req.file.buffer.length === 0) {
+            return res.status(400).json({ error: 'Empty file not allowed' });
+          }
+
+          // Check for executable files disguised as images
+          if (req.file.mimetype.startsWith('image/')) {
+            const suspicious = checkForExecutableContent(req.file.buffer);
+            if (suspicious) {
+              return res.status(400).json({
+                error: 'File appears to contain executable content'
+              });
+            }
           }
 
           req.file.secureFilename = generateSecureFilename(
@@ -194,16 +272,22 @@ function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1)
             tenant.tenantId
           );
 
-          // Add security metadata
+          // Add comprehensive security metadata
           req.file.security = {
             verified: true,
             verifiedAt: new Date(),
             uploadContext,
-            tenantId: tenant.tenantId
+            tenantId: tenant.tenantId,
+            originalSize: req.file.size,
+            contentScanned: true,
+            magicNumbersVerified: true,
+            uploadIP: req.ip,
+            userAgent: req.get('User-Agent') || 'unknown'
           };
 
           next();
         } catch (error) {
+          console.error('File upload security error:', error);
           return res.status(500).json({ 
             error: 'File security validation failed' 
           });
@@ -252,6 +336,53 @@ function createUploadMiddleware(uploadContext, fieldName = 'file', maxCount = 1)
       }
     ];
   }
+}
+
+/**
+ * Check for executable content in files
+ */
+function checkForExecutableContent(buffer) {
+  // Check for executable signatures
+  const executableSignatures = [
+    Buffer.from([0x4D, 0x5A]),           // PE executable (MZ)
+    Buffer.from([0x7F, 0x45, 0x4C, 0x46]), // ELF executable
+    Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]), // Mach-O executable
+    Buffer.from([0xFE, 0xED, 0xFA, 0xCE]), // Mach-O executable (reverse)
+    Buffer.from([0x23, 0x21]),           // Shebang script (#!)
+    Buffer.from([0x50, 0x4B, 0x03, 0x04]) // ZIP (could contain executables)
+  ];
+
+  // Check for script patterns in the beginning of file
+  const scriptPatterns = [
+    /^#!/,                    // Shebang
+    /^\s*<\?php/i,           // PHP
+    /^\s*<script/i,          // JavaScript
+    /^\s*<%/,                // ASP/JSP
+    /^\s*import\s+/,         // Python/Java import
+    /^\s*package\s+/,        // Java package
+    /^\s*using\s+/           // C# using
+  ];
+
+  // Check binary signatures
+  for (const signature of executableSignatures) {
+    if (buffer.subarray(0, signature.length).equals(signature)) {
+      return true;
+    }
+  }
+
+  // Check script patterns in text content
+  try {
+    const textContent = buffer.toString('utf8', 0, Math.min(buffer.length, 1024));
+    for (const pattern of scriptPatterns) {
+      if (pattern.test(textContent)) {
+        return true;
+      }
+    }
+  } catch (error) {
+    // Not text content, which is fine
+  }
+
+  return false;
 }
 
 /**
