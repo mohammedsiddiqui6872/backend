@@ -158,7 +158,8 @@ router.post('/admin/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    // Skip tenant filter for admin login - we'll verify tenant after
+    const user = await User.findOne({ email }).setOptions({ skipTenantFilter: true });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
