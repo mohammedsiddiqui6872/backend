@@ -81,8 +81,8 @@ class DatabaseManager {
     
     // Optimize for faster updates
     mongoose.set('runValidators', true);
-    mongoose.set('useCreateIndex', true);
-    mongoose.set('useFindAndModify', false);
+    // Removed deprecated options: useCreateIndex and useFindAndModify
+    // These are now the default behavior in Mongoose 6.0+
   }
 
   /**
