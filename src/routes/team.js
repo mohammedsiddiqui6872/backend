@@ -522,10 +522,25 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
   }
 });
 
-// Get document by ID (secure endpoint)
-router.get('/members/:memberId/documents/:documentId', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
+// Get document by ID (secure endpoint with audit logging)
+router.get('/members/:memberId/documents/:documentId', authenticate, authorize(['users.view', 'users.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { memberId, documentId } = req.params;
+    
+    // Log document access attempt for audit trail
+    console.log(`[AUDIT] Document access attempt - User: ${req.user.email}, MemberId: ${memberId}, DocumentId: ${documentId}, Tenant: ${req.tenant.tenantId}, Timestamp: ${new Date().toISOString()}`);
+    
+    // Additional security check - verify the requesting user has appropriate permissions
+    // Admins and managers can view all documents, others can only view their own
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      if (req.user._id.toString() !== memberId) {
+        console.log(`[AUDIT] Access denied - User ${req.user.email} attempted to access documents of member ${memberId}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied. You can only view your own documents.' 
+        });
+      }
+    }
     
     // Find the user with tenant isolation
     const user = await User.findOne({
@@ -535,6 +550,7 @@ router.get('/members/:memberId/documents/:documentId', authenticate, authorize([
     });
     
     if (!user) {
+      console.log(`[AUDIT] Document not found - DocumentId: ${documentId}, MemberId: ${memberId}`);
       return res.status(404).json({ success: false, message: 'Document not found' });
     }
     
@@ -544,6 +560,9 @@ router.get('/members/:memberId/documents/:documentId', authenticate, authorize([
     if (!document || !document.data) {
       return res.status(404).json({ success: false, message: 'Document data not found' });
     }
+    
+    // Log successful document access
+    console.log(`[AUDIT] Document accessed successfully - User: ${req.user.email}, Document: ${document.name}, Type: ${document.type}, Timestamp: ${new Date().toISOString()}`);
     
     // Convert Base64 back to binary
     const buffer = Buffer.from(document.data, 'base64');
@@ -556,15 +575,32 @@ router.get('/members/:memberId/documents/:documentId', authenticate, authorize([
     // Send the file
     res.send(buffer);
   } catch (error) {
-    console.error('Error retrieving document:', error);
+    console.error('[AUDIT] Error retrieving document:', error);
     res.status(500).json({ success: false, message: 'Error retrieving document' });
   }
 });
 
-// Delete document
+// Delete document (with audit logging)
 router.delete('/members/:memberId/documents/:documentId', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
     const { memberId, documentId } = req.params;
+    
+    // Log deletion attempt
+    console.log(`[AUDIT] Document deletion attempt - User: ${req.user.email}, MemberId: ${memberId}, DocumentId: ${documentId}, Tenant: ${req.tenant.tenantId}, Timestamp: ${new Date().toISOString()}`);
+    
+    // First find the document to log its details before deletion
+    const userBeforeDelete = await User.findOne({
+      _id: memberId,
+      tenantId: req.tenant.tenantId,
+      'profile.documents._id': documentId
+    });
+    
+    if (userBeforeDelete) {
+      const docToDelete = userBeforeDelete.profile.documents.id(documentId);
+      if (docToDelete) {
+        console.log(`[AUDIT] Document to be deleted - Name: ${docToDelete.name}, Type: ${docToDelete.type}, UploadedAt: ${docToDelete.uploadedAt}`);
+      }
+    }
     
     // Find and update the user
     const user = await User.findOneAndUpdate(
@@ -579,8 +615,11 @@ router.delete('/members/:memberId/documents/:documentId', authenticate, authoriz
     );
     
     if (!user) {
+      console.log(`[AUDIT] Document deletion failed - Team member not found`);
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
+    
+    console.log(`[AUDIT] Document deleted successfully - User: ${req.user.email}, DocumentId: ${documentId}, Timestamp: ${new Date().toISOString()}`);
     
     // Return user without password
     const userObject = user.toObject();
@@ -592,7 +631,7 @@ router.delete('/members/:memberId/documents/:documentId', authenticate, authoriz
       data: userObject
     });
   } catch (error) {
-    console.error('Error deleting document:', error);
+    console.error('[AUDIT] Error deleting document:', error);
     res.status(500).json({ success: false, message: 'Error deleting document' });
   }
 });
