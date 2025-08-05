@@ -294,6 +294,7 @@ app.use('/api/auth', publicTenantContext, require('./src/routes/auth'));
 app.use('/api/guest', publicTenantContext, require('./src/routes/guest'));
 app.use('/api/menu', publicTenantContext, require('./src/routes/menu'));
 app.use('/api/categories', publicTenantContext, require('./src/routes/categories'));
+app.use('/api/service-requests', require('./src/routes/serviceRequests'));
 
 // Mobile app test routes
 app.use('/api/mobile-test', require('./src/routes/mobile-test'));

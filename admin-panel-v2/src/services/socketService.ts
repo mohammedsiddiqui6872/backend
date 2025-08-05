@@ -16,6 +16,8 @@ interface AssignmentSocketEvents {
   }) => void;
   'assignment:current-list': (data: { assignments: StaffAssignment[]; timestamp: Date }) => void;
   'assignment:waiter-loads': (data: { loads: WaiterLoad[]; timestamp: Date }) => void;
+  'service:requested': (data: any) => void;
+  'service:update': (data: any) => void;
 }
 
 class SocketService {

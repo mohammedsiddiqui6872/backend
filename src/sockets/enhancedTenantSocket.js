@@ -2,6 +2,8 @@
 const Order = require('../models/Order');
 const Table = require('../models/Table');
 const CustomerSession = require('../models/CustomerSession');
+const ServiceRequest = require('../models/ServiceRequest');
+const TableTimeline = require('../models/TableTimeline');
 const logger = require('../utils/logger');
 
 // Connection tracking to prevent memory leaks
@@ -95,6 +97,18 @@ module.exports = (io) => {
     
     // Join tenant-specific room
     socket.join(`tenant:${tenantId}`);
+    
+    // Join role-based rooms when authenticated
+    socket.on('auth:identify', (data) => {
+      if (data.role === 'waiter') {
+        socket.join(`tenant:${tenantId}:waiters`);
+      } else if (data.role === 'manager' || data.role === 'admin') {
+        socket.join(`tenant:${tenantId}:managers`);
+      } else if (data.tableNumber) {
+        // Customer joining from a specific table
+        socket.join(`table:${tenantId}:${data.tableNumber}`);
+      }
+    });
     
     // Set up connection timeout (disconnect idle connections after 30 minutes)
     const connectionTimeout = setTimeout(() => {
@@ -340,6 +354,67 @@ module.exports = (io) => {
     if (connectionTimers.has(socket.id)) {
       connectionTimers.get(socket.id).push(analyticsCacheTimer);
     }
+
+    // Handle service request events
+    handleSocketEvent('service:request', async (data) => {
+      if (!data.tableNumber || !data.requestType) {
+        return socket.emit('error', { 
+          message: 'Invalid service request data',
+          code: 'VALIDATION_ERROR' 
+        });
+      }
+
+      // Emit to all waiters
+      io.to(`tenant:${tenantId}:waiters`).emit('service:requested', {
+        tableNumber: data.tableNumber,
+        requestType: data.requestType,
+        priority: data.priority || 'normal',
+        message: data.message,
+        timestamp: new Date()
+      });
+    });
+
+    // Handle service request acknowledgement
+    handleSocketEvent('service:acknowledge', async (data) => {
+      if (!data.requestId || !data.waiterId) {
+        return socket.emit('error', { 
+          message: 'Invalid acknowledgement data',
+          code: 'VALIDATION_ERROR' 
+        });
+      }
+
+      // Find the request
+      const request = await ServiceRequest.findOne({
+        _id: data.requestId,
+        tenantId,
+        status: 'pending'
+      });
+
+      if (!request) {
+        return socket.emit('error', { 
+          message: 'Request not found',
+          code: 'NOT_FOUND' 
+        });
+      }
+
+      // Notify the table
+      io.to(`table:${tenantId}:${request.tableNumber}`).emit('service:acknowledged', {
+        requestId: request._id,
+        waiterName: data.waiterName
+      });
+    });
+
+    // Handle waiter location updates for smart assignment
+    handleSocketEvent('waiter:location', async (data) => {
+      if (!data.waiterId || !data.location) {
+        return;
+      }
+
+      // Store waiter location for smart assignment
+      // This can be used for location-based assignment
+      socket.data.location = data.location;
+      socket.data.waiterId = data.waiterId;
+    });
 
     // Handle disconnect with cleanup
     socket.on('disconnect', () => {

@@ -25,6 +25,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Compliance = lazy(() => import('./pages/Compliance'));
 const AuditLog = lazy(() => import('./pages/RestaurantAuditLog'));
 const TableServiceHistory = lazy(() => import('./components/tables/TableServiceHistory'));
+const ServiceDashboard = lazy(() => import('./pages/ServiceDashboardPage'));
 
 // Lazy load PageLoader component
 const PageLoader = lazy(() => import('./components/common/PageLoader').then(module => ({ default: module.PageLoader })));
@@ -136,6 +137,7 @@ function App() {
           <Route path="tables" element={<Tables />} />
           <Route path="tables/:tableId/history" element={<TableServiceHistory />} />
           <Route path="staff-assignment" element={<StaffAssignment />} />
+          <Route path="service-dashboard" element={<ServiceDashboard />} />
           <Route path="orders" element={<Orders />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="compliance" element={<Compliance />} />
