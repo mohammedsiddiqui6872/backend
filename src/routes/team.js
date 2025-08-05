@@ -264,12 +264,24 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), enterprise
 // Update team member password
 router.patch('/members/:id/password', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
   try {
+    console.log('Password update request for ID:', req.params.id, 'Tenant:', req.tenant?.tenantId);
+    
     const { newPassword } = req.body;
     
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ 
         success: false, 
         message: 'Password must be at least 6 characters long' 
+      });
+    }
+    
+    // Validate the ID parameter
+    const mongoose = require('mongoose');
+    if (!req.params.id || req.params.id === 'null' || req.params.id === 'undefined' || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.error('Invalid ID provided:', req.params.id);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid team member ID provided' 
       });
     }
     
@@ -280,6 +292,7 @@ router.patch('/members/:id/password', authenticate, authorize(['users.manage']),
     });
     
     if (!user) {
+      console.error('User not found for ID:', req.params.id, 'and tenant:', req.tenant.tenantId);
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
     
@@ -289,13 +302,15 @@ router.patch('/members/:id/password', authenticate, authorize(['users.manage']),
     user.password = hashedPassword;
     await user.save();
     
+    console.log('Password updated successfully for user:', user.email);
+    
     res.json({ 
       success: true, 
       message: 'Password updated successfully' 
     });
   } catch (error) {
     console.error('Error updating password:', error);
-    res.status(500).json({ success: false, message: 'Error updating password' });
+    res.status(500).json({ success: false, message: error.message || 'Error updating password' });
   }
 });
 

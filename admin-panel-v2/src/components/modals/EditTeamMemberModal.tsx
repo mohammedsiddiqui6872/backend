@@ -221,7 +221,7 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate required fields
@@ -230,13 +230,25 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
       return;
     }
     
-    // Only include password if it's been changed
-    const updateData: any = { ...formData };
-    if (!updateData.password) {
-      delete updateData.password;
-    }
+    // Separate password from other updates
+    const { password, ...updateData } = formData;
     
-    onEdit(updateData);
+    try {
+      // First update the team member details (without password)
+      await onEdit(updateData);
+      
+      // If password was provided, update it separately
+      if (password && password.trim()) {
+        try {
+          await teamAPI.updateTeamMemberPassword(member._id, password);
+          toast.success('Password updated successfully');
+        } catch (passwordError: any) {
+          toast.error(passwordError.response?.data?.message || 'Failed to update password');
+        }
+      }
+    } catch (error) {
+      // Error is already handled in the parent component
+    }
   };
 
   const tabs = [

@@ -160,8 +160,10 @@ const TeamManagement = () => {
       setShowEditModal(false);
       setSelectedMember(null);
       fetchTeamMembers();
+      return Promise.resolve(); // Return resolved promise for success
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update team member');
+      return Promise.reject(error); // Return rejected promise for error
     }
   };
 
