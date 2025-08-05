@@ -36,7 +36,17 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    // Get tenant context from middleware
+    if (!req.tenant || !req.tenant.tenantId) {
+      return res.status(400).json({ error: 'Tenant context not found. Please ensure proper tenant headers are provided.' });
+    }
+
+    // Find user with tenant filter
+    const user = await User.findOne({ 
+      email, 
+      tenantId: req.tenant.tenantId 
+    });
+    
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
