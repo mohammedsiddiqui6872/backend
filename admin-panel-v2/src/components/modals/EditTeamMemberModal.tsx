@@ -263,13 +263,19 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
       // Fetch document through API with authentication
       const response = await teamAPI.getDocument(member._id, doc._id);
       
-      // Convert blob to base64
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setDocumentContent(base64);
-      };
-      reader.readAsDataURL(response.data);
+      // For PDFs, create an object URL instead of data URL
+      if (doc.mimeType === 'application/pdf') {
+        const url = URL.createObjectURL(response.data);
+        setDocumentContent(url);
+      } else {
+        // For images and other files, use data URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setDocumentContent(base64);
+        };
+        reader.readAsDataURL(response.data);
+      }
     } catch (error) {
       console.error('Error fetching document:', error);
       toast.error('Failed to load document');
@@ -279,19 +285,35 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
     }
   };
 
-  const handleDocumentDownload = () => {
-    if (!documentContent || !viewingDocument) return;
+  const handleDocumentDownload = async () => {
+    if (!viewingDocument || !viewingDocument._id) return;
     
-    // Create a download link
-    const link = document.createElement('a');
-    link.href = documentContent;
-    link.download = viewingDocument.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      // Fetch the document again for download
+      const response = await teamAPI.getDocument(member._id, viewingDocument._id);
+      
+      // Create a blob URL for download
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = viewingDocument.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download document');
+    }
   };
 
   const closeDocumentViewer = () => {
+    // Clean up object URL if it's a PDF
+    if (viewingDocument?.mimeType === 'application/pdf' && documentContent) {
+      URL.revokeObjectURL(documentContent);
+    }
     setViewingDocument(null);
     setDocumentContent('');
   };
@@ -1274,11 +1296,19 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
                       className="max-w-full h-auto"
                     />
                   ) : viewingDocument.mimeType === 'application/pdf' ? (
-                    <iframe
-                      src={documentContent}
-                      className="w-full h-[70vh]"
-                      title={viewingDocument.name}
-                    />
+                    <div className="w-full">
+                      <iframe
+                        src={documentContent}
+                        className="w-full h-[70vh]"
+                        title={viewingDocument.name}
+                      />
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <AlertCircle className="inline h-4 w-4 mr-2" />
+                          If the PDF preview is not displaying, click the Download button above to save and view the file.
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-center py-8">
                       <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
