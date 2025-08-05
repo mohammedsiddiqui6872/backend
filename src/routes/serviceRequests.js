@@ -6,7 +6,7 @@ const Table = require('../models/Table');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 const { enterpriseTenantIsolation } = require('../middleware/enterpriseTenantIsolation');
-const { publicTenantContext } = require('../middleware/publicTenantContext');
+const publicTenantContext = require('../middleware/publicTenantContext');
 
 // Apply tenant context for public routes
 router.use('/customer', publicTenantContext);

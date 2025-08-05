@@ -215,7 +215,7 @@ class AdvancedRateLimiter {
     return slowDown({
       windowMs,
       delayAfter,
-      delayMs,
+      delayMs: () => delayMs, // Updated for v2 syntax
       maxDelayMs,
       skipFailedRequests,
       skipSuccessfulRequests,
@@ -223,8 +223,13 @@ class AdvancedRateLimiter {
         const tenantId = req.tenant?.tenantId || req.tenantId || 'anonymous';
         return `${tenantId}:${req.ip}`;
       },
-      onLimitReached: (req, res, options) => {
+      validate: { delayMs: false }, // Disable warning
+      handler: (req, res) => {
         console.warn(`Slowdown limit reached for tenant ${req.tenant?.tenantId || 'anonymous'} from IP ${req.ip}`);
+        res.status(429).json({ 
+          error: 'Too many requests',
+          message: 'Please slow down your requests'
+        });
       }
     });
   }
