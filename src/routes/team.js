@@ -551,4 +551,95 @@ router.get('/stats', authenticate, authorize(['users.view']), enterpriseTenantIs
   }
 });
 
+// Export team members
+router.get('/export', authenticate, authorize(['users.manage', 'users.view']), enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { format = 'csv' } = req.query;
+    
+    // Fetch all team members for the tenant
+    const members = await User.find({ 
+      tenantId: req.tenant.tenantId 
+    }).select('-password').lean();
+    
+    if (format === 'json') {
+      res.json({
+        success: true,
+        data: members,
+        count: members.length,
+        exportedAt: new Date().toISOString()
+      });
+    } else if (format === 'csv') {
+      // Convert to CSV format
+      const csvRows = [];
+      
+      // Headers
+      csvRows.push([
+        'Name',
+        'Email',
+        'Phone',
+        'Role',
+        'Department',
+        'Position',
+        'Employee ID',
+        'Status',
+        'Hire Date',
+        'Date of Birth',
+        'Gender',
+        'Nationality',
+        'Address',
+        'Emergency Contact',
+        'Created At'
+      ].join(','));
+      
+      // Data rows
+      members.forEach(member => {
+        const row = [
+          member.name || '',
+          member.email || '',
+          member.phone || '',
+          member.role || '',
+          member.profile?.department || '',
+          member.profile?.position || '',
+          member.profile?.employeeId || '',
+          member.isActive ? 'Active' : 'Inactive',
+          member.profile?.hireDate ? new Date(member.profile.hireDate).toLocaleDateString() : '',
+          member.profile?.dateOfBirth ? new Date(member.profile.dateOfBirth).toLocaleDateString() : '',
+          member.profile?.gender || '',
+          member.profile?.nationality || '',
+          member.profile?.address ? `${member.profile.address.street || ''} ${member.profile.address.city || ''} ${member.profile.address.country || ''}`.trim() : '',
+          member.profile?.emergencyContact ? `${member.profile.emergencyContact.name || ''} (${member.profile.emergencyContact.relationship || ''}) ${member.profile.emergencyContact.phone || ''}`.trim() : '',
+          new Date(member.createdAt).toLocaleDateString()
+        ].map(field => {
+          // Escape fields that contain commas or quotes
+          const fieldStr = String(field);
+          if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+            return `"${fieldStr.replace(/"/g, '""')}"`;
+          }
+          return fieldStr;
+        }).join(',');
+        
+        csvRows.push(row);
+      });
+      
+      const csvContent = csvRows.join('\n');
+      
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="team-members-${Date.now()}.csv"`);
+      res.send(csvContent);
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Invalid export format. Use csv or json' 
+      });
+    }
+  } catch (error) {
+    console.error('Error exporting team members:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error exporting team members' 
+    });
+  }
+});
+
 module.exports = router;

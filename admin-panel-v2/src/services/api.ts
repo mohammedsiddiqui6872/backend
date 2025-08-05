@@ -186,6 +186,16 @@ export const teamAPI = {
   
   getStats: () =>
     api.get('/admin/team/stats'),
+    
+  // Team Member Password Update
+  updateTeamMemberPassword: (id: string, newPassword: string) =>
+    api.patch(`/admin/team/members/${id}/password`, { newPassword }),
+    
+  // Export team members
+  exportMembers: (format: 'csv' | 'json' = 'csv') =>
+    api.get(`/admin/team/export?format=${format}`, {
+      responseType: format === 'csv' ? 'blob' : 'json'
+    }),
 };
 
 // Menu API
@@ -822,10 +832,6 @@ export const analyticsAPI = {
     
   getRoleById: (id: string) =>
     api.get(`/admin/roles/${id}`),
-    
-  // Team Member Password Update
-  updateTeamMemberPassword: (id: string, newPassword: string) =>
-    api.patch(`/admin/team/members/${id}/password`, { newPassword }),
 };
 
 // Helper to clear tenant data when switching restaurants

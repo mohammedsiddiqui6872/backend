@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, Edit2, Trash2, Search, UserCheck, UserX, 
   Phone, Mail, Calendar, Clock, Award, AlertCircle,
-  Building, Users, Filter, Download, Upload, Eye, Shield 
+  Building, Users, Filter, Download, Upload, Eye, Shield, ChevronDown 
 } from 'lucide-react';
 import { teamAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -195,9 +195,39 @@ const TeamManagement = () => {
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
 
-  const exportTeamData = () => {
-    // TODO: Implement CSV export
-    toast.success('Feature coming soon!');
+  const exportTeamData = async (format: 'csv' | 'json' = 'csv') => {
+    try {
+      const response = await teamAPI.exportMembers(format);
+      
+      if (format === 'json') {
+        // For JSON, create a blob from the JSON data
+        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `team-members-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // For CSV, the response is already a blob
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `team-members-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+      
+      toast.success(`Team data exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export team data');
+    }
   };
 
   if (loading) {
@@ -219,13 +249,31 @@ const TeamManagement = () => {
           <Shield className="h-4 w-4 mr-2" />
           Manage Roles
         </button>
-        <button
-          onClick={exportTeamData}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </button>
+        <div className="relative group">
+          <button
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+            <ChevronDown className="h-4 w-4 ml-2" />
+          </button>
+          <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden group-hover:block z-10">
+            <div className="py-1">
+              <button
+                onClick={() => exportTeamData('csv')}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Export as CSV
+              </button>
+              <button
+                onClick={() => exportTeamData('json')}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Export as JSON
+              </button>
+            </div>
+          </div>
+        </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
