@@ -199,12 +199,27 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
     }
 
     try {
+      console.log('Uploading document for member:', member._id);
+      console.log('Document type:', type);
+      console.log('File:', file.name, file.size, file.type);
+      
       const response = await teamAPI.uploadDocuments(member._id, e.target.files!, type);
+      console.log('Upload response:', response);
+      
       toast.success('Document uploaded successfully');
       // Refresh member data to show new documents
       window.location.reload();
-    } catch (error) {
-      toast.error('Failed to upload document');
+    } catch (error: any) {
+      console.error('Document upload error:', error);
+      console.error('Error response:', error.response);
+      
+      const errorMessage = error.response?.data?.message || 'Failed to upload document';
+      toast.error(errorMessage);
+      
+      // Log more details for debugging
+      if (error.response?.data?.details) {
+        console.error('Error details:', error.response.data.details);
+      }
     }
   };
 

@@ -452,12 +452,41 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
 
+    // Initialize profile if it doesn't exist
+    if (!user.profile) {
+      user.profile = {};
+    }
+    
     // Add documents and save
     if (!user.profile.documents) {
       user.profile.documents = [];
     }
     user.profile.documents.push(...documents);
-    await user.save();
+    
+    console.log('Adding documents to user:', user.email);
+    console.log('Documents to add:', documents);
+    
+    try {
+      await user.save();
+    } catch (saveError) {
+      console.error('Error saving user with documents:', saveError);
+      
+      // If it's a validation error, try to provide more details
+      if (saveError.name === 'ValidationError') {
+        const validationErrors = Object.keys(saveError.errors).map(key => ({
+          field: key,
+          message: saveError.errors[key].message
+        }));
+        
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Validation error when saving documents',
+          errors: validationErrors
+        });
+      }
+      
+      throw saveError;
+    }
 
     // Return user object without password
     const userObject = user.toObject();
@@ -471,7 +500,13 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
     });
   } catch (error) {
     console.error('Error uploading documents:', error);
-    res.status(500).json({ success: false, message: error.message || 'Error uploading documents' });
+    console.error('Error stack:', error.stack);
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Error uploading documents',
+      details: error.toString()
+    });
   }
 });
 

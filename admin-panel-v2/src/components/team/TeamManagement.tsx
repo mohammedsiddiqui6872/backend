@@ -87,6 +87,7 @@ const TeamManagement = () => {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -249,30 +250,40 @@ const TeamManagement = () => {
           <Shield className="h-4 w-4 mr-2" />
           Manage Roles
         </button>
-        <div className="relative group">
+        <div className="relative">
           <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             <Download className="h-4 w-4 mr-2" />
             Export
             <ChevronDown className="h-4 w-4 ml-2" />
           </button>
-          <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden group-hover:block z-10">
-            <div className="py-1">
-              <button
-                onClick={() => exportTeamData('csv')}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Export as CSV
-              </button>
-              <button
-                onClick={() => exportTeamData('json')}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Export as JSON
-              </button>
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    exportTeamData('csv');
+                    setShowExportMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => {
+                    exportTeamData('json');
+                    setShowExportMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Export as JSON
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <button
           onClick={() => setShowAddModal(true)}
