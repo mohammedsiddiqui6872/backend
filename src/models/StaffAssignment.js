@@ -141,69 +141,83 @@ staffAssignmentSchema.statics.getActiveAssignments = async function(tenantId, fi
 
 // Static method to get waiter loads
 staffAssignmentSchema.statics.getWaiterLoads = async function(tenantId) {
-  const activeAssignments = await this.aggregate([
-    { $match: { tenantId, status: 'active' } },
-    { 
-      $group: {
-        _id: '$waiterId',
-        currentTables: { $sum: 1 },
-        tableNumbers: { $push: '$tableNumber' }
-      }
-    }
-  ]);
-  
-  // Get all active waiters
-  const User = mongoose.model('User');
-  const TableSession = mongoose.model('TableSession');
-  const activeWaiters = await User.find({
-    tenantId,
-    role: 'waiter',
-    isActive: true
-  }).select('name email maxTables');
-  
-  // Get active table sessions for additional load info
-  const tableSessions = await TableSession.aggregate([
-    { $match: { tenantId, isActive: true } },
-    {
-      $lookup: {
-        from: 'customersessions',
-        localField: 'tableNumber',
-        foreignField: 'tableNumber',
-        as: 'customerSessions'
-      }
-    },
-    {
-      $group: {
-        _id: '$waiter',
-        activeOrders: { $sum: { $size: '$customerSessions' } },
-        totalGuests: { 
-          $sum: { 
-            $sum: '$customerSessions.occupancy' 
-          } 
+  try {
+    // Get active assignments grouped by waiter
+    const activeAssignments = await this.aggregate([
+      { $match: { tenantId, status: 'active' } },
+      { 
+        $group: {
+          _id: '$waiterId',
+          currentTables: { $sum: 1 },
+          tableNumbers: { $push: '$tableNumber' }
         }
       }
-    }
-  ]);
-  
-  // Combine data
-  const waiterLoads = activeWaiters.map(waiter => {
-    const assignment = activeAssignments.find(a => a._id.toString() === waiter._id.toString()) || {};
-    const session = tableSessions.find(s => s._id.toString() === waiter._id.toString()) || {};
+    ]);
     
-    return {
-      waiterId: waiter._id,
-      waiterName: waiter.name,
-      currentTables: assignment.currentTables || 0,
-      tableNumbers: assignment.tableNumbers || [],
-      activeOrders: session.activeOrders || 0,
-      totalGuests: session.totalGuests || 0,
-      maxCapacity: waiter.maxTables || 4,
-      isAvailable: (assignment.currentTables || 0) < (waiter.maxTables || 4),
-      performanceScore: 0 // TODO: Calculate based on metrics
-    };
-  });
-  
-  return waiterLoads;
+    // Get all active waiters
+    const User = mongoose.model('User');
+    const activeWaiters = await User.find({
+      tenantId,
+      role: 'waiter',
+      isActive: true
+    }).select('name email maxTables').lean();
+    
+    // Try to get additional session data if available
+    let tableSessions = [];
+    try {
+      const TableSession = mongoose.model('TableSession');
+      // Check if collection exists before querying
+      const collections = await mongoose.connection.db.listCollections({ name: 'tablesessions' }).toArray();
+      
+      if (collections.length > 0) {
+        // Use simpler aggregation without lookup to avoid issues
+        tableSessions = await TableSession.aggregate([
+          { $match: { tenantId, isActive: true } },
+          {
+            $group: {
+              _id: '$waiter',
+              activeOrders: { $sum: 1 },
+              totalGuests: { $sum: '$occupancy' }
+            }
+          }
+        ]);
+      }
+    } catch (sessionError) {
+      console.log('Could not fetch table sessions:', sessionError.message);
+      // Continue without session data
+    }
+    
+    // Combine data
+    const waiterLoads = activeWaiters.map(waiter => {
+      const assignment = activeAssignments.find(a => 
+        a._id && waiter._id && a._id.toString() === waiter._id.toString()
+      ) || {};
+      
+      const session = tableSessions.find(s => 
+        s._id && waiter._id && s._id.toString() === waiter._id.toString()
+      ) || {};
+      
+      return {
+        waiterId: waiter._id,
+        waiterName: waiter.name,
+        waiterEmail: waiter.email,
+        currentTables: assignment.currentTables || 0,
+        tableNumbers: assignment.tableNumbers || [],
+        activeOrders: session.activeOrders || 0,
+        totalGuests: session.totalGuests || 0,
+        maxCapacity: waiter.maxTables || 4,
+        isAvailable: (assignment.currentTables || 0) < (waiter.maxTables || 4),
+        loadPercentage: waiter.maxTables ? Math.round(((assignment.currentTables || 0) / (waiter.maxTables || 4)) * 100) : 0,
+        performanceScore: 0 // TODO: Calculate based on metrics
+      };
+    });
+    
+    return waiterLoads.sort((a, b) => a.currentTables - b.currentTables);
+  } catch (error) {
+    console.error('Error in getWaiterLoads:', error);
+    // Return basic data structure even on error
+    return [];
+  }
 };
 
 module.exports = mongoose.model('StaffAssignment', staffAssignmentSchema);

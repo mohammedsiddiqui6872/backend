@@ -315,11 +315,18 @@ router.post('/bulk-assign', authorize('admin', 'manager'), async (req, res) => {
 // Get waiter loads
 router.get('/waiter-loads', authorize('admin', 'manager'), async (req, res) => {
   try {
+    console.log(`Fetching waiter loads for tenant: ${req.tenantId}`);
     const waiterLoads = await StaffAssignment.getWaiterLoads(req.tenantId);
+    console.log(`Found ${waiterLoads.length} waiter loads`);
     res.json(waiterLoads);
   } catch (error) {
     console.error('Error fetching waiter loads:', error);
-    res.status(500).json({ error: 'Failed to fetch waiter loads' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch waiter loads',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
