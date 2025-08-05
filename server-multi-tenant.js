@@ -295,6 +295,9 @@ app.use('/api/guest', publicTenantContext, require('./src/routes/guest'));
 app.use('/api/menu', publicTenantContext, require('./src/routes/menu'));
 app.use('/api/categories', publicTenantContext, require('./src/routes/categories'));
 
+// Mobile app test routes
+app.use('/api/mobile-test', require('./src/routes/mobile-test'));
+
 // Routes that require authentication - these will use authenticate + enterpriseTenantIsolation internally
 app.use('/api/combos', require('./src/routes/combos'));
 app.use('/api/orders', require('./src/routes/orders'));

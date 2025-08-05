@@ -274,6 +274,7 @@ const AssignmentGridView: React.FC<AssignmentGridViewProps> = ({ canManage }) =>
   // Handle assignment
   const handleAssign = async (tableId: string, waiterId: string) => {
     try {
+      console.log('Assigning waiter:', { tableId, waiterId });
       const assignment = await staffAssignmentAPI.assignWaiter(tableId, waiterId);
       setAssignments(prev => [...prev.filter(a => a.tableId !== tableId), assignment]);
       
@@ -283,13 +284,28 @@ const AssignmentGridView: React.FC<AssignmentGridViewProps> = ({ canManage }) =>
       
       toast.success('Waiter assigned successfully');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to assign waiter');
+      console.error('Assignment error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      // Provide more specific error messages
+      if (error.response?.status === 401) {
+        toast.error('You are not authorized to assign waiters. Please login again.');
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to assign waiters.');
+      } else if (error.response?.status === 404) {
+        toast.error('Table or waiter not found. Please refresh and try again.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to assign waiter. Please check console for details.');
+      }
     }
   };
 
   // Handle unassignment
   const handleUnassign = async (tableId: string, waiterId: string) => {
     try {
+      console.log('Unassigning waiter:', { tableId, waiterId });
       await staffAssignmentAPI.unassignWaiter(tableId, waiterId);
       setAssignments(prev => prev.filter(a => a.tableId !== tableId));
       
@@ -299,7 +315,21 @@ const AssignmentGridView: React.FC<AssignmentGridViewProps> = ({ canManage }) =>
       
       toast.success('Waiter unassigned successfully');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to unassign waiter');
+      console.error('Unassignment error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      // Provide more specific error messages
+      if (error.response?.status === 401) {
+        toast.error('You are not authorized to unassign waiters. Please login again.');
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to unassign waiters.');
+      } else if (error.response?.status === 404) {
+        toast.error('Assignment not found. Please refresh and try again.');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to unassign waiter. Please check console for details.');
+      }
     }
   };
 
