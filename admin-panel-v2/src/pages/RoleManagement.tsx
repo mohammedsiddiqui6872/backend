@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Save
 } from 'lucide-react';
-import { analyticsAPI } from '../services/api';
+import { teamAPI } from '../services/api';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 
@@ -71,8 +71,8 @@ const RoleManagement: React.FC = () => {
     try {
       setLoading(true);
       const [rolesRes, permissionsRes] = await Promise.all([
-        analyticsAPI.getRoles(),
-        analyticsAPI.getPermissions()
+        teamAPI.getRoles(),
+        teamAPI.getPermissions()
       ]);
       
       // Ensure roles is always an array
@@ -137,7 +137,7 @@ const RoleManagement: React.FC = () => {
     }
 
     try {
-      await analyticsAPI.deleteRole(roleId);
+      await teamAPI.deleteRole(roleId);
       await loadData();
     } catch (err: any) {
       alert('Failed to delete role: ' + (err.response?.data?.message || err.message));
@@ -153,9 +153,9 @@ const RoleManagement: React.FC = () => {
     setSavingRole(true);
     try {
       if (editingRole._id) {
-        await analyticsAPI.updateRole(editingRole._id, editingRole);
+        await teamAPI.updateRole(editingRole._id, editingRole);
       } else {
-        await analyticsAPI.createRole(editingRole);
+        await teamAPI.createRole(editingRole);
       }
       setShowCreateModal(false);
       setEditingRole(null);

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Briefcase, Building, Calendar, Upload, FileText, CreditCard, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { teamAPI } from '../../services/api';
 
 interface AddTeamMemberModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface AddTeamMemberModalProps {
 }
 
 const AddTeamMemberModal = ({ isOpen, onClose, onAdd, supervisors = [] }: AddTeamMemberModalProps) => {
+  const [availableRoles, setAvailableRoles] = useState<Array<{ _id: string; code: string; name: string; isCustom?: boolean }>>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -56,6 +59,45 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd, supervisors = [] }: AddTea
     visa?: File;
     other?: File[];
   }>({});
+
+  // Fetch available roles when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchRoles();
+    }
+  }, [isOpen]);
+  
+  const fetchRoles = async () => {
+    setLoadingRoles(true);
+    try {
+      const response = await teamAPI.getRoles();
+      const roles = response.data.data;
+      
+      // Format roles for the dropdown
+      const formattedRoles = roles.map((role: any) => ({
+        _id: role._id,
+        code: role.code || role._id.replace('default_', ''),
+        name: role.name,
+        isCustom: !role._id.startsWith('default_')
+      }));
+      
+      setAvailableRoles(formattedRoles);
+    } catch (error) {
+      console.error('Failed to fetch roles:', error);
+      // Fallback to default roles if fetch fails
+      setAvailableRoles([
+        { _id: 'default_waiter', code: 'waiter', name: 'Waiter' },
+        { _id: 'default_chef', code: 'chef', name: 'Chef' },
+        { _id: 'default_cashier', code: 'cashier', name: 'Cashier' },
+        { _id: 'default_manager', code: 'manager', name: 'Manager' },
+        { _id: 'default_admin', code: 'admin', name: 'Admin' },
+        { _id: 'default_host', code: 'host', name: 'Host' },
+        { _id: 'default_bartender', code: 'bartender', name: 'Bartender' }
+      ]);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,14 +272,17 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd, supervisors = [] }: AddTea
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      disabled={loadingRoles}
                     >
-                      <option value="admin">Admin</option>
-                      <option value="manager">Manager</option>
-                      <option value="chef">Chef</option>
-                      <option value="waiter">Waiter</option>
-                      <option value="cashier">Cashier</option>
-                      <option value="host">Host</option>
-                      <option value="bartender">Bartender</option>
+                      {loadingRoles ? (
+                        <option>Loading roles...</option>
+                      ) : (
+                        availableRoles.map((role) => (
+                          <option key={role._id} value={role.code}>
+                            {role.name} {role.isCustom ? '(Custom)' : ''}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 

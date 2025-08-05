@@ -88,6 +88,8 @@ const TeamManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState<Array<{ _id: string; code: string; name: string; isCustom?: boolean }>>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -101,6 +103,7 @@ const TeamManagement = () => {
   useEffect(() => {
     fetchTeamMembers();
     fetchTeamStats();
+    fetchRoles();
   }, [currentPage, debouncedSearchQuery, filterRole, filterDepartment, filterStatus]);
 
   useEffect(() => {
@@ -134,6 +137,38 @@ const TeamManagement = () => {
       setStats(response.data.data);
     } catch (error) {
       console.error('Failed to load team stats');
+    }
+  };
+
+  const fetchRoles = async () => {
+    setLoadingRoles(true);
+    try {
+      const response = await teamAPI.getRoles();
+      const roles = response.data.data;
+      
+      // Format roles for the dropdown
+      const formattedRoles = roles.map((role: any) => ({
+        _id: role._id,
+        code: role.code || role._id.replace('default_', ''),
+        name: role.name,
+        isCustom: !role._id.startsWith('default_')
+      }));
+      
+      setAvailableRoles(formattedRoles);
+    } catch (error) {
+      console.error('Failed to fetch roles:', error);
+      // Fallback to default roles if fetch fails
+      setAvailableRoles([
+        { _id: 'default_waiter', code: 'waiter', name: 'Waiter' },
+        { _id: 'default_chef', code: 'chef', name: 'Chef' },
+        { _id: 'default_cashier', code: 'cashier', name: 'Cashier' },
+        { _id: 'default_manager', code: 'manager', name: 'Manager' },
+        { _id: 'default_admin', code: 'admin', name: 'Admin' },
+        { _id: 'default_host', code: 'host', name: 'Host' },
+        { _id: 'default_bartender', code: 'bartender', name: 'Bartender' }
+      ]);
+    } finally {
+      setLoadingRoles(false);
     }
   };
 
@@ -402,15 +437,18 @@ const TeamManagement = () => {
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
               className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              disabled={loadingRoles}
             >
               <option value="">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="chef">Chef</option>
-              <option value="waiter">Waiter</option>
-              <option value="cashier">Cashier</option>
-              <option value="host">Host</option>
-              <option value="bartender">Bartender</option>
+              {loadingRoles ? (
+                <option>Loading roles...</option>
+              ) : (
+                availableRoles.map((role) => (
+                  <option key={role._id} value={role.code}>
+                    {role.name} {role.isCustom ? '(Custom)' : ''}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

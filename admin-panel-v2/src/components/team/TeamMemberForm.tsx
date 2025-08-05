@@ -27,7 +27,7 @@ import {
   type CreateTeamMember, 
   type UpdateTeamMember 
 } from '../../schemas/teamSchemas';
-import { analyticsAPI } from '../../services/api';
+import { teamAPI } from '../../services/api';
 
 interface TeamMemberFormProps {
   initialData?: UpdateTeamMember;
@@ -91,7 +91,7 @@ export const TeamMemberForm: React.FC<TeamMemberFormProps> = ({
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const response = await analyticsAPI.getRoles();
+        const response = await teamAPI.getRoles();
         console.log('Fetched roles:', response.data); // Debug log
         
         if (response.data && response.data.length > 0) {

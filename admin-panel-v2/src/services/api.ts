@@ -206,6 +206,25 @@ export const teamAPI = {
   // Delete document
   deleteDocument: (memberId: string, documentId: string) =>
     api.delete(`/admin/team/members/${memberId}/documents/${documentId}`),
+    
+  // Role Management
+  getRoles: (params?: any) =>
+    api.get('/admin/roles', { params }),
+    
+  getPermissions: () =>
+    api.get('/admin/roles/permissions'),
+    
+  createRole: (data: any) =>
+    api.post('/admin/roles', data),
+    
+  updateRole: (id: string, data: any) =>
+    api.put(`/admin/roles/${id}`, data),
+    
+  deleteRole: (id: string) =>
+    api.delete(`/admin/roles/${id}`),
+    
+  getRoleById: (id: string) =>
+    api.get(`/admin/roles/${id}`),
 };
 
 // Menu API
@@ -823,25 +842,6 @@ export const analyticsAPI = {
   
   updateEmployeeAchievement: (employeeId: string, achievementId: string, data: any) => 
     api.put(`/admin/analytics/employee/${employeeId}/achievement/${achievementId}`, data),
-    
-  // Role Management
-  getRoles: (params?: any) =>
-    api.get('/admin/roles', { params }),
-    
-  getPermissions: () =>
-    api.get('/admin/roles/permissions'),
-    
-  createRole: (data: any) =>
-    api.post('/admin/roles', data),
-    
-  updateRole: (id: string, data: any) =>
-    api.put(`/admin/roles/${id}`, data),
-    
-  deleteRole: (id: string) =>
-    api.delete(`/admin/roles/${id}`),
-    
-  getRoleById: (id: string) =>
-    api.get(`/admin/roles/${id}`),
 };
 
 // Helper to clear tenant data when switching restaurants
