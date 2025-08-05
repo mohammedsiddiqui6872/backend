@@ -162,7 +162,7 @@ router.get('/members/:id', authenticate, authorize(['users.view']), enterpriseTe
 // Create new team member
 router.post('/members', authenticate, authorize(['users.create']), enterpriseTenantIsolation, async (req, res) => {
   try {
-    const {
+    let {
       name,
       email,
       password,
@@ -172,6 +172,11 @@ router.post('/members', authenticate, authorize(['users.create']), enterpriseTen
       shiftPreferences,
       permissions
     } = req.body;
+    
+    // Normalize role to lowercase for consistency
+    if (role) {
+      role = role.toLowerCase();
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ 
@@ -219,6 +224,11 @@ router.put('/members/:id', authenticate, authorize(['users.manage']), enterprise
     const updates = { ...req.body };
     delete updates.password; // Don't allow password updates through this route
     delete updates.tenantId; // Don't allow tenant changes
+    
+    // Normalize role to lowercase for consistency
+    if (updates.role) {
+      updates.role = updates.role.toLowerCase();
+    }
     
     // Handle supervisor field - convert empty string to null
     if (updates.profile && updates.profile.supervisor === '') {

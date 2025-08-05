@@ -15,8 +15,33 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['admin', 'manager', 'chef', 'waiter', 'cashier', 'host', 'bartender', 'super_admin'],
-    default: 'waiter'
+    default: 'waiter',
+    // Remove enum to allow custom roles
+    validate: {
+      validator: async function(value) {
+        // Allow super_admin without tenant check
+        if (value === 'super_admin') return true;
+        
+        // Allow default roles
+        const defaultRoles = ['admin', 'manager', 'chef', 'waiter', 'cashier', 'host', 'bartender'];
+        if (defaultRoles.includes(value.toLowerCase())) return true;
+        
+        // Check if it's a valid custom role for this tenant
+        if (this.tenantId) {
+          const Role = require('./Role');
+          // Check with uppercase since Role model stores code as uppercase
+          const customRole = await Role.findOne({ 
+            tenantId: this.tenantId, 
+            code: value.toUpperCase(),
+            isActive: true 
+          });
+          return !!customRole;
+        }
+        
+        return false;
+      },
+      message: props => `${props.value} is not a valid role for this tenant`
+    }
   },
   phone: String,
   avatar: String,

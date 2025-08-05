@@ -76,7 +76,7 @@ const AddTeamMemberModal = ({ isOpen, onClose, onAdd, supervisors = [] }: AddTea
       // Format roles for the dropdown
       const formattedRoles = roles.map((role: any) => ({
         _id: role._id,
-        code: role.code || role._id.replace('default_', ''),
+        code: (role.code || role._id.replace('default_', '')).toLowerCase(),
         name: role.name,
         isCustom: !role._id.startsWith('default_')
       }));
