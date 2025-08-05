@@ -41,22 +41,8 @@ const upload = multer({
   }
 });
 
-// Configure multer for document uploads (PDFs, images, etc.)
-const documentStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads/profiles');
-    // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'doc-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer for document uploads (store in memory for database storage)
+const documentStorage = multer.memoryStorage(); // Store in memory instead of disk
 
 const uploadDocuments = multer({ 
   storage: documentStorage,
@@ -64,8 +50,14 @@ const uploadDocuments = multer({
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+      'application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    const mimeTypeValid = allowedMimeTypes.includes(file.mimetype);
     
-    if (extname) {
+    if (extname && mimeTypeValid) {
       return cb(null, true);
     } else {
       cb(new Error('File type not allowed. Allowed types: JPG, PNG, GIF, PDF, DOC, DOCX'));
@@ -446,13 +438,21 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
       return res.status(400).json({ success: false, message: 'No files uploaded' });
     }
 
-    const documents = req.files.map(file => ({
-      type: req.body.type || 'other',
-      name: file.originalname,
-      url: `/uploads/profiles/${file.filename}`,
-      expiryDate: req.body.expiryDate,
-      uploadedAt: new Date()
-    }));
+    // Convert files to Base64 and prepare documents
+    const documents = req.files.map(file => {
+      // Convert buffer to Base64
+      const base64Data = file.buffer.toString('base64');
+      
+      return {
+        type: req.body.type || 'other',
+        name: file.originalname,
+        data: base64Data, // Store Base64 encoded data
+        mimeType: file.mimetype,
+        size: file.size,
+        expiryDate: req.body.expiryDate,
+        uploadedAt: new Date()
+      };
+    });
 
     // Find user first
     const user = await User.findOne({
@@ -519,6 +519,81 @@ router.post('/members/:id/documents', authenticate, authorize(['users.manage']),
       message: error.message || 'Error uploading documents',
       details: error.toString()
     });
+  }
+});
+
+// Get document by ID (secure endpoint)
+router.get('/members/:memberId/documents/:documentId', authenticate, authorize(['users.view']), enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { memberId, documentId } = req.params;
+    
+    // Find the user with tenant isolation
+    const user = await User.findOne({
+      _id: memberId,
+      tenantId: req.tenant.tenantId,
+      'profile.documents._id': documentId
+    });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    
+    // Find the specific document
+    const document = user.profile.documents.id(documentId);
+    
+    if (!document || !document.data) {
+      return res.status(404).json({ success: false, message: 'Document data not found' });
+    }
+    
+    // Convert Base64 back to binary
+    const buffer = Buffer.from(document.data, 'base64');
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    // Send the file
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error retrieving document:', error);
+    res.status(500).json({ success: false, message: 'Error retrieving document' });
+  }
+});
+
+// Delete document
+router.delete('/members/:memberId/documents/:documentId', authenticate, authorize(['users.manage']), enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { memberId, documentId } = req.params;
+    
+    // Find and update the user
+    const user = await User.findOneAndUpdate(
+      {
+        _id: memberId,
+        tenantId: req.tenant.tenantId
+      },
+      {
+        $pull: { 'profile.documents': { _id: documentId } }
+      },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Team member not found' });
+    }
+    
+    // Return user without password
+    const userObject = user.toObject();
+    delete userObject.password;
+    
+    res.json({ 
+      success: true, 
+      message: 'Document deleted successfully',
+      data: userObject
+    });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ success: false, message: 'Error deleting document' });
   }
 });
 

@@ -32,9 +32,12 @@ interface BankDetails {
 }
 
 interface Document {
+  _id?: string;
   type: string;
   name: string;
-  url: string;
+  data?: string;
+  mimeType?: string;
+  size?: number;
   uploadedAt: string;
   expiryDate?: string;
 }
@@ -228,12 +231,30 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
       return;
     }
 
+    if (!doc._id) {
+      toast.error('Cannot delete document without ID');
+      return;
+    }
+
     try {
-      // TODO: Implement document deletion API
+      await teamAPI.deleteDocument(member._id, doc._id);
       toast.success('Document deleted successfully');
+      // Refresh the page to show updated documents
+      window.location.reload();
     } catch (error) {
       toast.error('Failed to delete document');
     }
+  };
+
+  const handleDocumentView = (doc: Document) => {
+    if (!doc._id) {
+      toast.error('Cannot view document without ID');
+      return;
+    }
+
+    // Open document in new tab
+    const url = `/api/admin/team/members/${member._id}/documents/${doc._id}`;
+    window.open(url, '_blank');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1014,19 +1035,19 @@ const EditTeamMemberModal = ({ isOpen, member, onClose, onEdit, supervisors = []
                               <p className="text-sm font-medium text-gray-900">{doc.name}</p>
                               <p className="text-xs text-gray-500">
                                 Type: {doc.type} • Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                                {doc.size && ` • Size: ${(doc.size / 1024).toFixed(1)} KB`}
                                 {doc.expiryDate && ` • Expires: ${new Date(doc.expiryDate).toLocaleDateString()}`}
                               </p>
                             </div>
                           </div>
                           <div className="flex space-x-2">
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => handleDocumentView(doc)}
                               className="text-sm text-primary-600 hover:text-primary-700"
                             >
                               View
-                            </a>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleDocumentDelete(doc)}

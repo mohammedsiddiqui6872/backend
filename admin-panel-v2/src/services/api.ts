@@ -196,6 +196,16 @@ export const teamAPI = {
     api.get(`/admin/team/export?format=${format}`, {
       responseType: format === 'csv' ? 'blob' : 'json'
     }),
+    
+  // Get document
+  getDocument: (memberId: string, documentId: string) =>
+    api.get(`/admin/team/members/${memberId}/documents/${documentId}`, {
+      responseType: 'blob'
+    }),
+    
+  // Delete document
+  deleteDocument: (memberId: string, documentId: string) =>
+    api.delete(`/admin/team/members/${memberId}/documents/${documentId}`),
 };
 
 // Menu API

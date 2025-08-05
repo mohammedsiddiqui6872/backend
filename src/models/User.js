@@ -80,7 +80,9 @@ const userSchema = new mongoose.Schema({
     documents: [{
       type: { type: String, enum: ['id', 'passport', 'visa', 'contract', 'certificate', 'other'] },
       name: String,
-      url: String,
+      data: String, // Base64 encoded file data
+      mimeType: String, // File mime type (e.g., 'image/jpeg', 'application/pdf')
+      size: Number, // File size in bytes
       expiryDate: Date,
       uploadedAt: { type: Date, default: Date.now }
     }],
