@@ -17,7 +17,8 @@ import {
   Shield,
   FileCheck,
   Bell,
-  Activity
+  Activity,
+  Package
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
@@ -66,6 +67,7 @@ const Layout = () => {
     { path: '/staff-assignment', icon: UserCheck, label: 'Staff Assignment' },
     { path: '/service-dashboard', icon: Bell, label: 'Service Requests' },
     { path: '/orders', icon: ShoppingBag, label: 'Orders' },
+    { path: '/inventory', icon: Package, label: 'Inventory' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/audit-log', icon: FileCheck, label: 'Activity Log' },
     { path: '/settings', icon: Settings, label: 'Settings' },
