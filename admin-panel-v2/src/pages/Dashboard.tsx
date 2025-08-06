@@ -419,14 +419,7 @@ const Dashboard = () => {
     }
   }, [tableStatus]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
+  // Chart options - must be defined before any conditional returns
   const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
@@ -453,6 +446,14 @@ const Dashboard = () => {
       }
     }
   }), []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   const getGrowthIcon = (growth: number) => {
     if (growth > 0) return <ArrowUp className="h-4 w-4 text-green-500" />;
