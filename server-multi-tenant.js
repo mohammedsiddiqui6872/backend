@@ -329,7 +329,7 @@ app.use('/api/admin/analytics', require('./src/routes/admin/competitiveAnalytics
 app.use('/api/admin/analytics', require('./src/routes/admin/financialAnalytics'));
 app.use('/api/admin/analytics', require('./src/routes/admin/employeePerformance'));
 app.use('/api/admin/stations', require('./src/routes/admin/stations'));
-app.use('/api/admin/inventory', require('./src/routes/admin/inventory'));
+app.use('/api/admin/inventory', require('./src/routes/admin/Inventory'));
 app.use('/api/admin/suppliers', require('./src/routes/admin/suppliers'));
 app.use('/api/admin/purchase-orders', require('./src/routes/admin/purchase-orders'));
 app.use('/api/admin/table-status-rules', require('./src/routes/admin/tableStatusRules'));
