@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Store, 
   Bell, 
@@ -19,10 +19,22 @@ import {
   Eye,
   EyeOff,
   TestTube,
-  Smartphone
+  Smartphone,
+  Sparkles
 } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+
+// Lazy load settings components for better performance
+const BusinessSettings = lazy(() => import('./Settings/BusinessSettings'));
+const PaymentSettings = lazy(() => import('./Settings/PaymentSettings'));
+const OrderSettings = lazy(() => import('./Settings/OrderSettings'));
+const TableSettings = lazy(() => import('./Settings/TableSettings'));
+const StaffSettings = lazy(() => import('./Settings/StaffSettings'));
+const SecuritySettings = lazy(() => import('./Settings/SecuritySettings'));
+const FeaturesSettings = lazy(() => import('./Settings/FeaturesSettings'));
+const IntegrationsSettings = lazy(() => import('./Settings/IntegrationsSettings'));
+const BackupSettings = lazy(() => import('./Settings/BackupSettings'));
 
 interface SettingsData {
   general?: any;
@@ -59,9 +71,9 @@ const Settings = () => {
     { id: 'orders', label: 'Orders', icon: Package },
     { id: 'tables', label: 'Tables', icon: Users },
     { id: 'staff', label: 'Staff', icon: Clock },
-    { id: 'integrations', label: 'Integrations', icon: Globe },
     { id: 'security', label: 'Security', icon: Shield },
-    { id: 'features', label: 'Features', icon: SettingsIcon },
+    { id: 'features', label: 'Features', icon: Sparkles },
+    { id: 'integrations', label: 'Integrations', icon: Globe },
     { id: 'backup', label: 'Backup', icon: Database }
   ];
 
@@ -82,17 +94,24 @@ const Settings = () => {
     }
   };
 
-  const handleSave = async (section: string, data: any) => {
+  const handleSettingsChange = (updates: any) => {
+    setSettings(prev => ({ ...prev, ...updates }));
+  };
+
+  const handleSave = async (section?: string, data?: any) => {
+    const sectionToSave = section || activeTab;
+    const dataToSave = data || settings[sectionToSave as keyof SettingsData] || {};
+    
     try {
       setSaving(true);
-      const response = await api.put(`/admin/settings/${section}`, data);
+      const response = await api.put(`/admin/settings/${sectionToSave}`, dataToSave);
       
       setSettings(prev => ({
         ...prev,
-        [section]: response.data.data
+        [sectionToSave]: response.data.data
       }));
       
-      toast.success(`${section.charAt(0).toUpperCase() + section.slice(1)} settings saved successfully`);
+      toast.success(`${sectionToSave.charAt(0).toUpperCase() + sectionToSave.slice(1)} settings saved successfully`);
     } catch (error: any) {
       console.error('Error saving settings:', error);
       toast.error(error.response?.data?.message || 'Failed to save settings');
@@ -1015,6 +1034,13 @@ const Settings = () => {
   );
 
   const renderTabContent = () => {
+    // Wrap component rendering in Suspense for lazy loading
+    const LoadingComponent = (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+
     switch (activeTab) {
       case 'general':
         return renderGeneralSettings();
@@ -1024,6 +1050,105 @@ const Settings = () => {
         return renderSmsSettings();
       case 'push':
         return renderPushSettings();
+      case 'business':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <BusinessSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('business', settings.business)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'payment':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <PaymentSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('payment', settings.payment)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'orders':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <OrderSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('orders', settings.orders)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'tables':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <TableSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('tables', settings.tables)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'staff':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <StaffSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('staff', settings.staff)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'security':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <SecuritySettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('security', settings.security)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'features':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <FeaturesSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('features', settings.features)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'integrations':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <IntegrationsSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('integrations', settings.integrations)}
+              saving={saving}
+            />
+          </Suspense>
+        );
+      case 'backup':
+        return (
+          <Suspense fallback={LoadingComponent}>
+            <BackupSettings
+              settings={settings}
+              onChange={handleSettingsChange}
+              onSave={() => handleSave('backup', settings.backup)}
+              saving={saving}
+            />
+          </Suspense>
+        );
       default:
         return (
           <div className="bg-white rounded-lg shadow p-12 text-center">
