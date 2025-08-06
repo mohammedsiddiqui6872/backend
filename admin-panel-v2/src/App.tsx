@@ -22,11 +22,9 @@ const StaffAssignment = lazy(() => import('./pages/StaffAssignment'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Compliance = lazy(() => import('./pages/Compliance'));
 const AuditLog = lazy(() => import('./pages/RestaurantAuditLog'));
 const TableServiceHistory = lazy(() => import('./components/tables/TableServiceHistory'));
 const ServiceDashboard = lazy(() => import('./pages/ServiceDashboardPage'));
-const SystemDiagnostics = lazy(() => import('./pages/SystemDiagnostics'));
 
 // Lazy load PageLoader component
 const PageLoader = lazy(() => import('./components/common/PageLoader').then(module => ({ default: module.PageLoader })));
@@ -141,10 +139,8 @@ function App() {
           <Route path="service-dashboard" element={<ServiceDashboard />} />
           <Route path="orders" element={<Orders />} />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="compliance" element={<Compliance />} />
           <Route path="audit-log" element={<AuditLog />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="diagnostics" element={<SystemDiagnostics />} />
         </Route>
             </Routes>
           </Suspense>

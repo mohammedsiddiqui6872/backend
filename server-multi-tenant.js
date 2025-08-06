@@ -244,8 +244,6 @@ app.use('/api', apiVersioning({
   deprecationWarning: true
 }));
 
-// System health and monitoring routes
-app.use('/api/system', require('./src/routes/systemHealth'));
 
 // Legacy health endpoint for backward compatibility
 app.get('/api/public/health', (req, res) => {
@@ -343,14 +341,8 @@ app.use('/api/admin/shift-templates', require('./src/routes/shiftTemplates'));
 app.use('/api/admin/roles', require('./src/routes/roles'));
 app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignments'));
 
-// Compliance routes
-app.use('/api/compliance', require('./src/routes/compliance'));
-
 // Settings routes
 app.use('/api/admin/settings', require('./src/routes/settings'));
-
-// System diagnostics routes
-app.use('/api/admin/system', require('./src/routes/system'));
 
 // Audit log routes
 app.use('/api/admin/audit-logs', require('./src/routes/admin/auditLogs'));
@@ -404,50 +396,9 @@ app.get('/admin-panel/*', async (req, res) => {
 
 // Import error handlers
 const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
-const ErrorLog = require('./src/models/ErrorLog');
 
 // 404 handler
 app.use(notFoundHandler);
-
-// Error logging middleware (before error handler)
-app.use(async (err, req, res, next) => {
-  // Log error to database
-  try {
-    const context = getCurrentTenant();
-    await ErrorLog.logError({
-      tenantId: context?.tenantId || 'system',
-      type: err.type || 'api',
-      severity: err.severity || (err.status >= 500 ? 'high' : 'medium'),
-      error: {
-        message: err.message,
-        stack: err.stack,
-        code: err.code || err.status,
-        name: err.name
-      },
-      context: {
-        url: req.originalUrl,
-        method: req.method,
-        ip: req.ip,
-        userAgent: req.get('user-agent'),
-        userId: req.user?._id,
-        userName: req.user?.name,
-        userRole: req.user?.role,
-        requestBody: req.body,
-        requestQuery: req.query,
-        requestParams: req.params,
-        responseStatus: err.status || 500
-      },
-      metadata: {
-        environment: process.env.NODE_ENV || 'development'
-      }
-    });
-  } catch (logError) {
-    console.error('Failed to log error:', logError);
-  }
-  
-  // Continue to error handler
-  next(err);
-});
 
 // Global error handler (must be last)
 app.use(errorHandler);
