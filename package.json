@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server-multi-tenant.js",
+    "build": "cd admin-panel-v2 && npm install && npm run build",
     "dev": "nodemon server-multi-tenant.js",
     "dev:single": "nodemon server.js",
     "seed": "node scripts/seedMenu.js",
