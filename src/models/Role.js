@@ -32,12 +32,15 @@ const roleSchema = new mongoose.Schema({
   permissions: [{
     type: String,
     enum: [
+      // Dashboard permissions
+      'dashboard.view',
+      
       // Menu permissions
-      'menu.view', 'menu.edit', 'menu.delete', 'menu.create',
+      'menu.view', 'menu.edit', 'menu.delete', 'menu.create', 'menu.update',
       
       // Order permissions
       'orders.view', 'orders.edit', 'orders.delete', 'orders.cancel', 
-      'orders.create', 'orders.assign', 'orders.complete',
+      'orders.create', 'orders.assign', 'orders.complete', 'orders.update',
       
       // Analytics permissions
       'analytics.view', 'analytics.export', 'analytics.financial',
@@ -47,23 +50,34 @@ const roleSchema = new mongoose.Schema({
       'users.roles', 'users.permissions',
       
       // Table permissions
-      'tables.view', 'tables.manage', 'tables.assign',
+      'tables.view', 'tables.manage', 'tables.assign', 'tables.create', 
+      'tables.update', 'tables.delete',
       
       // Inventory permissions
-      'inventory.view', 'inventory.manage', 'inventory.order',
+      'inventory.view', 'inventory.manage', 'inventory.order', 'inventory.update',
+      'inventory.reports', 'inventory.receive', 'inventory.count', 'inventory.approve',
+      
+      // Purchase order permissions
+      'purchase.view', 'purchase.create', 'purchase.edit', 'purchase.approve',
+      'purchase.send', 'purchase.receive', 'purchase.payment', 'purchase.cancel',
+      'purchase.return', 'purchase.dispute', 'purchase.export',
       
       // Payment permissions
       'payments.view', 'payments.process', 'payments.refund', 'payments.reports',
       
       // Settings permissions
-      'settings.view', 'settings.manage', 'settings.billing',
+      'settings.view', 'settings.manage', 'settings.billing', 'settings.update',
+      
+      // Staff permissions
+      'staff.view', 'staff.create', 'staff.update', 'staff.delete',
       
       // Shift permissions
       'shifts.view', 'shifts.manage', 'shifts.approve', 'shifts.swap',
       'shifts.clock', 'shifts.reports',
       
       // Customer permissions
-      'customers.view', 'customers.manage', 'customers.communicate',
+      'customers.view', 'customers.manage', 'customers.communicate', 
+      'customers.create', 'customers.update',
       
       // Report permissions
       'reports.view', 'reports.export', 'reports.financial', 'reports.staff'

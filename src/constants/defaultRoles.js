@@ -30,7 +30,8 @@ const defaultRoles = [
       'tables.view', 'tables.create', 'tables.update', 'tables.delete',
       'customers.view', 'customers.create', 'customers.update', 
       'analytics.view', 'analytics.export',
-      'inventory.view', 'inventory.update',
+      'inventory.view', 'inventory.update', 'inventory.manage', 'inventory.reports', 'inventory.receive', 'inventory.count', 'inventory.order', 'inventory.approve',
+      'purchase.view', 'purchase.create', 'purchase.edit', 'purchase.approve', 'purchase.send', 'purchase.receive', 'purchase.payment', 'purchase.cancel', 'purchase.return', 'purchase.dispute', 'purchase.export',
       'staff.view', 'staff.create', 'staff.update', 'staff.delete',
       'settings.view', 'settings.update'
     ],
@@ -60,7 +61,8 @@ const defaultRoles = [
       'tables.view', 'tables.update',
       'customers.view',
       'analytics.view',
-      'inventory.view', 'inventory.update',
+      'inventory.view', 'inventory.update', 'inventory.manage', 'inventory.reports', 'inventory.receive', 'inventory.count',
+      'purchase.view', 'purchase.create', 'purchase.edit', 'purchase.receive',
       'staff.view', 'staff.update',
       'settings.view'
     ],
@@ -87,7 +89,8 @@ const defaultRoles = [
       'dashboard.view',
       'orders.view', 'orders.update',
       'menu.view', 'menu.create', 'menu.update',
-      'inventory.view', 'inventory.update',
+      'inventory.view', 'inventory.update', 'inventory.manage', 'inventory.reports', 'inventory.count',
+      'purchase.view',
       'analytics.view'
     ],
     uiAccess: {
