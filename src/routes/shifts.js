@@ -93,6 +93,163 @@ router.get('/', authenticate, authorize(['shifts.view']), enterpriseTenantIsolat
   }
 });
 
+// Get notifications for current user
+router.get('/notifications', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { status, type, page = 1, limit = 20 } = req.query;
+    
+    console.log('Fetching notifications for:', {
+      userId: req.user._id,
+      tenantId: req.tenant.tenantId,
+      status,
+      type
+    });
+    
+    const query = {
+      tenantId: req.tenant.tenantId,
+      employee: req.user._id || getUserId(req.user)
+    };
+    
+    if (status) query.status = status;
+    if (type) query.type = type;
+    
+    const skip = (page - 1) * limit;
+    
+    const [notifications, total] = await Promise.all([
+      ShiftNotification.find(query)
+        .populate('shift', 'date shiftType scheduledTimes')
+        .populate('data.otherEmployee', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      ShiftNotification.countDocuments(query)
+    ]);
+    
+    // Return empty array if no notifications found
+    res.json({
+      success: true,
+      data: notifications || [],
+      pagination: {
+        total: total || 0,
+        pages: Math.ceil((total || 0) / limit),
+        current: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    // Return empty data instead of error for better UX
+    res.json({ 
+      success: true, 
+      data: [],
+      pagination: {
+        total: 0,
+        pages: 0,
+        current: 1,
+        limit: parseInt(limit || 20)
+      },
+      message: 'No notifications available'
+    });
+  }
+});
+
+// Mark notification as read
+router.put('/notifications/:id/read', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const notification = await ShiftNotification.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant.tenantId,
+      employee: getUserId(req.user)
+    });
+    
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+    
+    await notification.markAsRead();
+    
+    res.json({ 
+      success: true, 
+      message: 'Notification marked as read' 
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ success: false, message: 'Error marking notification as read' });
+  }
+});
+
+// Get notification preferences
+router.get('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const preferences = await shiftNotificationService.getNotificationPreferences(getUserId(req.user));
+    
+    // Return default preferences if none exist
+    const defaultPreferences = {
+      email: {
+        enabled: true,
+        shiftReminders: true,
+        shiftChanges: true,
+        swapRequests: true
+      },
+      push: {
+        enabled: false,
+        shiftReminders: true,
+        shiftChanges: true,
+        swapRequests: true
+      },
+      sms: {
+        enabled: false,
+        shiftReminders: false,
+        shiftChanges: true,
+        swapRequests: false
+      }
+    };
+    
+    res.json({
+      success: true,
+      data: preferences || defaultPreferences
+    });
+  } catch (error) {
+    console.error('Error fetching preferences:', error);
+    // Return default preferences on error
+    res.json({ 
+      success: true, 
+      data: {
+        email: { enabled: true, shiftReminders: true, shiftChanges: true, swapRequests: true },
+        push: { enabled: false, shiftReminders: true, shiftChanges: true, swapRequests: true },
+        sms: { enabled: false, shiftReminders: false, shiftChanges: true, swapRequests: false }
+      }
+    });
+  }
+});
+
+// Update notification preferences
+router.put('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
+  try {
+    const { push, email, sms, inApp, reminderTimes } = req.body;
+    
+    const preferences = {
+      push: push !== undefined ? push : true,
+      email: email !== undefined ? email : true,
+      sms: sms !== undefined ? sms : false,
+      inApp: inApp !== undefined ? inApp : true,
+      reminderTimes: reminderTimes || [60, 30, 15]
+    };
+    
+    await shiftNotificationService.updateNotificationPreferences(getUserId(req.user), preferences);
+    
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: preferences
+    });
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    res.status(500).json({ success: false, message: 'Error updating preferences' });
+  }
+});
+
 // Get shift by ID
 router.get('/:id', authenticate, authorize(['shifts.view']), enterpriseTenantIsolation, async (req, res) => {
   try {
@@ -664,163 +821,6 @@ router.get('/stats/overview', authenticate, authorize(['shifts.reports']), enter
   } catch (error) {
     console.error('Error fetching shift stats:', error);
     res.status(500).json({ success: false, message: 'Error fetching shift statistics' });
-  }
-});
-
-// Get notifications for current user
-router.get('/notifications', authenticate, enterpriseTenantIsolation, async (req, res) => {
-  try {
-    const { status, type, page = 1, limit = 20 } = req.query;
-    
-    console.log('Fetching notifications for:', {
-      userId: req.user._id,
-      tenantId: req.tenant.tenantId,
-      status,
-      type
-    });
-    
-    const query = {
-      tenantId: req.tenant.tenantId,
-      employee: req.user._id || getUserId(req.user)
-    };
-    
-    if (status) query.status = status;
-    if (type) query.type = type;
-    
-    const skip = (page - 1) * limit;
-    
-    const [notifications, total] = await Promise.all([
-      ShiftNotification.find(query)
-        .populate('shift', 'date shiftType scheduledTimes')
-        .populate('data.otherEmployee', 'name email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean(),
-      ShiftNotification.countDocuments(query)
-    ]);
-    
-    // Return empty array if no notifications found
-    res.json({
-      success: true,
-      data: notifications || [],
-      pagination: {
-        total: total || 0,
-        pages: Math.ceil((total || 0) / limit),
-        current: parseInt(page),
-        limit: parseInt(limit)
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    // Return empty data instead of error for better UX
-    res.json({ 
-      success: true, 
-      data: [],
-      pagination: {
-        total: 0,
-        pages: 0,
-        current: 1,
-        limit: parseInt(limit || 20)
-      },
-      message: 'No notifications available'
-    });
-  }
-});
-
-// Mark notification as read
-router.put('/notifications/:id/read', authenticate, enterpriseTenantIsolation, async (req, res) => {
-  try {
-    const notification = await ShiftNotification.findOne({
-      _id: req.params.id,
-      tenantId: req.tenant.tenantId,
-      employee: getUserId(req.user)
-    });
-    
-    if (!notification) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
-    }
-    
-    await notification.markAsRead();
-    
-    res.json({ 
-      success: true, 
-      message: 'Notification marked as read' 
-    });
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    res.status(500).json({ success: false, message: 'Error marking notification as read' });
-  }
-});
-
-// Get notification preferences
-router.get('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
-  try {
-    const preferences = await shiftNotificationService.getNotificationPreferences(getUserId(req.user));
-    
-    // Return default preferences if none exist
-    const defaultPreferences = {
-      email: {
-        enabled: true,
-        shiftReminders: true,
-        shiftChanges: true,
-        swapRequests: true
-      },
-      push: {
-        enabled: false,
-        shiftReminders: true,
-        shiftChanges: true,
-        swapRequests: true
-      },
-      sms: {
-        enabled: false,
-        shiftReminders: false,
-        shiftChanges: true,
-        swapRequests: false
-      }
-    };
-    
-    res.json({
-      success: true,
-      data: preferences || defaultPreferences
-    });
-  } catch (error) {
-    console.error('Error fetching preferences:', error);
-    // Return default preferences on error
-    res.json({ 
-      success: true, 
-      data: {
-        email: { enabled: true, shiftReminders: true, shiftChanges: true, swapRequests: true },
-        push: { enabled: false, shiftReminders: true, shiftChanges: true, swapRequests: true },
-        sms: { enabled: false, shiftReminders: false, shiftChanges: true, swapRequests: false }
-      }
-    });
-  }
-});
-
-// Update notification preferences
-router.put('/notifications/preferences', authenticate, enterpriseTenantIsolation, async (req, res) => {
-  try {
-    const { push, email, sms, inApp, reminderTimes } = req.body;
-    
-    const preferences = {
-      push: push !== undefined ? push : true,
-      email: email !== undefined ? email : true,
-      sms: sms !== undefined ? sms : false,
-      inApp: inApp !== undefined ? inApp : true,
-      reminderTimes: reminderTimes || [60, 30, 15]
-    };
-    
-    await shiftNotificationService.updateNotificationPreferences(getUserId(req.user), preferences);
-    
-    res.json({
-      success: true,
-      message: 'Preferences updated successfully',
-      data: preferences
-    });
-  } catch (error) {
-    console.error('Error updating preferences:', error);
-    res.status(500).json({ success: false, message: 'Error updating preferences' });
   }
 });
 

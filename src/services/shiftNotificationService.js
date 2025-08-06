@@ -301,16 +301,16 @@ class ShiftNotificationService {
     
     try {
       // Get distinct tenant IDs from the database
-      const Restaurant = require('../models/Restaurant');
-      const activeRestaurants = await Restaurant.find({ isActive: true }).select('tenantId');
+      const Tenant = require('../models/Tenant');
+      const activeTenants = await Tenant.find({ isActive: true }).select('_id');
       
       // Process notifications for each tenant separately
-      for (const restaurant of activeRestaurants) {
+      for (const tenant of activeTenants) {
         try {
           // Process this tenant's notifications with explicit tenant context
-          await this.processTenantNotifications(restaurant.tenantId);
+          await this.processTenantNotifications(tenant._id);
         } catch (error) {
-          console.error(`Error processing notifications for tenant ${restaurant.tenantId}:`, error);
+          console.error(`Error processing notifications for tenant ${tenant._id}:`, error);
         }
       }
       
