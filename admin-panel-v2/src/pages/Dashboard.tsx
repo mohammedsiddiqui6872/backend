@@ -185,6 +185,11 @@ const Dashboard = () => {
       ]);
       
       // Enhanced stats with growth calculations
+      // Safely extract staff count
+      const staffMembers = Array.isArray(teamResponse.data?.members) ? teamResponse.data.members : 
+                          Array.isArray(teamResponse.data) ? teamResponse.data : [];
+      const activeStaffCount = staffMembers.filter((m: any) => m && m.status === 'active').length || 8;
+      
       const enhancedStats = {
         ...statsResponse.data,
         revenueGrowth: Math.random() * 40 - 10, // Mock growth percentage
@@ -192,10 +197,10 @@ const Dashboard = () => {
         customerGrowth: Math.random() * 25 - 5,
         cancelledOrders: Math.floor(Math.random() * 5),
         preparingOrders: Math.floor(Math.random() * 8),
-        weekRevenue: (statsResponse.data.totalRevenue || 0) * 0.3,
-        monthRevenue: (statsResponse.data.totalRevenue || 0) * 0.7,
+        weekRevenue: (statsResponse.data?.totalRevenue || 0) * 0.3,
+        monthRevenue: (statsResponse.data?.totalRevenue || 0) * 0.7,
         tableOccupancy: 65 + Math.random() * 30,
-        staffOnDuty: teamResponse.data?.members?.filter((m: any) => m.status === 'active').length || 8,
+        staffOnDuty: activeStaffCount,
         averageServiceTime: 25 + Math.random() * 15,
         customerSatisfaction: 4.2 + Math.random() * 0.6,
         topSellingItems: [
@@ -215,21 +220,26 @@ const Dashboard = () => {
       };
       
       setStats(enhancedStats);
-      setRecentOrders(ordersResponse.data.orders || []);
+      // Ensure orders is an array
+      const ordersData = Array.isArray(ordersResponse.data?.orders) ? ordersResponse.data.orders : 
+                        Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+      setRecentOrders(ordersData);
       
-      // Process table status
-      const tables = tablesResponse.data || [];
+      // Process table status - ensure tables is an array
+      const tablesData = Array.isArray(tablesResponse.data) ? tablesResponse.data : 
+                        (tablesResponse.data?.tables || []);
       const tableStatusData = {
-        total: tables.length || 20,
-        occupied: tables.filter((t: any) => t.status === 'occupied').length || 13,
-        available: tables.filter((t: any) => t.status === 'available').length || 5,
-        reserved: tables.filter((t: any) => t.status === 'reserved').length || 2
+        total: tablesData.length || 20,
+        occupied: Array.isArray(tablesData) ? tablesData.filter((t: any) => t.status === 'occupied').length : 13,
+        available: Array.isArray(tablesData) ? tablesData.filter((t: any) => t.status === 'available').length : 5,
+        reserved: Array.isArray(tablesData) ? tablesData.filter((t: any) => t.status === 'reserved').length : 2
       };
       setTableStatus(tableStatusData);
       
-      // Process active staff
-      const staff = teamResponse.data?.members || [];
-      const mockStaff = staff.slice(0, 5).map((member: any) => ({
+      // Process active staff - ensure staff is an array
+      const staffData = Array.isArray(teamResponse.data?.members) ? teamResponse.data.members : 
+                       Array.isArray(teamResponse.data) ? teamResponse.data : [];
+      const mockStaff = staffData.slice(0, 5).map((member: any) => ({
         ...member,
         status: Math.random() > 0.2 ? 'active' : 'break',
         shiftStart: '09:00 AM'
@@ -660,7 +670,7 @@ const Dashboard = () => {
             Top Selling Items
           </h3>
           <div className="space-y-3">
-            {stats?.topSellingItems?.map((item, index) => (
+            {Array.isArray(stats?.topSellingItems) && stats.topSellingItems.map((item, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-600 text-xs font-medium">
@@ -687,7 +697,7 @@ const Dashboard = () => {
             <span className="text-sm font-medium text-purple-600">{stats?.staffOnDuty || 0} active</span>
           </h3>
           <div className="space-y-3">
-            {activeStaff.slice(0, 5).map((staff) => (
+            {Array.isArray(activeStaff) && activeStaff.slice(0, 5).map((staff) => (
               <div key={staff._id} className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
@@ -717,7 +727,7 @@ const Dashboard = () => {
             Recent Orders
           </h3>
           <div className="space-y-3">
-            {recentOrders.length > 0 ? (
+            {Array.isArray(recentOrders) && recentOrders.length > 0 ? (
               recentOrders.slice(0, 5).map((order) => (
                 <div key={order._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded transition-colors">
                   <div className="flex items-center">
@@ -770,7 +780,7 @@ const Dashboard = () => {
             Peak Hours
           </h3>
           <div className="space-y-3">
-            {stats?.peakHours?.map((hour, index) => (
+            {Array.isArray(stats?.peakHours) && stats.peakHours.map((hour, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{hour.hour}</span>
                 <div className="flex items-center space-x-2 flex-1 mx-4">
