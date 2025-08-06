@@ -156,9 +156,16 @@ class AuditLogger {
           // Determine resource
           const resource = await this.determineResource(req);
 
+          // Skip audit logging for requests without tenant context (like static files)
+          const tenantId = req.tenantId || req.tenant?.tenantId;
+          if (!tenantId && !req.path.startsWith('/api/auth/login') && !req.path.startsWith('/api/system')) {
+            // Skip audit logging for non-tenant requests (static assets, health checks, etc.)
+            return;
+          }
+          
           // Build audit log entry
           const auditData = {
-            tenantId: req.tenantId || req.tenant?.tenantId,
+            tenantId: tenantId || 'system',
             action,
             category,
             resource,

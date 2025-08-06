@@ -300,8 +300,33 @@ class ShiftNotificationService {
     this.processing = true;
     
     try {
-      // Find all pending notifications that are due
+      // Get distinct tenant IDs from the database
+      const Restaurant = require('../models/Restaurant');
+      const activeRestaurants = await Restaurant.find({ isActive: true }).select('tenantId');
+      
+      // Process notifications for each tenant separately
+      for (const restaurant of activeRestaurants) {
+        try {
+          // Process this tenant's notifications with explicit tenant context
+          await this.processTenantNotifications(restaurant.tenantId);
+        } catch (error) {
+          console.error(`Error processing notifications for tenant ${restaurant.tenantId}:`, error);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error processing notification queue:', error);
+    } finally {
+      this.processing = false;
+    }
+  }
+  
+  // Process notifications for a specific tenant
+  async processTenantNotifications(tenantId) {
+    try {
+      // Find all pending notifications for this tenant
       const dueNotifications = await ShiftNotification.find({
+        tenantId: tenantId,
         status: 'pending',
         scheduledFor: { $lte: new Date() },
         retryCount: { $lt: 3 }
@@ -319,13 +344,11 @@ class ShiftNotificationService {
         }
       }
       
-      // Retry failed notifications
-      await this.retryFailedNotifications();
+      // Retry failed notifications for this tenant
+      await this.retryFailedNotifications(tenantId);
       
     } catch (error) {
-      console.error('Error processing notification queue:', error);
-    } finally {
-      this.processing = false;
+      console.error(`Error processing tenant ${tenantId} notifications:`, error);
     }
   }
 
@@ -531,9 +554,10 @@ class ShiftNotificationService {
     }
   }
 
-  // Retry failed notifications
-  async retryFailedNotifications() {
+  // Retry failed notifications for a specific tenant
+  async retryFailedNotifications(tenantId) {
     const failedNotifications = await ShiftNotification.find({
+      tenantId: tenantId,
       status: 'failed',
       retryCount: { $lt: 3 },
       updatedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } // Wait 5 minutes between retries

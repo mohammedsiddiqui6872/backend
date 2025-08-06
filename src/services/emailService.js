@@ -5,7 +5,14 @@ const path = require('path');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.warn('Email service: Missing credentials. Email functionality disabled.');
+      this.transporter = null;
+      return;
+    }
+    
+    this.transporter = nodemailer.createTransporter({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: process.env.EMAIL_PORT || 587,
       secure: false,
@@ -19,6 +26,7 @@ class EmailService {
     this.transporter.verify((error, success) => {
       if (error) {
         console.error('Email service error:', error);
+        this.transporter = null; // Disable on error
       } else {
         console.log('Email service ready');
       }
@@ -26,6 +34,11 @@ class EmailService {
   }
 
   async sendOrderConfirmation(order, customerEmail) {
+    if (!this.transporter) {
+      console.log('Email service disabled - skipping order confirmation email');
+      return { success: false, error: 'Email service not configured' };
+    }
+    
     const template = await this.loadTemplate('orderConfirmation');
     const html = this.processTemplate(template, {
       orderNumber: order.orderNumber,
@@ -54,6 +67,11 @@ class EmailService {
   }
 
   async sendReservationConfirmation(reservation) {
+    if (!this.transporter) {
+      console.log('Email service disabled - skipping reservation confirmation email');
+      return { success: false, error: 'Email service not configured' };
+    }
+    
     const template = await this.loadTemplate('reservationConfirmation');
     const html = this.processTemplate(template, reservation);
 
@@ -69,6 +87,11 @@ class EmailService {
   }
 
   async sendPasswordReset(user, resetToken) {
+    if (!this.transporter) {
+      console.log('Email service disabled - cannot send password reset email');
+      return { success: false, error: 'Email service not configured' };
+    }
+    
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
     const mailOptions = {
