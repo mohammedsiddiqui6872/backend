@@ -326,13 +326,20 @@ const Dashboard = () => {
 
   // Chart configurations
   const revenueChartData = useMemo(() => {
-    if (!chartData) return null;
+    if (!chartData || !chartData.labels || !chartData.revenue) return null;
+    
+    // Ensure arrays are valid
+    const labels = Array.isArray(chartData.labels) ? chartData.labels : [];
+    const revenue = Array.isArray(chartData.revenue) ? chartData.revenue : [];
+    
+    if (labels.length === 0 || revenue.length === 0) return null;
+    
     return {
-      labels: chartData.labels,
+      labels,
       datasets: [
         {
           label: 'Revenue (AED)',
-          data: chartData.revenue,
+          data: revenue,
           borderColor: 'rgb(147, 51, 234)',
           backgroundColor: 'rgba(147, 51, 234, 0.1)',
           tension: 0.4,
@@ -343,13 +350,20 @@ const Dashboard = () => {
   }, [chartData]);
 
   const ordersChartData = useMemo(() => {
-    if (!chartData) return null;
+    if (!chartData || !chartData.labels || !chartData.orders) return null;
+    
+    // Ensure arrays are valid
+    const labels = Array.isArray(chartData.labels) ? chartData.labels : [];
+    const orders = Array.isArray(chartData.orders) ? chartData.orders : [];
+    
+    if (labels.length === 0 || orders.length === 0) return null;
+    
     return {
-      labels: chartData.labels,
+      labels,
       datasets: [
         {
           label: 'Orders',
-          data: chartData.orders,
+          data: orders,
           backgroundColor: 'rgba(59, 130, 246, 0.8)',
           borderColor: 'rgb(59, 130, 246)',
           borderWidth: 1
@@ -360,10 +374,16 @@ const Dashboard = () => {
 
   const tableOccupancyData = useMemo(() => {
     if (!tableStatus) return null;
+    
+    // Ensure we have valid numbers
+    const occupied = typeof tableStatus.occupied === 'number' ? tableStatus.occupied : 0;
+    const available = typeof tableStatus.available === 'number' ? tableStatus.available : 0;
+    const reserved = typeof tableStatus.reserved === 'number' ? tableStatus.reserved : 0;
+    
     return {
       labels: ['Occupied', 'Available', 'Reserved'],
       datasets: [{
-        data: [tableStatus.occupied, tableStatus.available, tableStatus.reserved],
+        data: [occupied, available, reserved],
         backgroundColor: [
           'rgba(239, 68, 68, 0.8)',
           'rgba(34, 197, 94, 0.8)',
