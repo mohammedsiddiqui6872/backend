@@ -18,6 +18,8 @@ const ensureTenant = (req, res, next) => {
   next();
 };
 
+// IMPORTANT: Define all specific routes BEFORE the generic /:id route
+
 // Get all purchase orders with filters
 router.get('/',
   authenticate,
@@ -88,7 +90,132 @@ router.get('/',
   }
 );
 
-// Get single purchase order
+// Get order summary/dashboard
+router.get('/summary/dashboard',
+  authenticate,
+  authorize(['purchase.view']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const today = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const [
+        totalOrders,
+        pendingApprovals,
+        overdueOrders,
+        recentOrders,
+        monthlySpend
+      ] = await Promise.all([
+        PurchaseOrder.countDocuments({
+          tenantId: req.tenantId,
+          createdAt: { $gte: thirtyDaysAgo }
+        }),
+        PurchaseOrder.countDocuments({
+          tenantId: req.tenantId,
+          status: 'PENDING_APPROVAL'
+        }),
+        PurchaseOrder.countDocuments({
+          tenantId: req.tenantId,
+          expectedDeliveryDate: { $lt: today },
+          status: { $nin: ['COMPLETED', 'CANCELLED'] }
+        }),
+        PurchaseOrder.find({
+          tenantId: req.tenantId
+        })
+        .sort({ orderDate: -1 })
+        .limit(5)
+        .select('orderNumber supplierName totalAmount status orderDate')
+        .populate('supplier', 'name'),
+        PurchaseOrder.aggregate([
+          {
+            $match: {
+              tenantId: req.tenantId,
+              orderDate: { $gte: thirtyDaysAgo }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$totalAmount' }
+            }
+          }
+        ])
+      ]);
+      
+      res.json({
+        success: true,
+        data: {
+          summary: {
+            totalOrders,
+            pendingApprovals,
+            overdueOrders,
+            monthlySpend: monthlySpend[0]?.total || 0
+          },
+          recentOrders
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching order summary:', error);
+      res.status(500).json({ error: 'Failed to fetch order summary' });
+    }
+  }
+);
+
+// Export orders
+router.get('/export',
+  authenticate,
+  authorize(['purchase.export']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const { format = 'csv', ...filters } = req.query;
+      
+      const query = { tenantId: req.tenantId };
+      
+      if (filters.startDate || filters.endDate) {
+        query.orderDate = {};
+        if (filters.startDate) query.orderDate.$gte = new Date(filters.startDate);
+        if (filters.endDate) query.orderDate.$lte = new Date(filters.endDate);
+      }
+      
+      const orders = await PurchaseOrder.find(query)
+        .populate('supplier', 'name code')
+        .populate('items.inventoryItem', 'name sku')
+        .sort({ orderDate: -1 });
+      
+      // Format data based on export type
+      let exportData;
+      if (format === 'csv') {
+        // Create CSV format
+        const headers = ['Order Number', 'Date', 'Supplier', 'Total Amount', 'Status', 'Payment Status'];
+        const rows = orders.map(order => [
+          order.orderNumber,
+          order.orderDate.toISOString().split('T')[0],
+          order.supplierName,
+          order.totalAmount,
+          order.status,
+          order.paymentStatus
+        ]);
+        
+        exportData = [headers, ...rows].map(row => row.join(',')).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=purchase-orders.csv');
+      } else {
+        exportData = orders;
+        res.setHeader('Content-Type', 'application/json');
+      }
+      
+      res.send(exportData);
+    } catch (error) {
+      console.error('Error exporting orders:', error);
+      res.status(500).json({ error: 'Failed to export orders' });
+    }
+  }
+);
+
+// Get single purchase order - MUST BE AFTER ALL SPECIFIC ROUTES
 router.get('/:id',
   authenticate,
   authorize(['purchase.view']),
@@ -709,131 +836,6 @@ router.post('/:id/dispute',
     } catch (error) {
       console.error('Error raising dispute:', error);
       res.status(500).json({ error: 'Failed to raise dispute' });
-    }
-  }
-);
-
-// Get order summary/dashboard
-router.get('/summary/dashboard',
-  authenticate,
-  authorize(['purchase.view']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const today = new Date();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const [
-        totalOrders,
-        pendingApprovals,
-        overdueOrders,
-        recentOrders,
-        monthlySpend
-      ] = await Promise.all([
-        PurchaseOrder.countDocuments({
-          tenantId: req.tenantId,
-          createdAt: { $gte: thirtyDaysAgo }
-        }),
-        PurchaseOrder.countDocuments({
-          tenantId: req.tenantId,
-          status: 'PENDING_APPROVAL'
-        }),
-        PurchaseOrder.countDocuments({
-          tenantId: req.tenantId,
-          expectedDeliveryDate: { $lt: today },
-          status: { $nin: ['COMPLETED', 'CANCELLED'] }
-        }),
-        PurchaseOrder.find({
-          tenantId: req.tenantId
-        })
-        .sort({ orderDate: -1 })
-        .limit(5)
-        .select('orderNumber supplierName totalAmount status orderDate')
-        .populate('supplier', 'name'),
-        PurchaseOrder.aggregate([
-          {
-            $match: {
-              tenantId: req.tenantId,
-              orderDate: { $gte: thirtyDaysAgo }
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: '$totalAmount' }
-            }
-          }
-        ])
-      ]);
-      
-      res.json({
-        success: true,
-        data: {
-          summary: {
-            totalOrders,
-            pendingApprovals,
-            overdueOrders,
-            monthlySpend: monthlySpend[0]?.total || 0
-          },
-          recentOrders
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching order summary:', error);
-      res.status(500).json({ error: 'Failed to fetch order summary' });
-    }
-  }
-);
-
-// Export orders
-router.get('/export',
-  authenticate,
-  authorize(['purchase.export']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const { format = 'csv', ...filters } = req.query;
-      
-      const query = { tenantId: req.tenantId };
-      
-      if (filters.startDate || filters.endDate) {
-        query.orderDate = {};
-        if (filters.startDate) query.orderDate.$gte = new Date(filters.startDate);
-        if (filters.endDate) query.orderDate.$lte = new Date(filters.endDate);
-      }
-      
-      const orders = await PurchaseOrder.find(query)
-        .populate('supplier', 'name code')
-        .populate('items.inventoryItem', 'name sku')
-        .sort({ orderDate: -1 });
-      
-      // Format data based on export type
-      let exportData;
-      if (format === 'csv') {
-        // Create CSV format
-        const headers = ['Order Number', 'Date', 'Supplier', 'Total Amount', 'Status', 'Payment Status'];
-        const rows = orders.map(order => [
-          order.orderNumber,
-          order.orderDate.toISOString().split('T')[0],
-          order.supplierName,
-          order.totalAmount,
-          order.status,
-          order.paymentStatus
-        ]);
-        
-        exportData = [headers, ...rows].map(row => row.join(',')).join('\n');
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=purchase-orders.csv');
-      } else {
-        exportData = orders;
-        res.setHeader('Content-Type', 'application/json');
-      }
-      
-      res.send(exportData);
-    } catch (error) {
-      console.error('Error exporting orders:', error);
-      res.status(500).json({ error: 'Failed to export orders' });
     }
   }
 );

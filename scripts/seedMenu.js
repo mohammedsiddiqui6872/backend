@@ -4,7 +4,7 @@
 
 const mongoose = require('mongoose');
 const MenuItem = require('../src/models/MenuItem');
-const Inventory = require('../src/routes/admin/Inventory');
+const Inventory = require('../src/models/Inventory');
 require('dotenv').config();
 
 const menuData = [

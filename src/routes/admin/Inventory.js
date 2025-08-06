@@ -17,6 +17,8 @@ const ensureTenant = (req, res, next) => {
   next();
 };
 
+// IMPORTANT: Define all specific routes BEFORE the generic /:id route
+
 // Get all inventory items with filters
 router.get('/', 
   authenticate, 
@@ -91,7 +93,243 @@ router.get('/',
   }
 );
 
-// Get single inventory item
+// Get low stock items
+router.get('/low-stock', 
+  authenticate,
+  authorize(['inventory.view']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const lowStock = await InventoryItem.find({
+        tenantId: req.tenantId,
+        isActive: true,
+        $expr: { $lte: ['$totalAvailable', '$reorderPoint'] }
+      })
+      .populate('suppliers.supplier', 'name')
+      .limit(parseInt(req.query.limit) || 50);
+
+      res.json({
+        success: true,
+        data: lowStock
+      });
+    } catch (error) {
+      console.error('Error fetching low stock items:', error);
+      res.status(500).json({ error: 'Failed to fetch low stock items' });
+    }
+  }
+);
+
+// Get movement history
+router.get('/movements',
+  authenticate,
+  authorize(['inventory.view']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const {
+        inventoryItemId,
+        type,
+        startDate,
+        endDate,
+        page = 1,
+        limit = 50
+      } = req.query;
+      
+      const query = { tenantId: req.tenantId };
+      
+      if (inventoryItemId) query.inventoryItem = inventoryItemId;
+      if (type) query.type = type;
+      if (startDate || endDate) {
+        query.performedDate = {};
+        if (startDate) query.performedDate.$gte = new Date(startDate);
+        if (endDate) query.performedDate.$lte = new Date(endDate);
+      }
+      
+      const skip = (page - 1) * limit;
+      
+      const [movements, total] = await Promise.all([
+        StockMovement.find(query)
+          .populate('inventoryItem', 'name sku')
+          .populate('performedBy', 'name')
+          .populate('approvedBy', 'name')
+          .sort({ performedDate: -1 })
+          .skip(skip)
+          .limit(parseInt(limit)),
+        StockMovement.countDocuments(query)
+      ]);
+      
+      res.json({
+        success: true,
+        data: {
+          movements,
+          pagination: {
+            total,
+            pages: Math.ceil(total / limit),
+            current: parseInt(page),
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching movements:', error);
+      res.status(500).json({ error: 'Failed to fetch movements' });
+    }
+  }
+);
+
+// Get inventory valuation
+router.get('/reports/valuation',
+  authenticate,
+  authorize(['inventory.reports']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const { category, location } = req.query;
+      
+      const valuation = await inventoryService.getInventoryValuation(
+        req.tenantId,
+        { category, location }
+      );
+      
+      res.json({
+        success: true,
+        data: valuation
+      });
+    } catch (error) {
+      console.error('Error getting inventory valuation:', error);
+      res.status(500).json({ error: 'Failed to get inventory valuation' });
+    }
+  }
+);
+
+// Get expiring items
+router.get('/reports/expiring',
+  authenticate,
+  authorize(['inventory.view']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const daysAhead = parseInt(req.query.days) || 7;
+      const expiringItems = await inventoryService.getExpiringItems(req.tenantId, daysAhead);
+      
+      res.json({
+        success: true,
+        data: expiringItems
+      });
+    } catch (error) {
+      console.error('Error getting expiring items:', error);
+      res.status(500).json({ error: 'Failed to get expiring items' });
+    }
+  }
+);
+
+// ABC Analysis
+router.get('/reports/abc-analysis',
+  authenticate,
+  authorize(['inventory.reports']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const analysis = await inventoryService.performABCAnalysis(req.tenantId);
+      
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('Error performing ABC analysis:', error);
+      res.status(500).json({ error: 'Failed to perform ABC analysis' });
+    }
+  }
+);
+
+// Stock turnover analysis
+router.get('/reports/turnover',
+  authenticate,
+  authorize(['inventory.reports']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const period = parseInt(req.query.period) || 30;
+      const analysis = await inventoryService.analyzeStockTurnover(req.tenantId, period);
+      
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('Error analyzing stock turnover:', error);
+      res.status(500).json({ error: 'Failed to analyze stock turnover' });
+    }
+  }
+);
+
+// Menu profitability analysis
+router.get('/reports/menu-profitability',
+  authenticate,
+  authorize(['inventory.reports']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const period = parseInt(req.query.period) || 30;
+      const analysis = await recipeCostingService.analyzeMenuProfitability(req.tenantId, period);
+      
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('Error analyzing menu profitability:', error);
+      res.status(500).json({ error: 'Failed to analyze menu profitability' });
+    }
+  }
+);
+
+// Monitor price changes
+router.get('/reports/price-changes',
+  authenticate,
+  authorize(['inventory.reports']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const period = parseInt(req.query.period) || 30;
+      const analysis = await recipeCostingService.monitorPriceChanges(req.tenantId, period);
+      
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('Error monitoring price changes:', error);
+      res.status(500).json({ error: 'Failed to monitor price changes' });
+    }
+  }
+);
+
+// Recipe costing
+router.get('/recipe/:recipeId/cost',
+  authenticate,
+  authorize(['inventory.view']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const cost = await recipeCostingService.calculateRecipeCost(
+        req.tenantId,
+        req.params.recipeId
+      );
+      
+      res.json({
+        success: true,
+        data: cost
+      });
+    } catch (error) {
+      console.error('Error calculating recipe cost:', error);
+      res.status(500).json({ error: 'Failed to calculate recipe cost' });
+    }
+  }
+);
+
+// Get single inventory item - MUST BE AFTER ALL SPECIFIC ROUTES
 router.get('/:id',
   authenticate,
   authorize(['inventory.view']),
@@ -177,44 +415,6 @@ router.post('/',
     } catch (error) {
       console.error('Error creating inventory item:', error);
       res.status(500).json({ error: 'Failed to create inventory item' });
-    }
-  }
-);
-
-// Update inventory item
-router.put('/:id',
-  authenticate,
-  authorize(['inventory.manage']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const item = await InventoryItem.findOne({
-        _id: req.params.id,
-        tenantId: req.tenantId
-      });
-      
-      if (!item) {
-        return res.status(404).json({ error: 'Inventory item not found' });
-      }
-      
-      // Don't allow changing critical fields
-      delete req.body.tenantId;
-      delete req.body.sku;
-      delete req.body.totalQuantity;
-      delete req.body.totalAvailable;
-      
-      Object.assign(item, req.body);
-      item.updatedBy = req.user._id;
-      
-      await item.save();
-      
-      res.json({
-        success: true,
-        data: item
-      });
-    } catch (error) {
-      console.error('Error updating inventory item:', error);
-      res.status(500).json({ error: 'Failed to update inventory item' });
     }
   }
 );
@@ -343,31 +543,6 @@ router.post('/cycle-count',
   }
 );
 
-// Get inventory valuation
-router.get('/reports/valuation',
-  authenticate,
-  authorize(['inventory.reports']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const { category, location } = req.query;
-      
-      const valuation = await inventoryService.getInventoryValuation(
-        req.tenantId,
-        { category, location }
-      );
-      
-      res.json({
-        success: true,
-        data: valuation
-      });
-    } catch (error) {
-      console.error('Error getting inventory valuation:', error);
-      res.status(500).json({ error: 'Failed to get inventory valuation' });
-    }
-  }
-);
-
 // Check and create reorders
 router.post('/reorder/check',
   authenticate,
@@ -387,264 +562,6 @@ router.post('/reorder/check',
     } catch (error) {
       console.error('Error checking reorders:', error);
       res.status(500).json({ error: 'Failed to check reorders' });
-    }
-  }
-);
-
-// Get expiring items
-router.get('/reports/expiring',
-  authenticate,
-  authorize(['inventory.view']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const daysAhead = parseInt(req.query.days) || 7;
-      const expiringItems = await inventoryService.getExpiringItems(req.tenantId, daysAhead);
-      
-      res.json({
-        success: true,
-        data: expiringItems
-      });
-    } catch (error) {
-      console.error('Error getting expiring items:', error);
-      res.status(500).json({ error: 'Failed to get expiring items' });
-    }
-  }
-);
-
-// Calculate EOQ
-router.post('/:id/calculate-eoq',
-  authenticate,
-  authorize(['inventory.manage']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const result = await inventoryService.calculateEOQ(
-        req.tenantId,
-        req.params.id,
-        req.body.period || 365
-      );
-      
-      res.json({
-        success: true,
-        data: result
-      });
-    } catch (error) {
-      console.error('Error calculating EOQ:', error);
-      res.status(500).json({ error: 'Failed to calculate EOQ' });
-    }
-  }
-);
-
-// ABC Analysis
-router.get('/reports/abc-analysis',
-  authenticate,
-  authorize(['inventory.reports']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const analysis = await inventoryService.performABCAnalysis(req.tenantId);
-      
-      res.json({
-        success: true,
-        data: analysis
-      });
-    } catch (error) {
-      console.error('Error performing ABC analysis:', error);
-      res.status(500).json({ error: 'Failed to perform ABC analysis' });
-    }
-  }
-);
-
-// Stock turnover analysis
-router.get('/reports/turnover',
-  authenticate,
-  authorize(['inventory.reports']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const period = parseInt(req.query.period) || 30;
-      const analysis = await inventoryService.analyzeStockTurnover(req.tenantId, period);
-      
-      res.json({
-        success: true,
-        data: analysis
-      });
-    } catch (error) {
-      console.error('Error analyzing stock turnover:', error);
-      res.status(500).json({ error: 'Failed to analyze stock turnover' });
-    }
-  }
-);
-
-// Recipe costing
-router.get('/recipe/:recipeId/cost',
-  authenticate,
-  authorize(['inventory.view']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const cost = await recipeCostingService.calculateRecipeCost(
-        req.tenantId,
-        req.params.recipeId
-      );
-      
-      res.json({
-        success: true,
-        data: cost
-      });
-    } catch (error) {
-      console.error('Error calculating recipe cost:', error);
-      res.status(500).json({ error: 'Failed to calculate recipe cost' });
-    }
-  }
-);
-
-// Menu profitability analysis
-router.get('/reports/menu-profitability',
-  authenticate,
-  authorize(['inventory.reports']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const period = parseInt(req.query.period) || 30;
-      const analysis = await recipeCostingService.analyzeMenuProfitability(req.tenantId, period);
-      
-      res.json({
-        success: true,
-        data: analysis
-      });
-    } catch (error) {
-      console.error('Error analyzing menu profitability:', error);
-      res.status(500).json({ error: 'Failed to analyze menu profitability' });
-    }
-  }
-);
-
-// Track yield variance
-router.post('/recipe/:recipeId/yield',
-  authenticate,
-  authorize(['inventory.manage']),
-  ensureTenant,
-  [
-    body('actualYield').isNumeric().isInt({ gt: 0 })
-  ],
-  validateRequest,
-  async (req, res) => {
-    try {
-      const result = await recipeCostingService.trackYieldVariance(
-        req.tenantId,
-        req.params.recipeId,
-        req.body.actualYield,
-        req.user._id
-      );
-      
-      res.json({
-        success: true,
-        data: result
-      });
-    } catch (error) {
-      console.error('Error tracking yield variance:', error);
-      res.status(500).json({ error: 'Failed to track yield variance' });
-    }
-  }
-);
-
-// Monitor price changes
-router.get('/reports/price-changes',
-  authenticate,
-  authorize(['inventory.reports']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const period = parseInt(req.query.period) || 30;
-      const analysis = await recipeCostingService.monitorPriceChanges(req.tenantId, period);
-      
-      res.json({
-        success: true,
-        data: analysis
-      });
-    } catch (error) {
-      console.error('Error monitoring price changes:', error);
-      res.status(500).json({ error: 'Failed to monitor price changes' });
-    }
-  }
-);
-
-// Update all recipe costs
-router.post('/recipes/update-costs',
-  authenticate,
-  authorize(['inventory.manage']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const result = await recipeCostingService.updateAllRecipeCosts(req.tenantId);
-      
-      res.json({
-        success: true,
-        data: result
-      });
-    } catch (error) {
-      console.error('Error updating recipe costs:', error);
-      res.status(500).json({ error: 'Failed to update recipe costs' });
-    }
-  }
-);
-
-// Get movement history
-router.get('/movements',
-  authenticate,
-  authorize(['inventory.view']),
-  ensureTenant,
-  async (req, res) => {
-    try {
-      const {
-        inventoryItemId,
-        type,
-        startDate,
-        endDate,
-        page = 1,
-        limit = 50
-      } = req.query;
-      
-      const query = { tenantId: req.tenantId };
-      
-      if (inventoryItemId) query.inventoryItem = inventoryItemId;
-      if (type) query.type = type;
-      if (startDate || endDate) {
-        query.performedDate = {};
-        if (startDate) query.performedDate.$gte = new Date(startDate);
-        if (endDate) query.performedDate.$lte = new Date(endDate);
-      }
-      
-      const skip = (page - 1) * limit;
-      
-      const [movements, total] = await Promise.all([
-        StockMovement.find(query)
-          .populate('inventoryItem', 'name sku')
-          .populate('performedBy', 'name')
-          .populate('approvedBy', 'name')
-          .sort({ performedDate: -1 })
-          .skip(skip)
-          .limit(parseInt(limit)),
-        StockMovement.countDocuments(query)
-      ]);
-      
-      res.json({
-        success: true,
-        data: {
-          movements,
-          pagination: {
-            total,
-            pages: Math.ceil(total / limit),
-            current: parseInt(page),
-            limit: parseInt(limit)
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching movements:', error);
-      res.status(500).json({ error: 'Failed to fetch movements' });
     }
   }
 );
@@ -694,18 +611,115 @@ router.post('/movements/:id/approve',
   }
 );
 
-// Backward compatibility - Get low stock items
-router.get('/low-stock', async (req, res) => {
-  try {
-    const lowStock = await InventoryItem.find({
-      tenantId: req.tenantId || req.user.tenantId,
-      $expr: { $lte: ['$totalAvailable', '$reorderPoint'] }
-    }).populate('suppliers.supplier', 'name');
-
-    res.json(lowStock);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+// Track yield variance
+router.post('/recipe/:recipeId/yield',
+  authenticate,
+  authorize(['inventory.manage']),
+  ensureTenant,
+  [
+    body('actualYield').isNumeric().isInt({ gt: 0 })
+  ],
+  validateRequest,
+  async (req, res) => {
+    try {
+      const result = await recipeCostingService.trackYieldVariance(
+        req.tenantId,
+        req.params.recipeId,
+        req.body.actualYield,
+        req.user._id
+      );
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error tracking yield variance:', error);
+      res.status(500).json({ error: 'Failed to track yield variance' });
+    }
   }
-});
+);
+
+// Update all recipe costs
+router.post('/recipes/update-costs',
+  authenticate,
+  authorize(['inventory.manage']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const result = await recipeCostingService.updateAllRecipeCosts(req.tenantId);
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error updating recipe costs:', error);
+      res.status(500).json({ error: 'Failed to update recipe costs' });
+    }
+  }
+);
+
+// Calculate EOQ - MUST BE AFTER ALL OTHER SPECIFIC ROUTES
+router.post('/:id/calculate-eoq',
+  authenticate,
+  authorize(['inventory.manage']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const result = await inventoryService.calculateEOQ(
+        req.tenantId,
+        req.params.id,
+        req.body.period || 365
+      );
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error calculating EOQ:', error);
+      res.status(500).json({ error: 'Failed to calculate EOQ' });
+    }
+  }
+);
+
+// Update inventory item - MUST BE AFTER ALL SPECIFIC ROUTES
+router.put('/:id',
+  authenticate,
+  authorize(['inventory.manage']),
+  ensureTenant,
+  async (req, res) => {
+    try {
+      const item = await InventoryItem.findOne({
+        _id: req.params.id,
+        tenantId: req.tenantId
+      });
+      
+      if (!item) {
+        return res.status(404).json({ error: 'Inventory item not found' });
+      }
+      
+      // Don't allow changing critical fields
+      delete req.body.tenantId;
+      delete req.body.sku;
+      delete req.body.totalQuantity;
+      delete req.body.totalAvailable;
+      
+      Object.assign(item, req.body);
+      item.updatedBy = req.user._id;
+      
+      await item.save();
+      
+      res.json({
+        success: true,
+        data: item
+      });
+    } catch (error) {
+      console.error('Error updating inventory item:', error);
+      res.status(500).json({ error: 'Failed to update inventory item' });
+    }
+  }
+);
 
 module.exports = router;
