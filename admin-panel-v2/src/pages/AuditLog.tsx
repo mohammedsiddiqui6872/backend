@@ -54,11 +54,10 @@ import AuditLogList from '../components/auditLog/AuditLogList';
 import AuditLogDetails from '../components/auditLog/AuditLogDetails';
 import AuditLogStatsComponent from '../components/auditLog/AuditLogStats';
 import SecurityDashboard from '../components/auditLog/SecurityDashboard';
-import ComplianceReports from '../components/auditLog/ComplianceReports';
 import RealTimeMonitor from '../components/auditLog/RealTimeMonitor';
 import UserActivityView from '../components/auditLog/UserActivityView';
 
-type TabType = 'all' | 'security' | 'compliance' | 'realtime' | 'analytics' | 'users';
+type TabType = 'all' | 'security' | 'realtime' | 'analytics' | 'users';
 
 const AuditLogPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -211,7 +210,6 @@ const AuditLogPage: React.FC = () => {
   const tabs = [
     { id: 'all', label: 'All Events', icon: Activity, badge: pagination.total },
     { id: 'security', label: 'Security', icon: Shield, badge: stats?.stats.overview[0]?.suspiciousEvents },
-    { id: 'compliance', label: 'Compliance', icon: FileCheck, badge: null },
     { id: 'realtime', label: 'Real-Time', icon: Activity, badge: null },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
     { id: 'users', label: 'User Activity', icon: Users, badge: null }
@@ -326,12 +324,6 @@ const AuditLogPage: React.FC = () => {
         
         {activeTab === 'security' && (
           <SecurityDashboard
-            onLogSelect={handleLogSelect}
-          />
-        )}
-        
-        {activeTab === 'compliance' && (
-          <ComplianceReports
             onLogSelect={handleLogSelect}
           />
         )}
