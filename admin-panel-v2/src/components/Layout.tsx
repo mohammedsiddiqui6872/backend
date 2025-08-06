@@ -16,7 +16,8 @@ import {
   UserCheck,
   Shield,
   FileCheck,
-  Bell
+  Bell,
+  Activity
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
@@ -69,6 +70,7 @@ const Layout = () => {
     { path: '/compliance', icon: Shield, label: 'Compliance' },
     { path: '/audit-log', icon: FileCheck, label: 'Activity Log' },
     { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/diagnostics', icon: Activity, label: 'Diagnostics' },
   ];
 
   return (
