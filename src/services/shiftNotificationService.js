@@ -3,6 +3,8 @@ const Shift = require('../models/Shift');
 const User = require('../models/User');
 const emailService = require('./emailService');
 const smsService = require('./smsService');
+const tenantEmailService = require('./tenantEmailService');
+const tenantSmsService = require('./tenantSmsService');
 const pushNotificationService = require('./pushNotificationService');
 const { getCurrentTenant } = require('../middleware/enterpriseTenantIsolation');
 
@@ -126,6 +128,103 @@ class ShiftNotificationService {
         position: shift.position
       }
     });
+  }
+
+  // Create break reminder notifications
+  async createBreakReminders(shift) {
+    const notifications = [];
+    const shiftStartTime = new Date(shift.date);
+    const [startHours, startMinutes] = shift.scheduledTimes.start.split(':');
+    shiftStartTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
+    
+    // Calculate break times based on shift duration
+    const shiftDuration = shift.scheduledDuration; // in hours
+    
+    // Break policy based on shift duration
+    const breakPolicy = this.getBreakPolicy(shiftDuration);
+    
+    for (const breakInfo of breakPolicy) {
+      const breakTime = new Date(shiftStartTime);
+      breakTime.setMinutes(breakTime.getMinutes() + breakInfo.afterMinutes);
+      
+      // Create reminder 5 minutes before break time
+      const reminderTime = new Date(breakTime);
+      reminderTime.setMinutes(reminderTime.getMinutes() - 5);
+      
+      const notification = await ShiftNotification.create({
+        tenantId: shift.tenantId,
+        shift: shift._id,
+        employee: shift.employee,
+        type: 'break-reminder',
+        priority: 'medium',
+        channels: ['push', 'in-app'],
+        scheduledFor: reminderTime,
+        title: `${breakInfo.type} Break Coming Up`,
+        message: `Your ${breakInfo.duration}-minute ${breakInfo.type.toLowerCase()} break is scheduled in 5 minutes. Please prepare to take your break.`,
+        data: {
+          shiftDate: shift.date,
+          breakType: breakInfo.type,
+          breakDuration: breakInfo.duration,
+          suggestedBreakTime: breakTime.toISOString()
+        }
+      });
+      
+      notifications.push(notification);
+    }
+    
+    return notifications;
+  }
+  
+  // Get break policy based on shift duration
+  getBreakPolicy(shiftDuration) {
+    const breaks = [];
+    
+    if (shiftDuration >= 4 && shiftDuration < 6) {
+      // 4-6 hour shift: 1 short break (15 minutes) after 2 hours
+      breaks.push({
+        type: 'Short',
+        duration: 15,
+        afterMinutes: 120
+      });
+    } else if (shiftDuration >= 6 && shiftDuration < 8) {
+      // 6-8 hour shift: 1 meal break (30 minutes) after 3 hours
+      breaks.push({
+        type: 'Meal',
+        duration: 30,
+        afterMinutes: 180
+      });
+    } else if (shiftDuration >= 8 && shiftDuration < 10) {
+      // 8-10 hour shift: 1 short break after 2 hours, 1 meal break after 4 hours
+      breaks.push({
+        type: 'Short',
+        duration: 15,
+        afterMinutes: 120
+      });
+      breaks.push({
+        type: 'Meal',
+        duration: 30,
+        afterMinutes: 240
+      });
+    } else if (shiftDuration >= 10) {
+      // 10+ hour shift: 2 short breaks and 1 meal break
+      breaks.push({
+        type: 'Short',
+        duration: 15,
+        afterMinutes: 120
+      });
+      breaks.push({
+        type: 'Meal',
+        duration: 30,
+        afterMinutes: 240
+      });
+      breaks.push({
+        type: 'Short',
+        duration: 15,
+        afterMinutes: 420
+      });
+    }
+    
+    return breaks;
   }
 
   // Create shift assignment notification
@@ -265,24 +364,23 @@ class ShiftNotificationService {
               const emailResult = await this.sendEmailNotification(notification, employee);
               results.email = emailResult;
               notification.deliveryStatus.email = {
-                sent: true,
+                sent: emailResult.success,
                 sentAt: new Date(),
-                messageId: emailResult.messageId
+                messageId: emailResult.messageId,
+                error: emailResult.error
               };
             }
             break;
             
           case 'sms':
             if (employee.phone) {
-              const smsResult = await smsService.sendShiftNotification(
-                employee.phone,
-                notification.message
-              );
+              const smsResult = await this.sendSmsNotification(notification, employee);
               results.sms = smsResult;
               notification.deliveryStatus.sms = {
-                sent: true,
+                sent: smsResult.success,
                 sentAt: new Date(),
-                messageId: smsResult.messageId
+                messageId: smsResult.messageId,
+                error: smsResult.error
               };
             }
             break;
@@ -318,25 +416,84 @@ class ShiftNotificationService {
 
   // Send email notification
   async sendEmailNotification(notification, employee) {
-    const emailContent = {
-      to: employee.email,
-      subject: notification.title,
-      html: `
-        <h2>${notification.title}</h2>
-        <p>${notification.message}</p>
-        ${notification.data.shiftDate ? `
-          <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
-            <h3>Shift Details:</h3>
-            <p><strong>Date:</strong> ${new Date(notification.data.shiftDate).toLocaleDateString()}</p>
-            <p><strong>Time:</strong> ${notification.data.shiftStart} - ${notification.data.shiftEnd}</p>
-            ${notification.data.department ? `<p><strong>Department:</strong> ${notification.data.department}</p>` : ''}
-            ${notification.data.position ? `<p><strong>Position:</strong> ${notification.data.position}</p>` : ''}
-          </div>
-        ` : ''}
-      `
-    };
-    
-    return emailService.sendEmail(emailContent);
+    try {
+      // Try tenant-specific service first
+      const tenantId = notification.tenantId || employee.tenantId;
+      if (tenantId) {
+        const Settings = require('../models/Settings');
+        const settings = await Settings.findOne({ tenantId });
+        
+        if (settings?.email?.provider && settings.email.provider !== 'disabled') {
+          // Use tenant-specific email service
+          const html = `
+            <h2>${notification.title}</h2>
+            <p>${notification.message}</p>
+            ${notification.data.shiftDate ? `
+              <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+                <h3>Shift Details:</h3>
+                <p><strong>Date:</strong> ${new Date(notification.data.shiftDate).toLocaleDateString()}</p>
+                <p><strong>Time:</strong> ${notification.data.shiftStart} - ${notification.data.shiftEnd}</p>
+                ${notification.data.department ? `<p><strong>Department:</strong> ${notification.data.department}</p>` : ''}
+                ${notification.data.position ? `<p><strong>Position:</strong> ${notification.data.position}</p>` : ''}
+              </div>
+            ` : ''}
+          `;
+          
+          return await tenantEmailService.sendEmail(tenantId, {
+            to: employee.email,
+            subject: notification.title,
+            html
+          });
+        }
+      }
+      
+      // Fallback to default email service
+      const emailContent = {
+        to: employee.email,
+        subject: notification.title,
+        html: `
+          <h2>${notification.title}</h2>
+          <p>${notification.message}</p>
+          ${notification.data.shiftDate ? `
+            <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+              <h3>Shift Details:</h3>
+              <p><strong>Date:</strong> ${new Date(notification.data.shiftDate).toLocaleDateString()}</p>
+              <p><strong>Time:</strong> ${notification.data.shiftStart} - ${notification.data.shiftEnd}</p>
+              ${notification.data.department ? `<p><strong>Department:</strong> ${notification.data.department}</p>` : ''}
+              ${notification.data.position ? `<p><strong>Position:</strong> ${notification.data.position}</p>` : ''}
+            </div>
+          ` : ''}
+        `
+      };
+      
+      return emailService.sendEmail(emailContent);
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  // Send SMS notification
+  async sendSmsNotification(notification, employee) {
+    try {
+      // Try tenant-specific service first
+      const tenantId = notification.tenantId || employee.tenantId;
+      if (tenantId) {
+        const Settings = require('../models/Settings');
+        const settings = await Settings.findOne({ tenantId });
+        
+        if (settings?.sms?.provider && settings.sms.provider !== 'disabled') {
+          // Use tenant-specific SMS service
+          return await tenantSmsService.sendSMS(tenantId, employee.phone, notification.message);
+        }
+      }
+      
+      // Fallback to default SMS service
+      return await smsService.sendShiftNotification(employee.phone, notification.message);
+    } catch (error) {
+      console.error('Error sending SMS notification:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // Send in-app notification via Socket.io

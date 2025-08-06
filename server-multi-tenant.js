@@ -346,6 +346,9 @@ app.use('/api/admin/staff-assignments', require('./src/routes/admin/staffAssignm
 // Compliance routes
 app.use('/api/compliance', require('./src/routes/compliance'));
 
+// Settings routes
+app.use('/api/admin/settings', require('./src/routes/settings'));
+
 // Audit log routes
 app.use('/api/admin/audit-logs', require('./src/routes/admin/auditLogs'));
 app.use('/api/admin/restaurant-audit-logs', require('./src/routes/admin/restaurantAuditLogs'));

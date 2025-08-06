@@ -88,6 +88,93 @@ class EmailService {
     return await this.transporter.sendMail(mailOptions);
   }
 
+  // Send shift notification emails
+  async sendShiftNotification(email, subject, content) {
+    const mailOptions = {
+      from: `"${process.env.RESTAURANT_NAME || 'GRIT Services'}" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: subject,
+      html: content.html || content,
+      text: content.text || this.stripHtml(content.html || content)
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Shift notification sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending shift notification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Send shift reminder email
+  async sendShiftReminder(employee, shift, minutesBefore) {
+    const shiftTime = new Date(shift.date);
+    const [hours, minutes] = shift.scheduledTimes.start.split(':');
+    shiftTime.setHours(parseInt(hours), parseInt(minutes));
+
+    const html = `
+      <h2>Shift Reminder</h2>
+      <p>Hi ${employee.name},</p>
+      <p>This is a reminder that your shift starts in ${minutesBefore} minutes.</p>
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h3>Shift Details:</h3>
+        <p><strong>Date:</strong> ${new Date(shift.date).toLocaleDateString()}</p>
+        <p><strong>Time:</strong> ${shift.scheduledTimes.start} - ${shift.scheduledTimes.end}</p>
+        <p><strong>Type:</strong> ${shift.shiftType}</p>
+        ${shift.department ? `<p><strong>Department:</strong> ${shift.department}</p>` : ''}
+        ${shift.position ? `<p><strong>Position:</strong> ${shift.position}</p>` : ''}
+      </div>
+      <p>Please make sure to clock in on time.</p>
+    `;
+
+    return this.sendShiftNotification(
+      employee.email,
+      `Shift Reminder - Starting in ${minutesBefore} minutes`,
+      { html }
+    );
+  }
+
+  // Send break reminder email
+  async sendBreakReminder(employee, breakType, breakDuration) {
+    const html = `
+      <h2>Break Reminder</h2>
+      <p>Hi ${employee.name},</p>
+      <p>It's time for your ${breakDuration}-minute ${breakType} break.</p>
+      <p>Please take your break to ensure you stay refreshed and comply with labor regulations.</p>
+      <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Break Duration:</strong> ${breakDuration} minutes</p>
+        <p><strong>Type:</strong> ${breakType}</p>
+      </div>
+    `;
+
+    return this.sendShiftNotification(
+      employee.email,
+      `Break Reminder - ${breakType} Break`,
+      { html }
+    );
+  }
+
+  // Send general email
+  async sendEmail(options) {
+    const mailOptions = {
+      from: options.from || `"${process.env.RESTAURANT_NAME || 'GRIT Services'}" <${process.env.EMAIL_USER}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text || this.stripHtml(options.html)
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async sendDailyReport(reportData) {
     const template = await this.loadTemplate('dailyReport');
     const html = this.processTemplate(template, reportData);

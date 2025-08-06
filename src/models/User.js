@@ -152,6 +152,39 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   
+  // Multiple device tokens for push notifications
+  deviceTokens: [{
+    token: String,
+    platform: { type: String, enum: ['ios', 'android', 'web'] },
+    createdAt: { type: Date, default: Date.now },
+    lastUsed: Date
+  }],
+  
+  // Detailed notification preferences
+  notificationPreferences: {
+    push: { type: Boolean, default: true },
+    email: { type: Boolean, default: true },
+    sms: { type: Boolean, default: false },
+    inApp: { type: Boolean, default: true },
+    
+    // Shift-specific preferences
+    shiftReminders: { type: Boolean, default: true },
+    reminderTimes: { 
+      type: [Number], 
+      default: [60, 30, 15] // Minutes before shift
+    },
+    breakReminders: { type: Boolean, default: true },
+    overtimeWarnings: { type: Boolean, default: true },
+    swapRequests: { type: Boolean, default: true },
+    
+    // Quiet hours
+    quietHours: {
+      enabled: { type: Boolean, default: false },
+      start: String, // Format: "HH:MM"
+      end: String    // Format: "HH:MM"
+    }
+  },
+  
   // System user flag to prevent deletion
   isSystemUser: { type: Boolean, default: false },
   
