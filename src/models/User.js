@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid role for this tenant`
     }
   },
+  roleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Role'
+  },
   phone: String,
   avatar: String,
   isActive: { type: Boolean, default: true },
@@ -50,15 +54,55 @@ const userSchema = new mongoose.Schema({
   permissions: [{
     type: String,
     enum: [
-      'menu.view', 'menu.edit', 'menu.delete',
-      'orders.view', 'orders.edit', 'orders.delete', 'orders.cancel',
-      'analytics.view', 'analytics.export',
-      'users.view', 'users.manage', 'users.delete',
-      'tables.view', 'tables.manage',
-      'inventory.view', 'inventory.manage',
-      'payments.view', 'payments.process', 'payments.refund',
-      'settings.view', 'settings.manage',
-      'shifts.view', 'shifts.manage', 'shifts.approve'
+      // Dashboard permissions
+      'dashboard.view',
+      
+      // Menu permissions
+      'menu.view', 'menu.edit', 'menu.delete', 'menu.create', 'menu.update',
+      
+      // Order permissions
+      'orders.view', 'orders.edit', 'orders.delete', 'orders.cancel', 
+      'orders.create', 'orders.assign', 'orders.complete', 'orders.update',
+      
+      // Analytics permissions
+      'analytics.view', 'analytics.export', 'analytics.financial',
+      
+      // User management permissions
+      'users.view', 'users.manage', 'users.delete', 'users.create',
+      'users.roles', 'users.permissions',
+      
+      // Table permissions
+      'tables.view', 'tables.manage', 'tables.assign', 'tables.create', 
+      'tables.update', 'tables.delete',
+      
+      // Inventory permissions
+      'inventory.view', 'inventory.manage', 'inventory.order', 'inventory.update',
+      'inventory.reports', 'inventory.receive', 'inventory.count', 'inventory.approve',
+      
+      // Purchase order permissions
+      'purchase.view', 'purchase.create', 'purchase.edit', 'purchase.approve',
+      'purchase.send', 'purchase.receive', 'purchase.payment', 'purchase.cancel',
+      'purchase.return', 'purchase.dispute', 'purchase.export',
+      
+      // Payment permissions
+      'payments.view', 'payments.process', 'payments.refund', 'payments.reports',
+      
+      // Settings permissions
+      'settings.view', 'settings.manage', 'settings.billing', 'settings.update',
+      
+      // Staff permissions
+      'staff.view', 'staff.create', 'staff.update', 'staff.delete',
+      
+      // Shift permissions
+      'shifts.view', 'shifts.manage', 'shifts.approve', 'shifts.swap',
+      'shifts.clock', 'shifts.reports',
+      
+      // Customer permissions
+      'customers.view', 'customers.manage', 'customers.communicate', 
+      'customers.create', 'customers.update',
+      
+      // Report permissions
+      'reports.view', 'reports.export', 'reports.financial', 'reports.staff'
     ]
   }],
   

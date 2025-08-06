@@ -94,7 +94,12 @@ const tenants = [
 async function setupTenants() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://admin:%21Jafar18022017@cluster0.mzlqfml.mongodb.net/gritservices?retryWrites=true&w=majority&appName=Cluster0');
+    if (!process.env.MONGODB_URI) {
+      console.error('Error: MONGODB_URI environment variable is not set');
+      console.error('Please run: export MONGODB_URI="your-mongodb-connection-string"');
+      process.exit(1);
+    }
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
     // Clear existing data (optional - comment out if you want to keep existing data)

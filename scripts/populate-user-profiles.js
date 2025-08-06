@@ -1,9 +1,14 @@
 const { MongoClient } = require('mongodb');
+require('dotenv').config();
 
 async function populateUserProfiles() {
-  const uri = 'mongodb+srv://admin:%21Jafar18022017@cluster0.mzlqfml.mongodb.net/gritservices?retryWrites=true&w=majority&appName=Cluster0';
+  if (!process.env.MONGODB_URI) {
+    console.error('Error: MONGODB_URI environment variable is not set');
+    console.error('Please run: export MONGODB_URI="your-mongodb-connection-string"');
+    process.exit(1);
+  }
   
-  const client = new MongoClient(uri);
+  const client = new MongoClient(process.env.MONGODB_URI);
 
   try {
     await client.connect();

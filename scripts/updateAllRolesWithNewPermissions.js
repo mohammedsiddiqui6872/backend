@@ -3,11 +3,15 @@ const Role = require('../src/models/Role');
 const defaultRoles = require('../src/constants/defaultRoles');
 require('dotenv').config();
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://admin:!Jafar18022017@cluster0.mzlqfml.mongodb.net/gritservices?retryWrites=true&w=majority&appName=Cluster0";
+if (!process.env.MONGODB_URI) {
+  console.error('Error: MONGODB_URI environment variable is not set');
+  console.error('Please run: export MONGODB_URI="your-mongodb-connection-string"');
+  process.exit(1);
+}
 
 async function updateAllRoles() {
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
     // Get the admin permissions from defaultRoles

@@ -6,7 +6,8 @@
       "Bash(node:*)",
       "Bash(npm start)",
       "Bash(curl:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
